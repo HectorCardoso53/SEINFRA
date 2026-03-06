@@ -768,8 +768,11 @@ tbody tr:hover {
     margin-top: 2px;
 }
 
-.chart-container {
+.chart-container{
     position: relative;
+    display:flex;
+    justify-content:center;
+    align-items:center;
 }
 
 /* ─── MODAL ───────────────────────────────────────── */

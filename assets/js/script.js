@@ -422,16 +422,13 @@ function renderDashboard() {
 }
 
 const CHART_COLORS = [
-  "#2D5A3D",
-  "#1A3A5C",
-  "#8B6914",
-  "#8B2635",
-  "#5A2D82",
-  "#4A8A5D",
-  "#2A5A8C",
-  "#B08020",
-  "#B03045",
-  "#7A4DA2",
+  "#3498db", // azul
+  "#2ecc71", // verde
+  "#f1c40f", // amarelo
+  "#e74c3c", // vermelho
+  "#9b59b6", // roxo
+  "#1abc9c", // turquesa
+  "#e67e22", // laranja
 ];
 
 function renderServiceChart(counts) {
