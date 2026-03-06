@@ -79,23 +79,24 @@ function updateSidebarCounter() {
 
 // ─── NAVIGATION ─────────────────────────────────────────
 function navigate(page) {
+  document
+    .querySelectorAll(".page")
+    .forEach((p) => p.classList.remove("active"));
 
-  document.querySelectorAll(".page")
-    .forEach(p => p.classList.remove("active"));
-
-  document.querySelectorAll(".nav-item")
-    .forEach(n => n.classList.remove("active"));
+  document
+    .querySelectorAll(".nav-item")
+    .forEach((n) => n.classList.remove("active"));
 
   document.getElementById(`page-${page}`)?.classList.add("active");
 
-  document.querySelectorAll(`[data-nav="${page}"]`)
-    .forEach(n => n.classList.add("active"));
+  document
+    .querySelectorAll(`[data-nav="${page}"]`)
+    .forEach((n) => n.classList.add("active"));
 
   atualizarHeader(page); // ← ADICIONE ESTA LINHA
 
   if (page === "lista") renderTable();
   if (page === "dashboard") renderDashboard();
-
 }
 
 // ─── SIDEBAR MOBILE ─────────────────────────────────────
@@ -203,7 +204,9 @@ function cancelEdit() {
 function getFilteredVisits() {
   return visits.filter((v) => {
     const matchDate = !filterDate || v.date === filterDate;
-    const matchService = !filterService || v.service === filterService;
+    const matchService =
+      !filterService ||
+      v.service.toLowerCase().includes(filterService.toLowerCase());
     const matchSearch =
       !searchTerm ||
       v.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -324,6 +327,8 @@ function confirmDelete(id) {
 async function deleteVisit(id) {
   await deleteDoc(doc(db, "visitas", id));
 
+  closeConfirm(); // 👈 fecha o modal
+
   await loadVisits();
 
   renderTable();
@@ -352,11 +357,15 @@ function initFilters() {
     renderTable();
   });
 
-  document.getElementById("filter-service").addEventListener("change", (e) => {
-    filterService = e.target.value;
-    currentPage = 1;
-    renderTable();
-  });
+  const serviceFilter = document.getElementById("filter-service");
+
+  if (serviceFilter) {
+    serviceFilter.addEventListener("input", (e) => {
+      filterService = e.target.value.trim();
+      currentPage = 1;
+      renderTable();
+    });
+  }
 
   document.getElementById("filter-search").addEventListener("input", (e) => {
     searchTerm = e.target.value;
@@ -368,9 +377,15 @@ function initFilters() {
     filterDate = "";
     filterService = "";
     searchTerm = "";
-    document.getElementById("filter-date").value = "";
-    document.getElementById("filter-service").value = "";
-    document.getElementById("filter-search").value = "";
+
+    const dateInput = document.getElementById("filter-date");
+    const serviceInput = document.getElementById("filter-service");
+    const searchInput = document.getElementById("filter-search");
+
+    if (dateInput) dateInput.value = "";
+    if (serviceInput) serviceInput.value = "";
+    if (searchInput) searchInput.value = "";
+
     currentPage = 1;
     renderTable();
   });
@@ -623,41 +638,36 @@ function seedIfEmpty() {
   saveVisits();
 }
 
-function atualizarHeader(pageId){
-
+function atualizarHeader(pageId) {
   const title = document.getElementById("page-title");
   const subtitle = document.getElementById("page-subtitle");
 
   const map = {
-
-    dashboard:{
-      title:"Dashboard",
-      subtitle:"Resumo e análise das visitas registradas"
+    dashboard: {
+      title: "Dashboard",
+      subtitle: "Resumo e análise das visitas registradas",
     },
 
-    cadastro:{
-      title:"Cadastrar Visita",
-      subtitle:"Registro de novos atendimentos"
+    cadastro: {
+      title: "Cadastrar Visita",
+      subtitle: "Registro de novos atendimentos",
     },
 
-    lista:{
-      title:"Lista de Visitas",
-      subtitle:"Consulta de visitas registradas"
-    }
-
+    lista: {
+      title: "Lista de Visitas",
+      subtitle: "Consulta de visitas registradas",
+    },
   };
 
-  if(map[pageId]){
+  if (map[pageId]) {
     title.textContent = map[pageId].title;
     subtitle.textContent = map[pageId].subtitle;
   }
-
 }
 
 // ─── INIT ─────────────────────────────────────────────────
 // ─── INIT ─────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
-
   await loadVisits();
 
   initForm();
@@ -676,10 +686,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   const todayBadge = document.getElementById("today-badge");
   if (todayBadge) {
     const d = new Date();
-    todayBadge.textContent = d.toLocaleDateString(
-      "pt-BR",
-      { weekday: "long", day: "2-digit", month: "long" }
-    );
+    todayBadge.textContent = d.toLocaleDateString("pt-BR", {
+      weekday: "long",
+      day: "2-digit",
+      month: "long",
+    });
   }
 
   const hamburger = document.getElementById("hamburger");
@@ -701,9 +712,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   renderTable();
   renderDashboard();
-
 });
-
 
 window.editVisit = editVisit;
 window.confirmDelete = confirmDelete;

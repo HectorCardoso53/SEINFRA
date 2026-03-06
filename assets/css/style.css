@@ -17,10 +17,10 @@
        --laranja: #ff9800;
        --vermelho: #e74c3c;
 
-        --radius: 12px;
-    --radius-sm: 8px;
+       --radius: 12px;
+       --radius-sm: 8px;
 
-     
+
 
        --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.05);
        --shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
@@ -75,20 +75,20 @@
        display: flex;
        flex-direction: column;
        z-index: 1000;
-       
+
    }
 
    .table-container {
        width: 100%;
        overflow-x: auto;
-       
+
    }
 
    .table-container table {
        width: 100%;
        min-width: 900px;
        border-collapse: collapse;
-       
+
    }
 
    /* Header da Sidebar */
@@ -101,7 +101,7 @@
        flex-direction: column;
        align-items: center;
        text-align: center;
-       
+
    }
 
    /* Logo da Sidebar */
@@ -110,7 +110,7 @@
        height: 80px;
        object-fit: contain;
        margin-bottom: 10px;
-       
+
    }
 
    /* Título */
@@ -118,7 +118,7 @@
        font-size: 18px;
        margin-bottom: 4px;
        font-weight: 600;
-       
+
    }
 
    /* Subtítulo */
@@ -136,7 +136,7 @@
        display: flex;
        align-items: center;
        gap: 10px;
-       
+
    }
 
    .menu-item:hover {
@@ -146,7 +146,7 @@
    .menu-item.active {
        background: #3498db;
        border-left: 4px solid #2980b9;
-       
+
    }
 
    .menu-item svg {
@@ -160,7 +160,7 @@
        padding: 30px;
        position: relative;
        z-index: 1;
-       
+
    }
 
    .header {
@@ -169,13 +169,13 @@
        border-radius: 10px;
        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
        margin-bottom: 30px;
-       border:1px solid #e0e4ea;
+       border: 1px solid #e0e4ea;
    }
 
    .header h1 {
        font-size: 28px;
        color: var(--azul-escuro);
-       
+
    }
 
    .header p {
@@ -189,7 +189,7 @@
        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
        gap: 20px;
        margin-bottom: 30px;
-       
+
    }
 
    .card {
@@ -198,7 +198,7 @@
        border-radius: 10px;
        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
        transition: transform 0.3s;
-       border:1px solid #e0e4ea;
+       border: 1px solid #e0e4ea;
    }
 
    .card:hover {
@@ -210,7 +210,7 @@
        justify-content: space-between;
        align-items: center;
        margin-bottom: 15px;
-       
+
    }
 
    .card-title {
@@ -218,7 +218,7 @@
        color: #7f8c8d;
        text-transform: uppercase;
        font-weight: 600;
-       
+
    }
 
    .card-icon {
@@ -261,7 +261,7 @@
        border-radius: 10px;
        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
        overflow-x: auto;
-       border:1px solid #e0e4ea;
+       border: 1px solid #e0e4ea;
    }
 
    .table-header {
@@ -310,7 +310,7 @@
        background: #f8f9fa;
    }
 
-   
+
 
    .status-badge {
        padding: 5px 12px;
@@ -332,6 +332,17 @@
    .status-encerrada {
        background: #e8f5e9;
        color: #4caf50;
+   }
+
+   .filter-group {
+       display: flex;
+       align-items: center;
+       gap: 10px;
+       flex-wrap: wrap;
+   }
+
+   .filter-group input {
+       height: 38px;
    }
 
    /* Form Styles */
@@ -615,7 +626,7 @@
        font-size: 14px;
    }
 
-   
+
 
 
    /* Responsive */
