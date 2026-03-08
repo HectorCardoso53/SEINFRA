@@ -336,14 +336,15 @@ body {
     box-shadow: var(--shadow-sm);
 }
 
+
+
 .card-title {
     font-family: var(--font-display);
     font-size: 18px;
-    font-weight: 400;
+    font-weight: 700;
     margin-bottom: 20px;
     color: var(--text);
 }
-
 /* ─── FORM ───────────────────────────────────────── */
 .form-grid {
     display: grid;
