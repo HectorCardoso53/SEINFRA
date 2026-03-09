@@ -1209,7 +1209,7 @@ window.imprimirDetalhesOS = function () {
           <td>${m.quantidade || "-"}</td>
           <td>${m.unidade}</td>
         </tr>
-      `
+      `,
           )
           .join("")
       : `
@@ -1788,7 +1788,6 @@ window.imprimirRelatorio = function () {
   }
 
   ordensFiltradas.forEach(o => {
-
     linhas += `
       <tr>
         <td>${o.numero}</td>
@@ -1804,75 +1803,140 @@ window.imprimirRelatorio = function () {
   const w = window.open("", "_blank");
 
   w.document.write(`
-  <html>
-  <head>
-  <title>Relatório</title>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
 
-  <style>
+<meta charset="UTF-8">
+<title>Relatório</title>
 
-  body{
-    font-family: Arial;
-  }
+<style>
 
-  table{
-    width:100%;
-    border-collapse:collapse;
-  }
+@page{
+  size:A4 portrait;
+  margin:20mm;
+}
 
-  th,td{
-    border:1px solid #000;
-    padding:6px;
-    font-size:12px;
-    vertical-align:top;
-  }
+body{
+  font-family:Arial, sans-serif;
+  color:#000;
+}
 
-  th{
-    background:#f2f2f2;
-  }
+/* HEADER - MESMO DO imprimirDetalhesOS */
 
-  td:nth-child(6){
-    max-width:300px;
-    word-break:break-word;
-  }
+.header{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:15px;
+  margin-bottom:25px;
+  text-align:center;
+}
 
-  </style>
+.header img{
+  width:50px;
+}
 
-  </head>
+.header-text{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+}
 
-  <body>
+.header-text h1{
+  font-size:18px;
+  margin:0;
+}
 
-  <h2>RELATÓRIO DE ORDENS DE SERVIÇO</h2>
+.header-text p{
+  font-size:13px;
+  margin:2px 0;
+}
+.titulo{
+  text-align:center;
+  font-size:16px;
+  font-weight:bold;
+  margin:20px 0;
+}
 
-  <table>
+table{
+  width:100%;
+  border-collapse:collapse;
+}
 
-  <thead>
-  <tr>
-  <th>Nº OS</th>
-  <th>Data</th>
-  <th>Status</th>
-  <th>Solicitante</th>
-  <th>Setor</th>
-  <th>Descrição</th>
-  </tr>
-  </thead>
+th,td{
+  border:1px solid #000;
+  padding:6px;
+  font-size:12px;
+  vertical-align:top;
+}
 
-  <tbody>
-  ${linhas}
-  </tbody>
+th{
+  background:#f2f2f2;
+}
 
-  </table>
+td:nth-child(6){
+  max-width:300px;
+  word-break:break-word;
+}
 
-  <p style="margin-top:20px;font-size:12px;">
-  Documento gerado em: ${dataEmissao}
-  </p>
+.footer{
+  margin-top:30px;
+  font-size:12px;
+}
 
-  <script>
-  window.onload = () => window.print()
-  </script>
+</style>
 
-  </body>
-  </html>
-  `);
+</head>
+
+<body>
+
+<div class="header">
+
+<img src="assets/img/prefeitura.png">
+
+<div class="header-text">
+<h1>Prefeitura Municipal de Oriximiná</h1>
+<p>Secretaria de Infraestrutura – SEINFRA</p>
+</div>
+
+</div>
+
+<div class="titulo">
+RELATÓRIO DE ORDENS DE SERVIÇO
+</div>
+
+<table>
+
+<thead>
+<tr>
+<th>Nº OS</th>
+<th>Data</th>
+<th>Status</th>
+<th>Solicitante</th>
+<th>Setor</th>
+<th>Descrição</th>
+</tr>
+</thead>
+
+<tbody>
+${linhas}
+</tbody>
+
+</table>
+
+<div class="footer">
+Documento gerado em: ${dataEmissao}
+</div>
+
+<script>
+window.onload = () => window.print()
+</script>
+
+</body>
+</html>
+`);
 
   w.document.close();
 };
+
