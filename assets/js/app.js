@@ -1209,7 +1209,7 @@ window.imprimirDetalhesOS = function () {
           <td>${m.quantidade || "-"}</td>
           <td>${m.unidade}</td>
         </tr>
-      `,
+      `
           )
           .join("")
       : `
@@ -1223,77 +1223,92 @@ window.imprimirDetalhesOS = function () {
   const w = window.open("", "_blank");
 
   w.document.write(`
-    <!DOCTYPE html>
-    <html lang="pt-BR">
-    <head>
-      <meta charset="UTF-8">
-      <title>Ordem de Serviço - ${osAtual.numero}</title>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
 
-      <style>
-        @page {
-          size: A4 portrait;
-          margin: 20mm;
-        }
+<meta charset="UTF-8">
+<title>Ordem de Serviço - ${osAtual.numero}</title>
 
-        body {
-          font-family: Arial, sans-serif;
-          color: #000;
-        }
+<style>
 
-        .header {
-          text-align: center;
-          margin-bottom: 25px;
-        }
-
-        .header img {
-          width: 90px;
-          margin-bottom: 10px;
-        }
-
-        .header h1 {
-          font-size: 18px;
-          margin: 0;
-        }
-
-        .header p {
-          font-size: 13px;
-          margin: 2px 0;
-        }
-
-        .titulo {
-          text-align: center;
-          font-size: 16px;
-          font-weight: bold;
-          margin: 20px 0;
-        }
-
-        .secao {
-          margin-bottom: 20px;
-        }
-
-        .secao h3 {
-          font-size: 14px;
-          border-bottom: 1px solid #000;
-          padding-bottom: 4px;
-          margin-bottom: 10px;
-        }
-
-        table {
-          width: 100%;
-          border-collapse: collapse;
-        }
-
-        th, td {
-  border: 1px solid #000;
-  padding: 8px;
-  font-size: 13px;
+@page{
+  size:A4 portrait;
+  margin:20mm;
 }
 
-th {
-  background-color: #f2f2f2;
+body{
+  font-family:Arial, sans-serif;
+  color:#000;
 }
 
-/* alinhar colunas da tabela */
+/* HEADER */
+
+.header{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:15px;
+  margin-bottom:25px;
+}
+
+.header img{
+  width:50px;
+}
+
+.header-text{
+  text-align:left;
+}
+
+.header-text h1{
+  font-size:18px;
+  margin:0;
+}
+
+.header-text p{
+  font-size:13px;
+  margin:2px 0;
+}
+
+/* TITULO */
+
+.titulo{
+  text-align:center;
+  font-size:16px;
+  font-weight:bold;
+  margin:20px 0;
+}
+
+/* SEÇÕES */
+
+.secao{
+  margin-bottom:20px;
+}
+
+.secao h3{
+  font-size:14px;
+  border-bottom:1px solid #000;
+  padding-bottom:4px;
+  margin-bottom:10px;
+}
+
+/* TABELA */
+
+table{
+  width:100%;
+  border-collapse:collapse;
+}
+
+th,td{
+  border:1px solid #000;
+  padding:8px;
+  font-size:13px;
+}
+
+th{
+  background:#f2f2f2;
+}
+
 td:nth-child(1),
 th:nth-child(1){
   text-align:center;
@@ -1307,96 +1322,120 @@ th:nth-child(4){
   text-align:center;
 }
 
-        .footer {
-          margin-top: 40px;
-          font-size: 12px;
-          text-align: right;
-        }
+/* FOOTER */
 
-      </style>
-    </head>
+.footer{
+  margin-top:40px;
+  font-size:12px;
+  text-align:right;
+}
 
-    <body>
+</style>
 
-      <div class="header">
-        <img src="assets/img/prefeitura.png">
-        <h1>Prefeitura Municipal de Oriximiná</h1>
-        <p>Secretaria de Infraestrutura – SEINFRA</p>
-      </div>
+</head>
 
-      <div class="titulo">
-        ORDEM DE SERVIÇO
-      </div>
+<body>
 
-      <div class="secao">
-        <h3>Informações Gerais</h3>
-        <div><strong>Número:</strong> ${osAtual.numero}</div>
-        <div><strong>Status:</strong> ${osAtual.status}</div>
-        <div><strong>Data de Abertura:</strong> ${formatarDataCompleta(osAtual.dataAbertura)}</div>
-        <div><strong>Data de Encerramento:</strong> ${
-          osAtual.dataEncerramento
-            ? formatarDataCompleta(osAtual.dataEncerramento)
-            : "-"
-        }</div>
-      </div>
+<div class="header">
 
-      <div class="secao">
-        <h3>Solicitante</h3>
-        <div><strong>Nome:</strong> ${osAtual.nomeSolicitante}</div>
-        <div><strong>Setor:</strong> ${osAtual.setorSolicitante}</div>
-        <div><strong>Setor Responsável:</strong> ${osAtual.setorResponsavel}</div>
-      </div>
+  <img src="assets/img/prefeitura.png">
 
-      <div class="secao">
-        <h3>Execução</h3>
-        <div><strong>Responsável Execução:</strong> ${osAtual.responsavelExecucao}</div>
-        <div><strong>Responsável Abertura:</strong> ${osAtual.responsavelAbertura}</div>
-        <div><strong>Local do Serviço:</strong> ${osAtual.localServico}</div>
-      </div>
+  <div class="header-text">
+    <h1>Prefeitura Municipal de Oriximiná</h1>
+    <p>Secretaria de Infraestrutura – SEINFRA</p>
+  </div>
 
-      <div class="secao">
-        <h3>Descrição do Serviço</h3>
-        <div>${osAtual.descricaoServico}</div>
-      </div>
+</div>
 
-      <div class="secao">
-        <h3>Materiais Utilizados</h3>
+<div class="titulo">
+ORDEM DE SERVIÇO
+</div>
 
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Material</th>
-              <th>Quantidade</th>
-              <th>Unidade</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${materiaisHTML}
-          </tbody>
-        </table>
-      </div>
+<div class="secao">
+<h3>Informações Gerais</h3>
 
-      <div class="secao">
-        <h3>Encerramento</h3>
-        <div><strong>Observação Final:</strong> ${osAtual.observacaoFinal || "-"}</div>
-        <div><strong>Assinatura Chefia:</strong> ${osAtual.assinaturaChefia || "-"}</div>
-        <div><strong>Assinatura Recebedor:</strong> ${osAtual.assinaturaRecebedor || "-"}</div>
-      </div>
+<div><strong>Número:</strong> ${osAtual.numero}</div>
+<div><strong>Status:</strong> ${osAtual.status}</div>
+<div><strong>Data de Abertura:</strong> ${formatarDataCompleta(osAtual.dataAbertura)}</div>
+<div><strong>Data de Encerramento:</strong> ${
+    osAtual.dataEncerramento
+      ? formatarDataCompleta(osAtual.dataEncerramento)
+      : "-"
+  }</div>
 
-      <div class="footer">
-        Documento gerado em: ${dataEmissao}
-      </div>
+</div>
 
-      <script>
-        window.onload = function() {
-          window.print();
-        }
-      </script>
+<div class="secao">
+<h3>Solicitante</h3>
 
-    </body>
-    </html>
-  `);
+<div><strong>Nome:</strong> ${osAtual.nomeSolicitante}</div>
+<div><strong>Setor:</strong> ${osAtual.setorSolicitante}</div>
+<div><strong>Setor Responsável:</strong> ${osAtual.setorResponsavel}</div>
+
+</div>
+
+<div class="secao">
+<h3>Execução</h3>
+
+<div><strong>Responsável Execução:</strong> ${osAtual.responsavelExecucao}</div>
+<div><strong>Responsável Abertura:</strong> ${osAtual.responsavelAbertura}</div>
+<div><strong>Local do Serviço:</strong> ${osAtual.localServico}</div>
+
+</div>
+
+<div class="secao">
+<h3>Descrição do Serviço</h3>
+
+<div>${osAtual.descricaoServico}</div>
+
+</div>
+
+<div class="secao">
+
+<h3>Materiais Utilizados</h3>
+
+<table>
+
+<thead>
+<tr>
+<th>#</th>
+<th>Material</th>
+<th>Quantidade</th>
+<th>Unidade</th>
+</tr>
+</thead>
+
+<tbody>
+${materiaisHTML}
+</tbody>
+
+</table>
+
+</div>
+
+<div class="secao">
+
+<h3>Encerramento</h3>
+
+<div><strong>Observação Final:</strong> ${osAtual.observacaoFinal || "-"}</div>
+<div><strong>Assinatura Chefia:</strong> ${osAtual.assinaturaChefia || "-"}</div>
+<div><strong>Assinatura Recebedor:</strong> ${osAtual.assinaturaRecebedor || "-"}</div>
+
+</div>
+
+<div class="footer">
+Documento gerado em: ${dataEmissao}
+</div>
+
+<script>
+window.onload = function(){
+  window.print();
+}
+</script>
+
+</body>
+</html>
+`);
 
   w.document.close();
 };
