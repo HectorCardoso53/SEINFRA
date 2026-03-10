@@ -100,12 +100,17 @@ function navigate(page) {
 }
 
 // ─── SIDEBAR MOBILE ─────────────────────────────────────
-function toggleSidebar() {
-  document.getElementById("sidebar").classList.toggle("open");
-  document.getElementById("sidebar-overlay").classList.toggle("show");
-}
+window.toggleSidebar = function () {
 
-function closeSidebar() {
+  const sidebar = document.getElementById("sidebar");
+  const main = document.querySelector(".main");
+
+  sidebar.classList.toggle("collapsed");
+  main.classList.toggle("expanded");
+
+};
+
+window.closeSidebar = function () {
   document.getElementById("sidebar").classList.remove("open");
   document.getElementById("sidebar-overlay").classList.remove("show");
 }
@@ -489,15 +494,7 @@ function renderServiceChart(counts) {
   });
 }
 
-function toggleMenu(){
 
-    const sidebar = document.querySelector(".sidebar");
-    const main = document.querySelector(".main");
-
-    sidebar.classList.toggle("oculto");
-    main.classList.toggle("expandido");
-
-}
 
 function renderMonthChart() {
   const ctx = document.getElementById("chart-month").getContext("2d");
