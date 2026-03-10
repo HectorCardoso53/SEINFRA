@@ -13,16 +13,16 @@
 
     <!-- Topbar Mobile -->
     <div class="topbar">
-        <button class="menu-toggle" onclick="toggleMenu()">
-            <i class="bi bi-list"></i>
-        </button>
         <span class="topbar-title">Sistema OS</span>
     </div>
 
     <div class="container">
-        <!-- Sidebar -->
-        <div class="sidebar">
+
+        <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
+                <button class="menu-toggle" onclick="toggleMenu()">
+                    <i class="bi bi-list"></i>
+                </button>
                 <a href="servicos.html">
                     <img src="assets/img/prefeitura.png" alt="Prefeitura" class="sidebar-logo">
                 </a>
@@ -742,13 +742,6 @@
             <!-- Conteúdo dinâmico -->
             <div id="detalhes-content"></div>
 
-            <!-- NOVO: Observação -->
-            <div class="form-group" style="margin-top: 20px;">
-                <label>Observação</label>
-                <textarea id="observacao-os" placeholder="Digite uma observação adicional..."
-                    style="width:100%; min-height:80px;"></textarea>
-            </div>
-
             <div class="button-group">
 
                 <button type="button" class="btn btn-primary" id="btn-alterar-status" onclick="alterarStatus()">
@@ -781,34 +774,38 @@
             <div class="modal-header">
                 <h2>Encerrar Ordem de Serviço</h2>
             </div>
+
             <form id="form-encerramento">
+
                 <div class="form-group">
                     <label>Data e Hora de Encerramento</label>
                     <input type="datetime-local" id="data-encerramento" required>
                 </div>
+
                 <div class="form-group">
-                    <label>Observação Final</label>
-                    <textarea id="observacao-final" required></textarea>
+                    <label>Responsável</label>
+                    <input type="text" id="assinatura-chefia" required placeholder="Digite o nome do responsável">
                 </div>
+
                 <div class="form-group">
-                    <label>Assinatura da Chefia</label>
-                    <input type="text" id="assinatura-chefia" required placeholder="Digite o nome">
+                    <label>Nome do Cidadão</label>
+                    <input type="text" id="assinatura-recebedor" required placeholder="Digite o nome do cidadão">
                 </div>
-                <div class="form-group">
-                    <label>Assinatura de Quem Recebeu</label>
-                    <input type="text" id="assinatura-recebedor" required placeholder="Digite o nome">
-                </div>
+
                 <div class="button-group">
                     <button type="submit" class="btn btn-success">
                         Confirmar Encerramento
                     </button>
+
                     <button type="button" class="btn btn-secondary" onclick="fecharModalEncerramento()">
                         Cancelar
                     </button>
                 </div>
+
             </form>
         </div>
     </div>
+
 
     <!-- Modal Alerta -->
     <div id="modal-alerta" class="modal hidden">

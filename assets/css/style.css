@@ -96,6 +96,7 @@
        padding: 20px;
        border-bottom: 1px solid #34495e;
        margin-bottom: 20px;
+       position:relative;
 
        display: flex;
        flex-direction: column;
@@ -128,16 +129,50 @@
        line-height: 1.4;
    }
 
+   /* MENU RECOLHIDO */
 
-   .menu-item {
-       padding: 15px 20px;
-       cursor: pointer;
-       transition: background 0.3s;
-       display: flex;
-       align-items: center;
-       gap: 10px;
+.sidebar.oculto{
+    width:70px;
+}
 
-   }
+.sidebar.oculto .sidebar-header{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding:15px 0;
+}
+/* esconder logo e texto do header */
+.sidebar.oculto .sidebar-header img,
+.sidebar.oculto .sidebar-header h2,
+.sidebar.oculto .sidebar-header p{
+    display:none;
+}
+
+/* esconder texto do menu */
+.sidebar.oculto .menu-item{
+    justify-content:center;
+    font-size:0;
+}
+
+/* manter apenas ícones */
+.sidebar.oculto .menu-item svg{
+    margin:0;
+}
+
+/* conteúdo ocupa mais espaço */
+.main-content.expandido{
+    margin-left:70px;
+}
+
+
+ .menu-item{
+    height:55px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:0 20px;
+    cursor:pointer;
+}
 
    .menu-item:hover {
        background: #34495e;
@@ -149,10 +184,11 @@
 
    }
 
-   .menu-item svg {
-       width: 20px;
-       height: 20px;
-   }
+   .menu-item svg{
+    width:20px;
+    height:20px;
+    flex-shrink:0;
+}
 
    .main-content {
        flex: 1;
@@ -819,6 +855,30 @@
        display: none;
    }
 
+   
+.menu-toggle{
+    display:flex;
+    align-items:center;
+    justify-content:flex-start;
+
+    width:100%;
+    height:55px;
+
+    padding:0 20px;
+
+    background:none;
+    border:none;
+    color:white;
+
+    font-size:22px;
+    cursor:pointer;
+}
+
+.sidebar.oculto .menu-toggle{
+    justify-content:center;
+    padding:0;
+}
+
    /* =========================
    MOBILE – MENU HAMBÚRGUER
 ========================= */
@@ -980,9 +1040,7 @@
    .detail-row button {
        align-self: flex-start;
    }
-
-
-
+   
    .user-card {
        background: #fff;
        border-radius: 10px;
@@ -1268,3 +1326,40 @@
        }
 
    }
+
+
+   .container{
+    display:flex;
+    min-height:100vh;
+    position:relative;
+}
+
+/* CONTEÚDO */
+.main-content{
+    margin-left:250px;
+    transition:margin-left 0.3s ease;
+}
+
+
+/* SIDEBAR RECOLHIDA */
+
+.sidebar.oculto{
+    width:70px;
+}
+
+.sidebar.oculto h2,
+.sidebar.oculto p{
+    display:none;
+}
+
+.sidebar.oculto .menu-item{
+    justify-content:center;
+    padding:0;
+    font-size:0;
+}
+
+/* CONTEÚDO EXPANDE */
+
+.main-content.expandido{
+    margin-left:70px;
+}
