@@ -489,6 +489,16 @@ function renderServiceChart(counts) {
   });
 }
 
+function toggleMenu(){
+
+    const sidebar = document.querySelector(".sidebar");
+    const main = document.querySelector(".main");
+
+    sidebar.classList.toggle("oculto");
+    main.classList.toggle("expandido");
+
+}
+
 function renderMonthChart() {
   const ctx = document.getElementById("chart-month").getContext("2d");
   const monthMap = {};

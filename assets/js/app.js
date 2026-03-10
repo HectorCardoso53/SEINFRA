@@ -835,26 +835,28 @@ document
     e.preventDefault();
     if (!osAtual) return;
 
-    const observacao = document.getElementById("observacao-final").value.trim();
     const assinaturaChefia = document
       .getElementById("assinatura-chefia")
       .value.trim();
+
     const assinaturaRecebedor = document
       .getElementById("assinatura-recebedor")
       .value.trim();
-    const dataEncerramento = document.getElementById("data-encerramento").value;
 
-    if (!observacao || !assinaturaChefia || !assinaturaRecebedor) {
-      alert("Todos os campos são obrigatórios para encerrar a OS.");
+    const dataEncerramento =
+      document.getElementById("data-encerramento").value;
+
+    if (!assinaturaChefia || !assinaturaRecebedor) {
+      mostrarAlerta("Informe o responsável e o cidadão.", "Atenção");
       return;
     }
 
     await atualizarOrdemFirestore(osAtual.id, {
       status: "Encerrada",
       dataEncerramento: dataEncerramento,
-      observacaoFinal: observacao,
       assinaturaChefia: assinaturaChefia,
       assinaturaRecebedor: assinaturaRecebedor,
+      observacaoFinal: null
     });
 
     ordens = await buscarOrdensFirestore();
@@ -866,7 +868,7 @@ document
     aplicarFiltros();
 
     mostrarAlerta("Ordem de Serviço encerrada com sucesso!", "Sucesso");
-  });
+});
 
 function formatarData(dataISO) {
   const data = new Date(dataISO);
@@ -915,13 +917,15 @@ function renderTabelaMateriaisMes(lista) {
 }
 
 window.toggleMenu = function () {
+
   const sidebar = document.querySelector(".sidebar");
-  const overlay = document.querySelector(".overlay");
+  const main = document.querySelector(".main-content");
 
-  if (!sidebar || !overlay) return;
+  if (!sidebar || !main) return;
 
-  sidebar.classList.toggle("open");
-  overlay.classList.toggle("show");
+  sidebar.classList.toggle("oculto");
+  main.classList.toggle("expandido");
+
 };
 
 document
@@ -1031,6 +1035,16 @@ function atualizarGraficos() {
     },
   });
 }
+
+window.toggleSidebar = function () {
+
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.querySelector(".overlay");
+
+  if (sidebar) sidebar.classList.toggle("open");
+  if (overlay) overlay.classList.toggle("show");
+
+};
 
 window.gerarPDFMateriais = function () {
   if (!osAtual || !osAtual.materiais || osAtual.materiais.length === 0) {
@@ -1415,11 +1429,25 @@ ${materiaisHTML}
 
 <div class="secao">
 
+<div class="secao">
+
 <h3>Encerramento</h3>
 
-<div><strong>Observação Final:</strong> ${osAtual.observacaoFinal || "-"}</div>
-<div><strong>Assinatura Chefia:</strong> ${osAtual.assinaturaChefia || "-"}</div>
-<div><strong>Assinatura Recebedor:</strong> ${osAtual.assinaturaRecebedor || "-"}</div>
+<div style="margin-top:40px; text-align:center;">
+
+    <div style="margin-bottom:40px;">
+        _______________________________<br>
+        ${osAtual.assinaturaChefia || ""}<br>
+        Responsável
+    </div>
+
+    <div>
+        _______________________________<br>
+        ${osAtual.assinaturaRecebedor || ""}<br>
+        Assinatura do Cidadão
+    </div>
+
+</div>
 
 </div>
 
