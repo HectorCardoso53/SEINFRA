@@ -53,9 +53,9 @@ body {
     min-height: 100vh;
     font-size: 15px;
     line-height: 1.6;
-     display:flex;
-    flex-direction:column;
-    min-height:100vh;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
 }
 
 .logo-prefeitura {
@@ -64,66 +64,191 @@ body {
     margin-bottom: 10px;
 }
 
+/* SIDEBAR */
+
 .sidebar {
     width: 260px;
     min-height: 100vh;
 
-    background: linear-gradient(135deg,
-            #2c3e50,
-            #3498db);
+    background: linear-gradient(135deg, #2c3e50, #3498db);
 
     display: flex;
     flex-direction: column;
 
     position: fixed;
-    left: 0;
     top: 0;
-    bottom: 0;
+    left: 0;
 
     z-index: 1000;
+
+    transition: width .3s ease;
 }
 
+.sidebar.collapsed .menu-toggle {
+    justify-content: center;
+}
+
+/* LOGO */
+
 .sidebar-logo {
-    padding: 32px 28px 24px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+
+    padding: 50px 20px 30px;
+
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    position:relative;
+
 }
 
 .sidebar-logo .logo-icon {
+
     width: 40px;
     height: 40px;
+
     background: var(--accent);
     border-radius: var(--radius-sm);
+
     display: flex;
     align-items: center;
     justify-content: center;
+
     margin-bottom: 14px;
+
 }
 
 .sidebar-logo .logo-icon svg {
+
     width: 22px;
     height: 22px;
     color: white;
+
 }
 
 .sidebar-logo h1 {
+
     font-family: var(--font-display);
     font-size: 20px;
     color: white;
-    line-height: 1.2;
-    font-weight: 400;
+
 }
 
 .sidebar-logo p {
+
     font-size: 12px;
     color: rgba(255, 255, 255, 0.4);
+
     margin-top: 3px;
-    letter-spacing: 0.03em;
 }
 
+/* NAVEGAÇÃO */
+
 .sidebar-nav {
+
     flex: 1;
     padding: 20px 0;
+
+}
+
+/* FOOTER */
+
+.sidebar-footer {
+
+    padding: 20px 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+
+}
+
+.sidebar.collapsed .nav-item {
+    justify-content: center;
+    gap: 0;
+}
+
+.sidebar.collapsed .sidebar-logo {
+    display: none;
+}
+
+.sidebar.collapsed .visit-counter .label {
+    display: none;
+}
+
+.sidebar.collapsed .logo-prefeitura {
+    width: 40px;
+}
+
+.sidebar.collapsed .visit-counter {
+    padding: 10px 0;
+    background: transparent;
+}
+
+.sidebar.collapsed .visit-counter .count {
+    font-size: 20px;
+}
+
+
+.sidebar.collapsed .sidebar-footer {
+    display: flex;
+    justify-content: center;
+}
+
+/* SIDEBAR MOBILE */
+
+@media (max-width:900px) {
+
+    .sidebar {
+        transform: translateX(-260px);
+    }
+
+    .sidebar.open {
+        transform: translateX(0);
+    }
+
+}
+
+/* OVERLAY */
+
+.sidebar-overlay {
+
+    position: fixed;
+    inset: 0;
+
+    background: rgba(0, 0, 0, .4);
+
+    opacity: 0;
+    pointer-events: none;
+
+    transition: .3s;
+
+}
+
+.sidebar-overlay.show {
+
+    opacity: 1;
+    pointer-events: auto;
+
+}
+
+
+.sidebar.collapsed {
+    width: 70px;
+}
+
+.sidebar.collapsed h1,
+.sidebar.collapsed p,
+.sidebar.collapsed .nav-item span {
+    display: none;
+}
+
+.sidebar:not(.collapsed) .nav-item {
+    justify-content: flex-start;
+    padding-left: 20px;
+}
+
+
+.main.expanded {
+    margin-left: 70px;
 }
 
 .nav-label {
@@ -135,15 +260,6 @@ body {
     font-weight: 500;
 }
 
-.sidebar-logo {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-
-    padding: 50px 20px 30px 20px;
-}
-
 .logo-prefeitura {
     width: 75px;
     height: auto;
@@ -152,39 +268,40 @@ body {
     margin: 0 auto 12px auto;
 }
 
-.nav-item{
+.nav-item {
 
-    font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 
-    font-size:17px;
+    font-size: 17px;
 
 
 }
 
-.content{
-    padding:32px;
-    flex:1;
-    background:white;
+.content {
+    padding: 32px;
+    flex: 1;
+    background: white;
 }
 
 .nav-item {
 
-    width:100%;
+    width: 100%;
 
-    padding:15px 20px;
+    padding: 15px 20px;
 
-    display:flex;
-    align-items:center;
-    gap:10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 
-    color:white;
+    color: white;
 
-    background:transparent;
-    border:none;
+    background: transparent;
+    border: none;
 
-    cursor:pointer;
-
+    cursor: pointer;
 }
+
+
 
 .nav-item:hover {
     background: rgba(255, 255, 255, 0.08);
@@ -193,20 +310,16 @@ body {
 
 .nav-item.active {
 
-    background:#3498db;
+    background: #3498db;
 
-    border-left:4px solid #2980b9;
+    border-left: 4px solid #2980b9;
 
 }
 
-.nav-item svg{
-    width:20px;
-    height:20px;
-}
-
-.sidebar-footer {
-    padding: 20px 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+.nav-item svg {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
 }
 
 .visit-counter {
@@ -231,12 +344,12 @@ body {
 }
 
 /* ─── MAIN CONTENT ──────────────────────────────── */
-.main{
-    margin-left:260px;
-    flex:1;
-    display:flex;
-    flex-direction:column;
-    background:white;
+.main {
+    margin-left: 260px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: white;
 }
 
 .topbar {
@@ -283,10 +396,10 @@ body {
     color: var(--text);
 }
 
-.content{
-    padding:32px;
-    flex:1;
-    background:white;
+.content {
+    padding: 32px;
+    flex: 1;
+    background: white;
 }
 
 /* ─── PAGE SECTIONS ─────────────────────────────── */
@@ -331,7 +444,8 @@ body {
 /* ─── CARDS ─────────────────────────────────────── */
 .card {
     background: var(--surface);
-    border: 1px solid var(--border); /* BORDA AQUI */
+    border: 1px solid var(--border);
+    /* BORDA AQUI */
     border-radius: var(--radius);
     padding: 28px;
     box-shadow: var(--shadow-sm);
@@ -346,6 +460,7 @@ body {
     margin-bottom: 20px;
     color: var(--text);
 }
+
 /* ─── FORM ───────────────────────────────────────── */
 .form-grid {
     display: grid;
@@ -522,6 +637,10 @@ select {
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
+}
+
+.nav-item{
+    justify-content:flex-start;
 }
 
 .filter-group input[type="date"],
@@ -770,11 +889,11 @@ tbody tr:hover {
     margin-top: 2px;
 }
 
-.chart-container{
+.chart-container {
     position: relative;
-    display:flex;
-    justify-content:center;
-    align-items:center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 /* ─── MODAL ───────────────────────────────────────── */
@@ -990,160 +1109,120 @@ tbody tr:hover {
     border-color: var(--accent);
 }
 
-/* ─── RESPONSIVE ─────────────────────────────────── */
-@media (max-width: 900px) {
-    .sidebar {
-        transform: translateX(-100%);
-    }
 
-    .sidebar.open {
-        transform: translateX(0);
-    }
-
-    .main {
-        margin-left: 0;
-    }
-
-    .hamburger {
-        display: flex;
-    }
-
-    .charts-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .chart-card.full {
-        grid-column: auto;
-    }
-}
-
-@media (max-width: 640px) {
-    .content {
-        padding: 20px 16px;
-    }
-
-    .form-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .form-group.full {
-        grid-column: auto;
-    }
-
-    .stats-grid {
-        grid-template-columns: 1fr 1fr;
-    }
-
-    .table-toolbar {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .topbar {
-        padding: 0 16px;
-    }
-}
 
 .sidebar-overlay {
-    display: none;
+
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.4);
-    z-index: 99;
+
+    background: rgba(0, 0, 0, .4);
+
+    opacity: 0;
+    pointer-events: none;
+
+    transition: .3s;
+
 }
 
 .sidebar-overlay.show {
-    display: block;
-}
 
-.app-footer{
-    padding:12px 30px;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    font-size:12px;
-    color:#7f8c8d;
-    border-top:1px solid #e0e4ea;
-    background:#f8f9fa;
-
-    margin-left:260px;
-}
-
-.dashboard-header{
-
-    background:white;
-
-    border-radius:12px;
-
-    padding:30px 40px;
-
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-
-    margin-bottom:30px;
-
-    border:1px solid #e0e4ea;
+    opacity: 1;
+    pointer-events: auto;
 
 }
 
-.dashboard-text h1{
+.app-footer {
+    padding: 12px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #7f8c8d;
+    border-top: 1px solid #e0e4ea;
+    background: #f8f9fa;
 
-    font-size:36px;
-    font-weight:600;
-    color:#2c3e50;
+    margin-left: 260px;
+}
+
+.dashboard-header {
+
+    background: white;
+
+    border-radius: 12px;
+
+    padding: 30px 40px;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    margin-bottom: 30px;
+
+    border: 1px solid #e0e4ea;
 
 }
 
-.dashboard-text p{
+.dashboard-text h1 {
 
-    margin-top:6px;
-    font-size:16px;
-    color:#6c7a89;
-
-}
-
-.btn-logout{
-
-    display:flex;
-    align-items:center;
-    gap:8px;
-
-    background:#e74c3c;
-
-    color:white;
-
-    border:none;
-
-    padding:12px 20px;
-
-    border-radius:8px;
-
-    font-size:14px;
-
-    cursor:pointer;
+    font-size: 36px;
+    font-weight: 600;
+    color: #2c3e50;
 
 }
 
-.btn-logout:hover{
+.dashboard-text p {
 
-    background:#c0392b;
+    margin-top: 6px;
+    font-size: 16px;
+    color: #6c7a89;
 
 }
 
-.menu-toggle{
+.btn-logout {
 
-    position:absolute;
-    top:15px;
-    left:15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 
-    background:transparent;
-    border:none;
+    background: #e74c3c;
 
-    color:white;
+    color: white;
 
-    font-size:22px;
+    border: none;
 
-    cursor:pointer;
+    padding: 12px 20px;
 
+    border-radius: 8px;
+
+    font-size: 14px;
+
+    cursor: pointer;
+
+}
+
+.btn-logout:hover {
+
+    background: #c0392b;
+
+}
+
+.menu-toggle {
+    width: 100%;
+    height: 60px;
+
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 20px;
+
+    background: transparent;
+    border: none;
+
+    color: white;
+    font-size: 22px;
+
+    cursor: pointer;
+
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
