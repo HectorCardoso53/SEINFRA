@@ -179,6 +179,7 @@ async function handleFormSubmit(e) {
     // atualizar tabela e dashboard
     renderTable();
     renderDashboard();
+    renderTodayVisits();
   } catch (error) {
     console.error("Erro ao salvar visita:", error);
     showToast("Erro ao salvar visita.", "error");
@@ -506,46 +507,35 @@ function initPhoneMask() {
 
 // ─── DASHBOARD ────────────────────────────────────────────
 function renderDashboard() {
-
   const total = visits.length;
 
   const thisMonth = visits.filter(
-    (v) => v.date && v.date.slice(0,7) === today().slice(0,7)
+    (v) => v.date && v.date.slice(0, 7) === today().slice(0, 7),
   ).length;
 
-  const todayCount = visits.filter(
-    (v) => v.date === today()
-  ).length;
-
+  const todayCount = visits.filter((v) => v.date === today()).length;
 
   // atualizar cards
   document.getElementById("stat-total").textContent = total;
   document.getElementById("stat-month").textContent = thisMonth;
   document.getElementById("stat-today").textContent = todayCount;
 
-
   // calcular setor mais visitado
   const sectorCounts = {};
 
   visits.forEach((v) => {
-
-    if(!v.sector) return;
+    if (!v.sector) return;
 
     sectorCounts[v.sector] = (sectorCounts[v.sector] || 0) + 1;
-
   });
 
   const topSector =
-    Object.entries(sectorCounts)
-      .sort((a,b)=>b[1]-a[1])[0]?.[0] || "—";
-
+    Object.entries(sectorCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
 
   document.getElementById("stat-top-service").textContent = topSector;
 
-
   renderServiceChart(sectorCounts);
   renderMonthChart();
-
 }
 
 const CHART_COLORS = [
@@ -559,7 +549,6 @@ const CHART_COLORS = [
 ];
 
 function renderServiceChart(counts) {
-
   const canvas = document.getElementById("chart-service");
 
   if (!canvas) return;
@@ -580,21 +569,19 @@ function renderServiceChart(counts) {
         {
           data,
           backgroundColor: CHART_COLORS.slice(0, labels.length),
-          borderWidth: 0
-        }
-      ]
+          borderWidth: 0,
+        },
+      ],
     },
 
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { display: false }
-      }
-    }
-
+        legend: { display: false },
+      },
+    },
   });
-
 }
 function renderHistory(name) {
   const tbody = document.getElementById("history-tbody");
@@ -637,7 +624,6 @@ function renderHistory(name) {
 }
 
 function renderMonthChart() {
-
   const canvas = document.getElementById("chart-month");
 
   if (!canvas) return;
@@ -647,26 +633,23 @@ function renderMonthChart() {
   const monthMap = {};
 
   visits.forEach((v) => {
-
     if (!v.date) return;
 
-    const ym = v.date.slice(0,7);
+    const ym = v.date.slice(0, 7);
 
     monthMap[ym] = (monthMap[ym] || 0) + 1;
-
   });
 
   const sorted = Object.entries(monthMap)
-    .sort((a,b)=>a[0].localeCompare(b[0]))
+    .sort((a, b) => a[0].localeCompare(b[0]))
     .slice(-8);
 
   const labels = sorted.map(([ym]) => ym);
-  const data = sorted.map(([,v]) => v);
+  const data = sorted.map(([, v]) => v);
 
   if (chartMonth) chartMonth.destroy();
 
   chartMonth = new Chart(ctx, {
-
     type: "bar",
 
     data: {
@@ -675,20 +658,65 @@ function renderMonthChart() {
         {
           data,
           backgroundColor: "#2D5A3D",
-          borderRadius: 6
-        }
-      ]
+          borderRadius: 6,
+        },
+      ],
     },
 
     options: {
       responsive: true,
       plugins: {
-        legend: { display:false }
-      }
-    }
-
+        legend: { display: false },
+      },
+    },
   });
+}
 
+function renderTodayVisits() {
+  const tbody = document.getElementById("today-visits");
+
+  if (!tbody) return;
+
+  const todayVisits = visits.filter((v) => v.date === today());
+
+  if (todayVisits.length === 0) {
+    tbody.innerHTML = `
+    <tr>
+      <td colspan="5">Nenhum atendimento registrado hoje</td>
+    </tr>
+    `;
+
+    return;
+  }
+
+  tbody.innerHTML = todayVisits
+    .map((v) => {
+      const hour = new Date(v.createdAt).toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      return `
+
+<tr>
+
+<td><strong>${escapeHtml(v.name)}</strong></td>
+
+<td>${escapeHtml(v.phone)}</td>
+
+<td>${escapeHtml(v.sector)}</td>
+
+<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+${escapeHtml(v.reason)}
+</td>
+
+<td>${hour}</td>
+
+</tr>
+
+`;
+    })
+    .join("");
 }
 
 // ─── TOAST ────────────────────────────────────────────────
@@ -908,6 +936,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   renderTable();
   renderDashboard();
+  renderTodayVisits();
 });
 
 document.addEventListener("click", (e) => {

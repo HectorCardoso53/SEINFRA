@@ -178,7 +178,7 @@
 
             </section>
 
-             <!-- ─── PAGE: DASHBOARD ────────────────────────────────── -->
+            <!-- ─── PAGE: DASHBOARD ────────────────────────────────── -->
             <section class="page active" id="page-dashboard">
 
                 <!-- Stats -->
@@ -267,6 +267,7 @@
             <!-- ─── PAGE: CADASTRO ─────────────────────────────────── -->
             <section class="page" id="page-cadastro">
 
+                <!-- CARD FORMULÁRIO -->
                 <div class="card">
 
                     <h3 class="card-title" id="form-card-title">Nova Visita</h3>
@@ -298,8 +299,7 @@
                             <!-- CONTATO -->
                             <div class="form-group">
                                 <label for="f-phone">Contato <span class="required">*</span></label>
-
-                                <input type="tel" id="f-phone" placeholder="(00) 00000-0000" autocomplete="off">
+                                <input type="tel" id="f-phone" placeholder="(00) 00000-0000">
                             </div>
 
                             <!-- SETOR -->
@@ -309,31 +309,27 @@
                                 <input type="text" id="f-sector" list="sector-list" placeholder="Selecione o setor">
 
                                 <datalist id="sector-list">
-
                                     <option value="Secretaria">
                                     <option value="Engenharia">
                                     <option value="Protocolo">
                                     <option value="Habitação">
                                     <option value="Regularização fundiária">
-
                                 </datalist>
 
                             </div>
 
                             <!-- MOTIVO -->
                             <div class="form-group full">
-
                                 <label for="f-reason">
                                     Motivo da visita <span class="required">*</span>
                                 </label>
 
                                 <textarea id="f-reason" placeholder="Descreva o motivo da visita..."></textarea>
-
                             </div>
 
                         </div>
 
-                        <!-- BOTÕES DO FORM -->
+                        <!-- BOTÕES -->
                         <div class="form-actions">
 
                             <button type="button" class="btn btn-secondary" id="btn-cancel-edit" style="display:none">
@@ -351,6 +347,34 @@
                         </div>
 
                     </form>
+
+                </div>
+
+
+                <!-- CARD HISTÓRICO DO DIA -->
+                <div class="card">
+
+                    <h3 class="card-title">Atendimentos de Hoje</h3>
+
+                    <div class="table-wrapper">
+
+                        <table>
+
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Telefone</th>
+                                    <th>Setor</th>
+                                    <th>Motivo</th>
+                                    <th>Hora</th>
+                                </tr>
+                            </thead>
+
+                            <tbody id="today-visits"></tbody>
+
+                        </table>
+
+                    </div>
 
                 </div>
 
@@ -502,7 +526,7 @@
 
 
 
-           
+
 
         </div><!-- /content -->
         <footer class="app-footer">
