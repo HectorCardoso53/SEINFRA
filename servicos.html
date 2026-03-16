@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Serviços da SEINFRA</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/assets/css/servicos.css">
+  
+
+</head>
+
+<body>
+
+    <!-- HEADER -->
+
+    <div class="header">
+
+        <img src="assets/img/prefeitura.png" class="header-logo">
+
+        <h2>Sistema de Controle</h2>
+
+        <p>SEINFRA – Secretaria de Infraestrutura</p>
+
+        <span>Secretária: Liliana Bentes</span>
+
+    </div>
+
+    <!-- CARDS -->
+
+    <div class="cards">
+
+        <div class="card" onclick="abrirAgendamento()">
+
+            <div class="icon">
+                <i class="bi bi-calendar-check"></i>
+            </div>
+
+            <h3>Agendamento</h3>
+
+            <p>Cadastro de visitas</p>
+
+        </div>
+
+        <div class="card" onclick="abrirOS()">
+
+            <div class="icon">
+                <i class="bi bi-tools"></i>
+            </div>
+
+            <h3>Ordem de Serviço</h3>
+
+            <p>Gerenciamento das OS</p>
+
+        </div>
+
+    </div>
+
+    <!-- FOOTER -->
+
+    <div class="footer">
+
+        <div class="footer-content">
+
+            <span>
+                SEMEG – Secretaria de Eficiência Governamental
+            </span>
+
+            <span>
+                Prefeitura Municipal de Oriximiná
+            </span>
+
+        </div>
+
+    </div>
+
+    <script>
+
+        function abrirAgendamento() {
+            window.location.href = "home.html"
+        }
+
+        function abrirOS() {
+            window.location.href = "dashboard.html"
+        }
+
+    </script>
+
+</body>
+
+</html>
