@@ -610,32 +610,39 @@ function renderServiceChart(counts) {
 }
 
 function renderHistory(name) {
-  const tbody = document.getElementById("history-tbody");
 
-  const history = visits.filter(
-    (v) =>
-      v.name.toLowerCase().includes(name.toLowerCase()) ||
-      v.phone.includes(name),
-  );
-  if (!history.length) {
-    tbody.innerHTML = `
+const tbody = document.getElementById("history-tbody");
+
+const history = visits.filter((v) =>
+v.name.toLowerCase().includes(name.toLowerCase()) ||
+v.phone.includes(name)
+);
+
+if (!history.length) {
+
+tbody.innerHTML = `
 <tr>
-<td colspan="5">Nenhum histórico encontrado</td>
+<td colspan="6">Nenhum histórico encontrado</td>
 </tr>
 `;
 
-    return;
-  }
+return;
+}
 
-  tbody.innerHTML = history
-    .map(
-      (v) => `
+tbody.innerHTML = history.map((v) => {
+
+const hour = new Date(v.createdAt).toLocaleTimeString("pt-BR", {
+hour: "2-digit",
+minute: "2-digit"
+});
+
+return `
 
 <tr>
 
-<td>${formatDate(v.date)}</td>
+<td><strong>${escapeHtml(v.name)}</strong></td>
 
-<td>${escapeHtml(v.name)}</td>
+<td>${escapeHtml(v.cpf || "—")}</td>
 
 <td>
 ${escapeHtml(v.phone)}
@@ -646,11 +653,14 @@ ${v.phone2 ? "<br>" + escapeHtml(v.phone2) : ""}
 
 <td>${escapeHtml(v.reason)}</td>
 
+<td>${hour}</td>
+
 </tr>
 
-`,
-    )
-    .join("");
+`;
+
+}).join("");
+
 }
 
 function renderMonthChart() {
