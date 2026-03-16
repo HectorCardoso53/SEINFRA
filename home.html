@@ -276,35 +276,36 @@
 
                         <div class="form-grid">
 
-                            <!-- DATA -->
+                            <!-- DATA AUTOMÁTICA -->
                             <div class="form-group">
-                                <label for="f-date">Data da visita <span class="required">*</span></label>
-                                <input type="date" id="f-date">
+                                <label>Data da visita</label>
+                                <input type="text" id="f-date" readonly>
                             </div>
 
-                            <!-- NOME -->
+                            <!-- NOME COMPLETO -->
                             <div class="form-group">
-                                <label for="f-name">Nome da pessoa <span class="required">*</span></label>
+                                <label>Nome completo <span class="required">*</span></label>
 
                                 <div class="autocomplete-box">
 
-                                    <input type="text" id="f-name" placeholder="Digite o nome da pessoa..."
+                                    <input type="text" id="f-name" placeholder="Digite o nome completo"
                                         autocomplete="off">
 
                                     <div id="person-suggestions" class="autocomplete-list"></div>
 
                                 </div>
+
                             </div>
 
-                            <!-- CONTATO -->
+                            <!-- CPF -->
                             <div class="form-group">
-                                <label for="f-phone">Contato <span class="required">*</span></label>
-                                <input type="tel" id="f-phone" placeholder="(00) 00000-0000">
+                                <label>CPF <span class="required">*</span></label>
+                                <input type="text" id="f-cpf" placeholder="000.000.000-00">
                             </div>
 
                             <!-- SETOR -->
                             <div class="form-group">
-                                <label for="f-sector">Setor <span class="required">*</span></label>
+                                <label>Setor <span class="required">*</span></label>
 
                                 <input type="text" id="f-sector" list="sector-list" placeholder="Selecione o setor">
 
@@ -318,13 +319,39 @@
 
                             </div>
 
+                            <!-- CONTATO 1 -->
+                            <div class="form-group">
+                                <label>Contato 1 <span class="required">*</span></label>
+                                <input type="tel" id="f-phone" placeholder="(00) 00000-0000">
+                            </div>
+
+                            <!-- CONTATO 2 -->
+                            <div class="form-group">
+                                <label>Contato 2</label>
+                                <input type="tel" id="f-phone2" placeholder="(00) 00000-0000">
+                            </div>
+
+                            <!-- ENDEREÇO -->
+                            <div class="form-group full">
+                                <label>Endereço <span class="required">*</span></label>
+                                <input type="text" id="f-address" placeholder="Rua, número, bairro">
+                            </div>
+
+                            <!-- REFERÊNCIA -->
+                            <div class="form-group full">
+                                <label>Referência</label>
+                                <input type="text" id="f-reference" placeholder="Ex: Próximo à escola">
+                            </div>
+
                             <!-- MOTIVO -->
                             <div class="form-group full">
-                                <label for="f-reason">
+
+                                <label>
                                     Motivo da visita <span class="required">*</span>
                                 </label>
 
                                 <textarea id="f-reason" placeholder="Descreva o motivo da visita..."></textarea>
+
                             </div>
 
                         </div>
@@ -350,7 +377,6 @@
 
                 </div>
 
-
                 <!-- CARD HISTÓRICO DO DIA -->
                 <div class="card">
 
@@ -363,7 +389,10 @@
                             <thead>
                                 <tr>
                                     <th>Nome</th>
+                                    <th>CPF</th>
                                     <th>Telefone</th>
+                                    <th>Endereço</th>
+                                    <th>Referência</th>
                                     <th>Setor</th>
                                     <th>Motivo</th>
                                     <th>Hora</th>
@@ -425,23 +454,17 @@
                         <table>
 
                             <thead>
-
                                 <tr>
 
                                     <th>Nome</th>
-
+                                    <th>CPF</th>
                                     <th>Telefone</th>
-
                                     <th>Data</th>
-
                                     <th>Setor</th>
-
                                     <th>Motivo</th>
-
                                     <th>Ações</th>
 
                                 </tr>
-
                             </thead>
 
                             <tbody id="visits-tbody"></tbody>
@@ -488,11 +511,12 @@
 
                                 <tr>
 
-                                    <th>Data</th>
                                     <th>Nome</th>
+                                    <th>CPF</th>
                                     <th>Telefone</th>
                                     <th>Setor</th>
                                     <th>Motivo</th>
+                                    <th>Hora</th>
 
                                 </tr>
 
