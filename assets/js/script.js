@@ -261,17 +261,22 @@ function cancelEdit() {
 
 // ─── TABLE ────────────────────────────────────────────────
 function getFilteredVisits() {
-  return visits.filter((v) => {
-    const matchDate = !filterDate || v.date === filterDate;
-    const matchService =
-      !filterService ||
-      v.sector.toLowerCase().includes(filterService.toLowerCase());
-    const matchSearch =
-      !searchTerm ||
-      v.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      v.phone.includes(searchTerm);
-    return matchDate && matchService && matchSearch;
-  });
+
+return visits.filter((v)=>{
+
+const matchDate = !filterDate || v.date === filterDate;
+
+const matchSearch =
+!searchTerm ||
+v.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+v.phone.includes(searchTerm) ||
+(v.phone2 && v.phone2.includes(searchTerm)) ||
+(v.cpf && v.cpf.includes(searchTerm));
+
+return matchDate && matchSearch;
+
+});
+
 }
 
 function renderTable() {
@@ -317,15 +322,14 @@ ${v.phone2 ? "<br>" + escapeHtml(v.phone2) : ""}
         </td>
 
         <td style="
-          color:var(--text-muted);
-          font-size:12px;
-          max-width:200px;
-          overflow:hidden;
-          text-overflow:ellipsis;
-          white-space:nowrap
-        ">
-          ${escapeHtml(v.reason)}
-        </td>
+color:var(--text-muted);
+font-size:13px;
+max-width:260px;
+white-space:normal;
+word-break:break-word;
+">
+${escapeHtml(v.reason)}
+</td>
 
         <td>
           <div class="td-actions">

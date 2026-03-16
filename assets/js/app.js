@@ -86,6 +86,7 @@ function iniciarMapa() {
 }
 
 async function inicializarSistema() {
+
   ordens = await buscarOrdensFirestore();
 
   const anoAtual = new Date().getFullYear();
@@ -93,33 +94,30 @@ async function inicializarSistema() {
   let numeros = [];
 
   ordens.forEach((ordem) => {
+
     if (!ordem.numero) return;
 
     const match = ordem.numero.match(/OS\s*(\d+)\/(\d{4})/);
 
     if (match) {
+
       const seq = parseInt(match[1], 10);
       const ano = parseInt(match[2], 10);
 
       if (ano === anoAtual) {
         numeros.push(seq);
       }
+
     }
+
   });
 
-  numeros.sort((a, b) => a - b);
-
-  let proximo = 1;
-
-  for (let n of numeros) {
-    if (n === proximo) {
-      proximo++;
-    } else {
-      break;
-    }
+  // ✔ pega o maior número existente
+  if (numeros.length === 0) {
+    numeroOS = 1;
+  } else {
+    numeroOS = Math.max(...numeros) + 1;
   }
-
-  numeroOS = proximo;
 
   setDataAtual();
   gerarNumeroOS();
@@ -128,6 +126,7 @@ async function inicializarSistema() {
   aplicarFiltros();
 
   atualizarHeader("dashboard");
+
 }
 
 document.querySelector(".overlay")?.addEventListener("click", () => {
