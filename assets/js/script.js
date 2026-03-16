@@ -11,8 +11,6 @@ import {
   doc,
   query,
   orderBy,
-
-
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // ─── STATE ──────────────────────────────────────────────
@@ -73,6 +71,10 @@ function serviceBadgeClass(service) {
     Informação: "badge-informacao",
     Requerimento: "badge-requerimento",
     Outros: "badge-outros",
+    historico: {
+      title: "Histórico",
+      subtitle: "Histórico de atendimento por pessoa",
+    },
   };
   return map[service] || "badge-outros";
 }
@@ -117,27 +119,23 @@ function navigate(page) {
   if (page === "dashboard") renderDashboard();
 }
 
-
 window.closeSidebar = function () {
   document.getElementById("sidebar").classList.remove("open");
   document.getElementById("sidebar-overlay").classList.remove("show");
 };
 // ─── SIDEBAR MOBILE ─────────────────────────────────────
 window.toggleSidebar = function () {
-
   const sidebar = document.getElementById("sidebar");
   const main = document.querySelector(".main");
 
   sidebar.classList.toggle("collapsed");
   main.classList.toggle("expanded");
-
 };
 
 window.closeSidebar = function () {
   document.getElementById("sidebar").classList.remove("open");
   document.getElementById("sidebar-overlay").classList.remove("show");
-}
-
+};
 
 // ─── FORM ────────────────────────────────────────────────
 function initForm() {
@@ -192,19 +190,17 @@ function getFormData() {
     name: document.getElementById("f-name").value.trim(),
     phone: document.getElementById("f-phone").value.trim(),
     date: document.getElementById("f-date").value,
-    service: document.getElementById("f-service").value,
-    notes: document.getElementById("f-notes").value.trim(),
+    sector: document.getElementById("f-sector").value,
+    reason: document.getElementById("f-reason").value.trim(),
   };
 }
 
 async function validateForm(data) {
-
   const personExists = persons.some(
-    (p) => p.name.toLowerCase() === data.name.toLowerCase()
+    (p) => p.name.toLowerCase() === data.name.toLowerCase(),
   );
 
   if (!personExists) {
-
     await addDoc(collection(db, "pessoas"), {
       name: data.name,
       phone: data.phone,
@@ -212,11 +208,10 @@ async function validateForm(data) {
     });
 
     await loadPersons();
-
   }
 
   if (!data.phone) {
-    showToast("Informe o telefone.", "error");
+    showToast("Informe o contato.", "error");
     return false;
   }
 
@@ -225,8 +220,13 @@ async function validateForm(data) {
     return false;
   }
 
-  if (!data.service) {
-    showToast("Selecione o tipo de serviço.", "error");
+  if (!data.sector) {
+    showToast("Informe o setor.", "error");
+    return false;
+  }
+
+  if (!data.reason) {
+    showToast("Informe o motivo da visita.", "error");
     return false;
   }
 
@@ -253,7 +253,7 @@ function getFilteredVisits() {
     const matchDate = !filterDate || v.date === filterDate;
     const matchService =
       !filterService ||
-      v.service.toLowerCase().includes(filterService.toLowerCase());
+      v.sector.toLowerCase().includes(filterService.toLowerCase());
     const matchSearch =
       !searchTerm ||
       v.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -272,42 +272,75 @@ function renderTable() {
 
   if (!total) {
     tbody.innerHTML = `
-      <tr><td colspan="6">
+    <tr>
+      <td colspan="6">
         <div class="empty-state">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2"/>
-          </svg>
           <p>Nenhuma visita encontrada.</p>
         </div>
-      </td></tr>`;
+      </td>
+    </tr>
+    `;
   } else {
     tbody.innerHTML = page
       .map(
         (v) => `
+
       <tr>
+
         <td><strong>${escapeHtml(v.name)}</strong></td>
+
         <td>${escapeHtml(v.phone)}</td>
+
         <td>${formatDate(v.date)}</td>
-        <td><span class="badge ${serviceBadgeClass(v.service)}">${escapeHtml(v.service)}</span></td>
-        <td style="color:var(--text-muted);font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(v.notes || "—")}</td>
+
+        <td>
+          <span class="badge">
+            ${escapeHtml(v.sector)}
+          </span>
+        </td>
+
+        <td style="
+          color:var(--text-muted);
+          font-size:12px;
+          max-width:200px;
+          overflow:hidden;
+          text-overflow:ellipsis;
+          white-space:nowrap
+        ">
+          ${escapeHtml(v.reason)}
+        </td>
+
         <td>
           <div class="td-actions">
-            <button class="btn btn-icon edit" onclick="editVisit('${v.id}')" title="Editar">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+
+            <button
+              class="btn btn-icon edit"
+              onclick="editVisit('${v.id}')"
+              title="Editar"
+            >
+              ✏️
             </button>
-            <button class="btn btn-icon delete" onclick="confirmDelete('${v.id}')" title="Excluir">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+
+            <button
+              class="btn btn-icon delete"
+              onclick="confirmDelete('${v.id}')"
+              title="Excluir"
+            >
+              🗑️
             </button>
+
           </div>
         </td>
+
       </tr>
+
     `,
       )
       .join("");
   }
 
-  // Pagination
   const pages = Math.ceil(total / PAGE_SIZE);
+
   const pageInfo = document.getElementById("page-info");
   const pageBtns = document.getElementById("page-btns");
 
@@ -316,7 +349,9 @@ function renderTable() {
     : "0 visitas";
 
   let btns = "";
+
   btns += `<button class="page-btn" onclick="changePage(${currentPage - 1})" ${currentPage <= 1 ? "disabled" : ""}>‹</button>`;
+
   for (let i = 1; i <= pages; i++) {
     if (
       pages <= 6 ||
@@ -331,7 +366,9 @@ function renderTable() {
       btns += `<span style="padding:0 4px;color:var(--text-muted)">…</span>`;
     }
   }
+
   btns += `<button class="page-btn" onclick="changePage(${currentPage + 1})" ${currentPage >= pages ? "disabled" : ""}>›</button>`;
+
   pageBtns.innerHTML = btns;
 }
 
@@ -346,20 +383,23 @@ function changePage(p) {
 function editVisit(id) {
   const v = visits.find((v) => v.id === id);
   if (!v) return;
+
   editingId = id;
 
   document.getElementById("f-name").value = v.name;
   document.getElementById("f-phone").value = v.phone;
   document.getElementById("f-date").value = v.date;
-  document.getElementById("f-service").value = v.service;
-  document.getElementById("f-notes").value = v.notes || "";
+  document.getElementById("f-sector").value = v.sector;
+  document.getElementById("f-reason").value = v.reason;
 
   document.getElementById("form-card-title").textContent = "Editar Visita";
-  document.getElementById("btn-submit").innerHTML =
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Salvar Alterações`;
+
+  document.getElementById("btn-submit").innerHTML = `Salvar Alterações`;
+
   document.getElementById("btn-cancel-edit").style.display = "inline-flex";
 
   navigate("cadastro");
+
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -466,30 +506,46 @@ function initPhoneMask() {
 
 // ─── DASHBOARD ────────────────────────────────────────────
 function renderDashboard() {
-  // Stats
-  const total = visits.length;
-  const thisMonth = visits.filter(
-    (v) => v.date && v.date.slice(0, 7) === today().slice(0, 7),
-  ).length;
-  const today_ = visits.filter((v) => v.date === today()).length;
 
+  const total = visits.length;
+
+  const thisMonth = visits.filter(
+    (v) => v.date && v.date.slice(0,7) === today().slice(0,7)
+  ).length;
+
+  const todayCount = visits.filter(
+    (v) => v.date === today()
+  ).length;
+
+
+  // atualizar cards
   document.getElementById("stat-total").textContent = total;
   document.getElementById("stat-month").textContent = thisMonth;
-  document.getElementById("stat-today").textContent = today_;
+  document.getElementById("stat-today").textContent = todayCount;
 
-  // Most common service
-  const serviceCounts = {};
-  visits.forEach(
-    (v) => (serviceCounts[v.service] = (serviceCounts[v.service] || 0) + 1),
-  );
-  const topService = Object.entries(serviceCounts)
-.sort((a,b)=>b[1]-a[1])[0]?.[0] || "—";
-  document.getElementById("stat-top-service").textContent = topService
-    ? topService[0]
-    : "—";
 
-  renderServiceChart(serviceCounts);
+  // calcular setor mais visitado
+  const sectorCounts = {};
+
+  visits.forEach((v) => {
+
+    if(!v.sector) return;
+
+    sectorCounts[v.sector] = (sectorCounts[v.sector] || 0) + 1;
+
+  });
+
+  const topSector =
+    Object.entries(sectorCounts)
+      .sort((a,b)=>b[1]-a[1])[0]?.[0] || "—";
+
+
+  document.getElementById("stat-top-service").textContent = topSector;
+
+
+  renderServiceChart(sectorCounts);
   renderMonthChart();
+
 }
 
 const CHART_COLORS = [
@@ -503,7 +559,13 @@ const CHART_COLORS = [
 ];
 
 function renderServiceChart(counts) {
-  const ctx = document.getElementById("chart-service").getContext("2d");
+
+  const canvas = document.getElementById("chart-service");
+
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+
   const labels = Object.keys(counts);
   const data = Object.values(counts);
 
@@ -518,123 +580,115 @@ function renderServiceChart(counts) {
         {
           data,
           backgroundColor: CHART_COLORS.slice(0, labels.length),
-          borderWidth: 0,
-          hoverOffset: 10,
-        },
-      ],
+          borderWidth: 0
+        }
+      ]
     },
 
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      cutout: "65%",
-
       plugins: {
-        /* REMOVE A LISTA DE SERVIÇOS */
-        legend: {
-          display: false,
-        },
+        legend: { display: false }
+      }
+    }
 
-        /* MOSTRA SOMENTE AO PASSAR O MOUSE */
-        tooltip: {
-          backgroundColor: "#2c3e50",
-          titleFont: {
-            size: 13,
-            weight: "600",
-          },
-          bodyFont: {
-            size: 13,
-          },
-          padding: 10,
-          callbacks: {
-            label: function (ctx) {
-              return `${ctx.label}: ${ctx.parsed} visita(s)`;
-            },
-          },
-        },
-      },
-    },
   });
+
+}
+function renderHistory(name) {
+  const tbody = document.getElementById("history-tbody");
+
+  const history = visits.filter((v) =>
+    v.name.toLowerCase().includes(name.toLowerCase()),
+  );
+
+  if (!history.length) {
+    tbody.innerHTML = `
+<tr>
+<td colspan="5">Nenhum histórico encontrado</td>
+</tr>
+`;
+
+    return;
+  }
+
+  tbody.innerHTML = history
+    .map(
+      (v) => `
+
+<tr>
+
+<td>${formatDate(v.date)}</td>
+
+<td>${escapeHtml(v.name)}</td>
+
+<td>${escapeHtml(v.phone)}</td>
+
+<td>${escapeHtml(v.sector)}</td>
+
+<td>${escapeHtml(v.reason)}</td>
+
+</tr>
+
+`,
+    )
+    .join("");
 }
 
 function renderMonthChart() {
-  const ctx = document.getElementById("chart-month").getContext("2d");
+
+  const canvas = document.getElementById("chart-month");
+
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+
   const monthMap = {};
+
   visits.forEach((v) => {
+
     if (!v.date) return;
-    const ym = v.date.slice(0, 7);
+
+    const ym = v.date.slice(0,7);
+
     monthMap[ym] = (monthMap[ym] || 0) + 1;
+
   });
 
   const sorted = Object.entries(monthMap)
-    .sort((a, b) => a[0].localeCompare(b[0]))
+    .sort((a,b)=>a[0].localeCompare(b[0]))
     .slice(-8);
-  const labels = sorted.map(([ym]) => {
-    const [y, m] = ym.split("-");
-    const months = [
-      "Jan",
-      "Fev",
-      "Mar",
-      "Abr",
-      "Mai",
-      "Jun",
-      "Jul",
-      "Ago",
-      "Set",
-      "Out",
-      "Nov",
-      "Dez",
-    ];
-    return `${months[parseInt(m, 10) - 1]} ${y.slice(2)}`;
-  });
-  const data = sorted.map(([, v]) => v);
+
+  const labels = sorted.map(([ym]) => ym);
+  const data = sorted.map(([,v]) => v);
 
   if (chartMonth) chartMonth.destroy();
+
   chartMonth = new Chart(ctx, {
+
     type: "bar",
+
     data: {
       labels,
       datasets: [
         {
-          label: "Visitas",
           data,
           backgroundColor: "#2D5A3D",
-          borderRadius: 6,
-          borderSkipped: false,
-          hoverBackgroundColor: "#4A8A5D",
-        },
-      ],
+          borderRadius: 6
+        }
+      ]
     },
+
     options: {
       responsive: true,
       plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: { label: (ctx) => ` ${ctx.parsed.y} visita(s)` },
-        },
-      },
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: {
-            font: { family: "'DM Sans', sans-serif", size: 12 },
-            color: "#7A7469",
-          },
-          border: { display: false },
-        },
-        y: {
-          beginAtZero: true,
-          ticks: {
-            stepSize: 1,
-            font: { family: "'DM Sans', sans-serif", size: 12 },
-            color: "#7A7469",
-          },
-          grid: { color: "#EDE9E0" },
-          border: { display: false },
-        },
-      },
-    },
+        legend: { display:false }
+      }
+    }
+
   });
+
 }
 
 // ─── TOAST ────────────────────────────────────────────────
@@ -713,7 +767,6 @@ function atualizarHeader(pageId) {
 }
 
 window.toggleSidebar = function () {
-
   const sidebar = document.getElementById("sidebar");
   const overlay = document.getElementById("sidebar-overlay");
   const main = document.querySelector(".main");
@@ -721,17 +774,12 @@ window.toggleSidebar = function () {
   const isMobile = window.innerWidth <= 768;
 
   if (isMobile) {
-
     sidebar.classList.toggle("open");
     overlay.classList.toggle("show");
-
   } else {
-
     sidebar.classList.toggle("collapsed");
     main.classList.toggle("expanded");
-
   }
-
 };
 
 /* fechar clicando no fundo */
@@ -809,6 +857,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   const dateInput = document.getElementById("f-date");
   if (dateInput) {
     dateInput.value = today();
+  }
+
+  const historyBtn = document.getElementById("btn-search-history");
+
+  if (historyBtn) {
+    historyBtn.addEventListener("click", () => {
+      const name = document.getElementById("history-search").value;
+
+      renderHistory(name);
+    });
   }
 
   // navegação do menu
