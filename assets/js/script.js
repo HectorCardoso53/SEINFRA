@@ -197,31 +197,39 @@ function getFormData() {
   };
 }
 
-function validateForm(data) {
+async function validateForm(data) {
+
   const personExists = persons.some(
-    (p) => p.name.toLowerCase() === data.name.toLowerCase(),
+    (p) => p.name.toLowerCase() === data.name.toLowerCase()
   );
 
   if (!personExists) {
-    showToast("Pessoa não cadastrada. Cadastre primeiro.", "error");
 
-    navigate("pessoas");
+    await addDoc(collection(db, "pessoas"), {
+      name: data.name,
+      phone: data.phone,
+      createdAt: new Date().toISOString(),
+    });
 
-    return false;
+    await loadPersons();
+
   }
 
   if (!data.phone) {
     showToast("Informe o telefone.", "error");
     return false;
   }
+
   if (!data.date) {
     showToast("Informe a data da visita.", "error");
     return false;
   }
+
   if (!data.service) {
     showToast("Selecione o tipo de serviço.", "error");
     return false;
   }
+
   return true;
 }
 
