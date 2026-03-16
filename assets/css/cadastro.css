@@ -449,10 +449,10 @@ body {
 }
 
 /* ─── FORM ───────────────────────────────────────── */
-.form-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 18px;
+.form-grid{
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap:16px;
 }
 
 .form-group {
@@ -1261,6 +1261,22 @@ tbody tr:hover {
 
 .topbar {
     display: none;
+}
+
+@media(max-width:900px){
+
+.form-grid{
+grid-template-columns:1fr 1fr;
+}
+
+}
+
+@media(max-width:500px){
+
+.form-grid{
+grid-template-columns:1fr;
+}
+
 }
 
 @media (max-width:768px){
