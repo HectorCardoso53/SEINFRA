@@ -11,12 +11,15 @@ import {
   doc,
   query,
   orderBy,
-  where,
+
+
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // ─── STATE ──────────────────────────────────────────────
 let visits = [];
+
 let persons = [];
+
 let editingId = null;
 let currentPage = 1;
 const PAGE_SIZE = 8;
@@ -114,10 +117,27 @@ function navigate(page) {
   if (page === "dashboard") renderDashboard();
 }
 
+
 window.closeSidebar = function () {
   document.getElementById("sidebar").classList.remove("open");
   document.getElementById("sidebar-overlay").classList.remove("show");
 };
+// ─── SIDEBAR MOBILE ─────────────────────────────────────
+window.toggleSidebar = function () {
+
+  const sidebar = document.getElementById("sidebar");
+  const main = document.querySelector(".main");
+
+  sidebar.classList.toggle("collapsed");
+  main.classList.toggle("expanded");
+
+};
+
+window.closeSidebar = function () {
+  document.getElementById("sidebar").classList.remove("open");
+  document.getElementById("sidebar-overlay").classList.remove("show");
+}
+
 
 // ─── FORM ────────────────────────────────────────────────
 function initForm() {
@@ -194,17 +214,14 @@ function validateForm(data) {
     showToast("Informe o telefone.", "error");
     return false;
   }
-
   if (!data.date) {
     showToast("Informe a data da visita.", "error");
     return false;
   }
-
   if (!data.service) {
     showToast("Selecione o tipo de serviço.", "error");
     return false;
   }
-
   return true;
 }
 
@@ -479,7 +496,6 @@ const CHART_COLORS = [
 
 function renderServiceChart(counts) {
   const ctx = document.getElementById("chart-service").getContext("2d");
-
   const labels = Object.keys(counts);
   const data = Object.values(counts);
 
