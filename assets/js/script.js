@@ -608,6 +608,7 @@ function renderServiceChart(counts) {
     },
   });
 }
+
 function renderHistory(name) {
   const tbody = document.getElementById("history-tbody");
 
