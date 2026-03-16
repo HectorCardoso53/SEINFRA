@@ -999,6 +999,57 @@ tbody tr:hover {
     justify-content: center;
 }
 
+/* TABELA ESTILO EXCEL */
+
+.table-wrapper table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+/* cabeçalho */
+
+.table-wrapper thead th {
+  background: #f3f6f9;
+  border: 1px solid #dfe6ee;
+  padding: 8px 10px;
+  text-align: left;
+  font-weight: 600;
+  color: #34495e;
+}
+
+/* células */
+
+.table-wrapper td {
+  border: 1px solid #e2e8f0;
+  padding: 6px 10px;
+  vertical-align: middle;
+}
+
+/* linhas alternadas */
+
+.table-wrapper tbody tr:nth-child(even) {
+  background: #f9fbfd;
+}
+
+/* hover igual planilha */
+
+.table-wrapper tbody tr:hover {
+  background: #eef5ff;
+}
+
+/* nome em destaque */
+
+.table-wrapper td strong {
+  font-weight: 600;
+}
+
+/* coluna motivo quebrar linha */
+
+.table-wrapper td:last-child {
+  white-space: normal;
+}
+
 /* ─── TOAST ───────────────────────────────────────── */
 .toast-container {
     position: fixed;

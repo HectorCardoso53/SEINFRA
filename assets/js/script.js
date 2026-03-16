@@ -189,13 +189,24 @@ async function handleFormSubmit(e) {
 function getFormData() {
   return {
     name: document.getElementById("f-name").value.trim(),
+
+    cpf: document.getElementById("f-cpf").value.trim(),
+
     phone: document.getElementById("f-phone").value.trim(),
+
+    phone2: document.getElementById("f-phone2").value.trim(),
+
+    address: document.getElementById("f-address").value.trim(),
+
+    reference: document.getElementById("f-reference").value.trim(),
+
     date: document.getElementById("f-date").value,
+
     sector: document.getElementById("f-sector").value,
+
     reason: document.getElementById("f-reason").value.trim(),
   };
 }
-
 async function validateForm(data) {
   const personExists = persons.some(
     (p) => p.name.toLowerCase() === data.name.toLowerCase(),
@@ -290,7 +301,12 @@ function renderTable() {
 
         <td><strong>${escapeHtml(v.name)}</strong></td>
 
-        <td>${escapeHtml(v.phone)}</td>
+        <td>${escapeHtml(v.cpf || "—")}</td>
+
+<td>
+${escapeHtml(v.phone)}
+${v.phone2 ? "<br>" + escapeHtml(v.phone2) : ""}
+</td>
 
         <td>${formatDate(v.date)}</td>
 
@@ -387,15 +403,19 @@ function editVisit(id) {
 
   editingId = id;
 
-  document.getElementById("f-name").value = v.name;
-  document.getElementById("f-phone").value = v.phone;
-  document.getElementById("f-date").value = v.date;
-  document.getElementById("f-sector").value = v.sector;
-  document.getElementById("f-reason").value = v.reason;
+  document.getElementById("f-name").value = v.name || "";
+  document.getElementById("f-cpf").value = v.cpf || "";
+  document.getElementById("f-phone").value = v.phone || "";
+  document.getElementById("f-phone2").value = v.phone2 || "";
+  document.getElementById("f-address").value = v.address || "";
+  document.getElementById("f-reference").value = v.reference || "";
+  document.getElementById("f-date").value = v.date || "";
+  document.getElementById("f-sector").value = v.sector || "";
+  document.getElementById("f-reason").value = v.reason || "";
 
   document.getElementById("form-card-title").textContent = "Editar Visita";
 
-  document.getElementById("btn-submit").innerHTML = `Salvar Alterações`;
+  document.getElementById("btn-submit").innerHTML = "Salvar Alterações";
 
   document.getElementById("btn-cancel-edit").style.display = "inline-flex";
 
@@ -483,13 +503,14 @@ function initFilters() {
 function initPhoneMask() {
   const inputs = [
     document.getElementById("f-phone"),
+    document.getElementById("f-phone2"),
     document.getElementById("p-phone"),
   ];
 
-  inputs.forEach((el) => {
-    if (!el) return;
+  inputs.forEach((input) => {
+    if (!input) return;
 
-    el.addEventListener("input", function () {
+    input.addEventListener("input", function () {
       let v = this.value.replace(/\D/g, "");
 
       if (v.length > 11) v = v.slice(0, 11);
@@ -500,6 +521,8 @@ function initPhoneMask() {
         this.value = `(${v.slice(0, 2)}) ${v.slice(2)}`;
       } else if (v.length > 0) {
         this.value = `(${v}`;
+      } else {
+        this.value = "";
       }
     });
   });
@@ -555,8 +578,10 @@ function renderServiceChart(counts) {
 
   const ctx = canvas.getContext("2d");
 
-  const labels = Object.keys(counts);
-  const data = Object.values(counts);
+  const labels = Object.keys(counts).length
+    ? Object.keys(counts)
+    : ["Sem dados"];
+  const data = Object.values(counts).length ? Object.values(counts) : [1];
 
   if (chartService) chartService.destroy();
 
@@ -586,10 +611,11 @@ function renderServiceChart(counts) {
 function renderHistory(name) {
   const tbody = document.getElementById("history-tbody");
 
-  const history = visits.filter((v) =>
-    v.name.toLowerCase().includes(name.toLowerCase()),
+  const history = visits.filter(
+    (v) =>
+      v.name.toLowerCase().includes(name.toLowerCase()) ||
+      v.phone.includes(name),
   );
-
   if (!history.length) {
     tbody.innerHTML = `
 <tr>
@@ -610,7 +636,10 @@ function renderHistory(name) {
 
 <td>${escapeHtml(v.name)}</td>
 
-<td>${escapeHtml(v.phone)}</td>
+<td>
+${escapeHtml(v.phone)}
+${v.phone2 ? "<br>" + escapeHtml(v.phone2) : ""}
+</td>
 
 <td>${escapeHtml(v.sector)}</td>
 
@@ -681,10 +710,10 @@ function renderTodayVisits() {
 
   if (todayVisits.length === 0) {
     tbody.innerHTML = `
-    <tr>
-      <td colspan="5">Nenhum atendimento registrado hoje</td>
-    </tr>
-    `;
+<tr>
+<td colspan="8">Nenhum atendimento registrado hoje</td>
+</tr>
+`;
 
     return;
   }
@@ -702,11 +731,25 @@ function renderTodayVisits() {
 
 <td><strong>${escapeHtml(v.name)}</strong></td>
 
-<td>${escapeHtml(v.phone)}</td>
+<td>${escapeHtml(v.cpf || "—")}</td>
+
+<td>
+${escapeHtml(v.phone)}
+${v.phone2 ? "<br>" + escapeHtml(v.phone2) : ""}
+</td>
+
+<td>${escapeHtml(v.address || "—")}</td>
+
+<td>${escapeHtml(v.reference || "—")}</td>
 
 <td>${escapeHtml(v.sector)}</td>
 
-<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+<td style="
+max-width:200px;
+overflow:hidden;
+text-overflow:ellipsis;
+white-space:nowrap
+">
 ${escapeHtml(v.reason)}
 </td>
 
@@ -718,7 +761,6 @@ ${escapeHtml(v.reason)}
     })
     .join("");
 }
-
 // ─── TOAST ────────────────────────────────────────────────
 function showToast(msg, type = "success") {
   const container = document.getElementById("toast-container");
@@ -737,6 +779,11 @@ function showToast(msg, type = "success") {
 }
 
 async function savePerson(e) {
+  e.preventDefault();
+
+  const name = document.getElementById("p-name").value.trim();
+  const phone = document.getElementById("p-phone").value.trim();
+
   const exists = persons.some(
     (p) => p.name.toLowerCase() === name.toLowerCase(),
   );
@@ -745,11 +792,6 @@ async function savePerson(e) {
     showToast("Essa pessoa já está cadastrada", "error");
     return;
   }
-
-  e.preventDefault();
-
-  const name = document.getElementById("p-name").value.trim();
-  const phone = document.getElementById("p-phone").value.trim();
 
   if (!name || !phone) {
     showToast("Preencha nome e telefone", "error");
@@ -765,6 +807,8 @@ async function savePerson(e) {
   showToast("Pessoa cadastrada com sucesso!");
 
   document.getElementById("person-form").reset();
+
+  await loadPersons();
 }
 
 function atualizarHeader(pageId) {
@@ -792,6 +836,28 @@ function atualizarHeader(pageId) {
     title.textContent = map[pageId].title;
     subtitle.textContent = map[pageId].subtitle;
   }
+}
+
+function initCpfMask() {
+  const cpf = document.getElementById("f-cpf");
+
+  if (!cpf) return;
+
+  cpf.addEventListener("input", function () {
+    let v = this.value.replace(/\D/g, "");
+
+    if (v.length > 11) v = v.slice(0, 11);
+
+    if (v.length > 9) {
+      this.value = `${v.slice(0, 3)}.${v.slice(3, 6)}.${v.slice(6, 9)}-${v.slice(9)}`;
+    } else if (v.length > 6) {
+      this.value = `${v.slice(0, 3)}.${v.slice(3, 6)}.${v.slice(6)}`;
+    } else if (v.length > 3) {
+      this.value = `${v.slice(0, 3)}.${v.slice(3)}`;
+    } else {
+      this.value = v;
+    }
+  });
 }
 
 window.toggleSidebar = function () {
@@ -829,7 +895,8 @@ function initPersonAutocomplete() {
     const value = this.value.toLowerCase();
 
     list.innerHTML = "";
-    warning.style.display = "none";
+    if (warning) warning.style.display = "none";
+    if (warning) warning.style.display = "block";
 
     if (value.length < 2) return;
 
@@ -857,7 +924,8 @@ function initPersonAutocomplete() {
         input.value = person.name;
         phone.value = person.phone;
 
-        warning.style.display = "none";
+        if (warning) warning.style.display = "none";
+        if (warning) warning.style.display = "block";
         list.innerHTML = "";
       };
 
@@ -867,26 +935,34 @@ function initPersonAutocomplete() {
 }
 // ─── INIT ─────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
+  // carregar dados do banco
   await loadVisits();
   await loadPersons();
 
+  // inicializações do sistema
   initForm();
   initFilters();
   initPhoneMask();
   initPersonAutocomplete();
+  initCpfMask();
 
   // conectar formulário de cadastro de pessoa
   const personForm = document.getElementById("person-form");
+
   if (personForm) {
     personForm.addEventListener("submit", savePerson);
   }
 
-  // definir data padrão da visita
+  // DATA AUTOMÁTICA DA VISITA
   const dateInput = document.getElementById("f-date");
+
   if (dateInput) {
-    dateInput.value = today();
+    const now = new Date();
+
+    dateInput.value = now.toISOString().split("T")[0];
   }
 
+  // botão buscar histórico
   const historyBtn = document.getElementById("btn-search-history");
 
   if (historyBtn) {
@@ -897,15 +973,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // navegação do menu
+  // navegação do menu lateral
   document.querySelectorAll("[data-nav]").forEach((el) => {
-    el.addEventListener("click", () => navigate(el.dataset.nav));
+    el.addEventListener("click", () => {
+      navigate(el.dataset.nav);
+    });
   });
 
-  // badge de hoje (se existir)
+  // badge com data de hoje
   const todayBadge = document.getElementById("today-badge");
+
   if (todayBadge) {
     const d = new Date();
+
     todayBadge.textContent = d.toLocaleDateString("pt-BR", {
       weekday: "long",
       day: "2-digit",
@@ -915,18 +995,21 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // botão hamburger
   const hamburger = document.getElementById("hamburger");
+
   if (hamburger) {
     hamburger.addEventListener("click", toggleSidebar);
   }
 
   // fechar sidebar clicando fora
   const overlay = document.getElementById("sidebar-overlay");
+
   if (overlay) {
     overlay.addEventListener("click", closeSidebar);
   }
 
   // cancelar exclusão
   const cancelDelete = document.getElementById("btn-cancel-delete");
+
   if (cancelDelete) {
     cancelDelete.addEventListener("click", closeConfirm);
   }
@@ -934,6 +1017,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // página inicial
   navigate("dashboard");
 
+  // renderizações iniciais
   renderTable();
   renderDashboard();
   renderTodayVisits();
