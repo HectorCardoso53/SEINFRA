@@ -600,27 +600,28 @@ function carregarTabelaRelatorios(ordensParaExibir) {
             ${(ordem.descricaoServico || "-").substring(0, 40)}...
           </td>
 
-          <td style="display:flex; gap:6px;">
+          <td class="acoes">
+    <button 
+      class="btn btn-primary btn-icon"
+      onclick="visualizarOS('${ordem.id}')"
+      title="Visualizar">
+      <i class="bi bi-eye"></i>
+    </button>
 
-            <button 
-              class="btn btn-primary btn-small"
-              onclick="visualizarOS('${ordem.id}')">
-              Ver
-            </button>
+    <button 
+      class="btn btn-secondary btn-icon"
+      onclick="editarOS('${ordem.id}')"
+      title="Editar">
+      <i class="bi bi-pencil"></i>
+    </button>
 
-            <button 
-              class="btn btn-secondary btn-small"
-              onclick="editarOS('${ordem.id}')">
-              Editar
-            </button>
-
-            <button 
-              class="btn btn-danger btn-small"
-              onclick="excluirOS('${ordem.id}')">
-              Excluir
-            </button>
-
-          </td>
+    <button 
+      class="btn btn-danger btn-icon"
+      onclick="excluirOS('${ordem.id}')"
+      title="Excluir">
+      <i class="bi bi-trash"></i>
+    </button>
+</td>
         </tr>
       `;
     })
