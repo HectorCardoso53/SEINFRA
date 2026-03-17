@@ -1,28 +1,17 @@
 import {
   salvarOrdemFirestore,
-  buscarOrdensFirestore,
   atualizarOrdemFirestore,
   excluirOrdemFirestore,
+  gerarNumeroOS,
+  consultarProximoNumeroOS,
+  buscarUltimasOrdensFirestore,
+  sincronizarContadorOS,
 } from "./firestore.js";
-
-import { db } from "./firebase.js";
-
-import { deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-import {
-  getDocs,
-  collection,
-  doc,
-  setDoc,
-  deleteDoc,
-  updateDoc,
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // 🔥 VARIÁVEIS GLOBAIS
 let ordens = [];
 let materiais = [];
 let osAtual = null;
-let numeroOS = 1;
 
 let latitudeSelecionada = null;
 let longitudeSelecionada = null;
@@ -31,32 +20,33 @@ let marcador = null;
 
 // Inicialização
 document.addEventListener("DOMContentLoaded", function () {
-  inicializarSistema();
-  carregarAnoMateriais(); // 🔥 adiciona isso
-   carregarFiltroAno(); // 🔥 faltava isso
-});
 
-document.addEventListener("DOMContentLoaded", () => {
+  inicializarSistema();
+
+  carregarAnoMateriais();
+  carregarFiltroAno();
+
   const tipoOS = document.getElementById("tipo-os");
   const campoSetor = document.getElementById("campo-setor-solicitante");
   const inputSetor = document.getElementById("setor-solicitante");
 
-  if (!tipoOS) return;
+  if (tipoOS) {
+    tipoOS.addEventListener("change", () => {
 
-  tipoOS.addEventListener("change", () => {
-    if (tipoOS.value === "externa") {
-      campoSetor.style.visibility = "hidden";
-      campoSetor.style.height = "0";
-      campoSetor.style.margin = "0";
+      if (tipoOS.value === "externa") {
+        campoSetor.style.visibility = "hidden";
+        campoSetor.style.height = "0";
+        campoSetor.style.margin = "0";
+        inputSetor.required = false;
+      } else {
+        campoSetor.style.visibility = "visible";
+        campoSetor.style.height = "auto";
+        inputSetor.required = true;
+      }
 
-      inputSetor.required = false;
-    } else {
-      campoSetor.style.visibility = "visible";
-      campoSetor.style.height = "auto";
+    });
+  }
 
-      inputSetor.required = true;
-    }
-  });
 });
 
 function iniciarMapa() {
@@ -75,10 +65,9 @@ function iniciarMapa() {
     latitudeSelecionada = lat;
     longitudeSelecionada = lng;
 
-    if (marcador) {
-      mapa.removeLayer(marcador);
-    }
-
+    if (marcador && mapa) {
+  mapa.removeLayer(marcador);
+}
     marcador = L.marker([lat, lng]).addTo(mapa);
 
     console.log("Local selecionado:", lat, lng);
@@ -86,53 +75,37 @@ function iniciarMapa() {
 }
 
 async function inicializarSistema() {
-
-  ordens = await buscarOrdensFirestore();
-
-  const anoAtual = new Date().getFullYear();
-
-  let numeros = [];
-
-  ordens.forEach((ordem) => {
-
-    if (!ordem.numero) return;
-
-    const match = ordem.numero.match(/OS\s*(\d+)\/(\d{4})/);
-
-    if (match) {
-
-      const seq = parseInt(match[1], 10);
-      const ano = parseInt(match[2], 10);
-
-      if (ano === anoAtual) {
-        numeros.push(seq);
-      }
-
-    }
-
-  });
-
-  // ✔ pega o maior número existente
-  if (numeros.length === 0) {
-    numeroOS = 1;
-  } else {
-    numeroOS = Math.max(...numeros) + 1;
-  }
+  ordens = await buscarUltimasOrdensFirestore(200);
 
   setDataAtual();
-  gerarNumeroOS();
+
+  await atualizarNumeroOS();
+
   atualizarDashboard();
   carregarTabelaDashboard();
   aplicarFiltros();
 
   atualizarHeader("dashboard");
-
 }
 
-document.querySelector(".overlay")?.addEventListener("click", () => {
-  document.querySelector(".sidebar").classList.remove("open");
-  document.querySelector(".overlay").classList.remove("show");
-});
+async function atualizarNumeroOS() {
+  const numero = await consultarProximoNumeroOS();
+
+  const campo = document.getElementById("numero-os");
+
+  if (campo) {
+    campo.value = numero;
+  }
+}
+
+const overlay = document.querySelector(".overlay");
+
+if (overlay) {
+  overlay.addEventListener("click", () => {
+    document.getElementById("sidebar")?.classList.remove("open");
+    overlay.classList.remove("show");
+  });
+}
 
 function atualizarHeader(pageId) {
   const title = document.getElementById("page-title");
@@ -169,29 +142,6 @@ function atualizarHeader(pageId) {
     title.textContent = map[pageId].title;
     subtitle.textContent = map[pageId].subtitle;
   }
-}
-
-// Gerar número da OS
-function gerarNumeroOS() {
-  const inputNumero = document.getElementById("numero-os");
-  const inputData = document.getElementById("data-abertura");
-
-  if (!inputNumero || !inputData) return;
-
-  // 🔢 número sequencial
-  const numeroFormatado = String(numeroOS).padStart(3, "0");
-
-  // 📅 ano baseado na data, mas nunca menor que 2026
-  let ano = inputData.value
-    ? new Date(inputData.value).getFullYear()
-    : new Date().getFullYear();
-
-  if (ano < 2026) {
-    ano = 2026;
-  }
-
-  // 🏢 SEINFRA fixo
-  inputNumero.value = `OS ${numeroFormatado}/${ano} - SEINFRA`;
 }
 
 // Definir data atual
@@ -292,7 +242,6 @@ document
 
     const dadosOrdem = {
       tipoOS: document.getElementById("tipo-os").value,
-      numero: document.getElementById("numero-os").value,
       dataAbertura: document.getElementById("data-abertura").value,
 
       latitude: latitudeSelecionada,
@@ -302,7 +251,8 @@ document
 
       nomeSolicitante: document.getElementById("nome-solicitante").value,
       cpfSolicitante: document.getElementById("cpf-solicitante").value,
-      telefoneSolicitante: document.getElementById("telefone-solicitante").value,
+      telefoneSolicitante: document.getElementById("telefone-solicitante")
+        .value,
 
       setorSolicitante: document.getElementById("setor-solicitante").value,
 
@@ -314,59 +264,59 @@ document
       materiais: [...materiais],
 
       responsavelExecucao: responsavelExecucao,
-      responsavelAbertura: document.getElementById("responsavel-abertura").value,
+      responsavelAbertura: document.getElementById("responsavel-abertura")
+        .value,
     };
 
     try {
-
       // ✏️ EDITAR OS
       if (osAtual && osAtual.id) {
-
         await atualizarOrdemFirestore(osAtual.id, dadosOrdem);
 
         mostrarAlerta("Ordem atualizada com sucesso!", "Sucesso");
 
         osAtual = null;
 
-        ordens = await buscarOrdensFirestore();
+        ordens = await buscarUltimasOrdensFirestore(200);
 
         showPage("relatorios");
 
+        atualizarDashboard();
+        carregarTabelaDashboard();
         aplicarFiltros();
 
         return;
       }
 
       // 🆕 NOVA OS
+
+      // 🔹 pega o número que já está no campo da tela
+
       dadosOrdem.status = "Aberta";
       dadosOrdem.dataEncerramento = null;
       dadosOrdem.observacaoFinal = null;
       dadosOrdem.assinaturaChefia = null;
       dadosOrdem.assinaturaRecebedor = null;
 
-      await salvarOrdemFirestore(dadosOrdem);
+      const numeroGerado = await salvarOrdemFirestore(dadosOrdem);
 
-      mostrarAlerta("Ordem criada com sucesso!", "Sucesso");
+      mostrarAlerta(`Ordem ${numeroGerado} criada com sucesso!`, "Sucesso");
 
       // 🔥 RECARREGA DO BANCO (NÃO INCREMENTA MANUALMENTE)
-      ordens = await buscarOrdensFirestore();
-
-      // 🔥 recalcula a sequência corretamente
-      await inicializarSistema();
+      ordens = await buscarUltimasOrdensFirestore(200);
 
       limparFormulario();
 
       atualizarDashboard();
       carregarTabelaDashboard();
       aplicarFiltros();
-
     } catch (error) {
       console.error(error);
       mostrarAlerta(error.message, "Erro");
     }
   });
 
-function limparFormulario() {
+async function limparFormulario() {
   osAtual = null;
 
   document.getElementById("form-os").reset();
@@ -377,19 +327,19 @@ function limparFormulario() {
   latitudeSelecionada = null;
   longitudeSelecionada = null;
 
-  if (marcador) {
-    mapa.removeLayer(marcador);
-    marcador = null;
-  }
+  if (marcador && mapa) {
+  mapa.removeLayer(marcador);
+}
 
-  gerarNumeroOS();
   setDataAtual();
+
+  const numero = await consultarProximoNumeroOS();
+  document.getElementById("numero-os").value = numero;
 
   if (window.userNome) {
     document.getElementById("responsavel-abertura").value = window.userNome;
   }
 }
-
 window.mostrarAlerta = function (mensagem, titulo = "Aviso") {
   document.getElementById("modal-alerta-titulo").innerText = titulo;
   document.getElementById("modal-alerta-mensagem").innerText = mensagem;
@@ -410,7 +360,10 @@ function atualizarDashboard() {
   const abertas = ordens.filter((o) => o.status === "Aberta").length;
   const andamento = ordens.filter((o) => o.status === "Em andamento").length;
   const encerradas = ordens.filter((o) => o.status === "Encerrada").length;
-  const totalMateriais = ordens.reduce((acc, o) => acc + o.materiais.length, 0);
+  const totalMateriais = ordens.reduce(
+    (acc, o) => acc + (o.materiais?.length || 0),
+    0,
+  );
 
   document.getElementById("total-ordens").textContent = total;
   document.getElementById("total-andamento").textContent = andamento;
@@ -481,7 +434,7 @@ window.gerarRelatorioMateriais = function () {
 
 function carregarTabelaDashboard() {
   const tbody = document.getElementById("tabela-dashboard");
-  const ultimasOrdens = ordens.slice(-5).reverse();
+  const ultimasOrdens = ordens.slice(0, 5);
 
   if (ultimasOrdens.length === 0) {
     tbody.innerHTML = `
@@ -540,15 +493,13 @@ window.aplicarFiltros = function () {
 
   let ordensFiltradas = [...ordens];
 
- if (dataInicio) {
+  if (dataInicio) {
+    const inicio = new Date(dataInicio + "T00:00:00");
 
-  const inicio = new Date(dataInicio + "T00:00:00");
-
-  ordensFiltradas = ordensFiltradas.filter(
-    (o) => new Date(o.dataAbertura) >= inicio
-  );
-
-}
+    ordensFiltradas = ordensFiltradas.filter(
+      (o) => new Date(o.dataAbertura) >= inicio,
+    );
+  }
 
   if (dataFim) {
     ordensFiltradas = ordensFiltradas.filter(
@@ -847,7 +798,7 @@ window.alterarStatus = async function () {
     status: novoStatus,
   });
 
-  ordens = await buscarOrdensFirestore();
+  ordens = await buscarUltimasOrdensFirestore(200);
   visualizarOS(osAtual.id);
   atualizarDashboard();
   carregarTabelaDashboard();
@@ -890,7 +841,7 @@ window.excluirOS = function (id) {
       try {
         await excluirOrdemFirestore(id);
 
-        ordens = await buscarOrdensFirestore();
+        ordens = await buscarUltimasOrdensFirestore(200);
 
         atualizarDashboard();
         carregarTabelaDashboard();
@@ -989,7 +940,7 @@ document
       observacaoFinal: null,
     });
 
-    ordens = await buscarOrdensFirestore();
+    ordens = await buscarUltimasOrdensFirestore(200);
 
     fecharModalEncerramento();
     visualizarOS(osAtual.id);
@@ -1045,14 +996,6 @@ function renderTabelaMateriaisMes(lista) {
     )
     .join("");
 }
-
-document
-  .getElementById("data-abertura")
-  ?.addEventListener("change", gerarNumeroOS);
-
-document
-  .getElementById("setor-responsavel")
-  ?.addEventListener("input", gerarNumeroOS);
 
 function carregarAnoMateriais() {
   const select = document.getElementById("materiais-ano");
@@ -1649,7 +1592,7 @@ Secretária
 
 <div class="assinatura-box">
 <div class="linha"></div>
-${osAtual.assinaturaChefia || ""}
+${osAtual.responsavelExecucao || ""}
 Responsável
 </div>
 
@@ -1671,7 +1614,6 @@ Secretária
 
 <div class="assinatura-box">
 <div class="linha"></div>
-${osAtual.assinaturaChefia || ""}
 Responsável
 </div>
 
@@ -2240,7 +2182,6 @@ window.imprimirMateriaisMes = function () {
 };
 
 window.imprimirRelatorio = function () {
-
   let linhas = "";
 
   const dataEmissao = new Date().toLocaleString("pt-BR");
@@ -2265,59 +2206,55 @@ window.imprimirRelatorio = function () {
 
   // DATA INICIAL
   if (dataInicio) {
-
     const inicio = new Date(dataInicio + "T00:00:00");
 
     ordensFiltradas = ordensFiltradas.filter(
-      (o) => new Date(o.dataAbertura) >= inicio
+      (o) => new Date(o.dataAbertura) >= inicio,
     );
   }
 
   // DATA FINAL
   if (dataFim) {
     ordensFiltradas = ordensFiltradas.filter(
-      (o) => new Date(o.dataAbertura) <= new Date(dataFim + "T23:59:59")
+      (o) => new Date(o.dataAbertura) <= new Date(dataFim + "T23:59:59"),
     );
   }
 
   // MÊS
   if (mes !== "") {
     ordensFiltradas = ordensFiltradas.filter(
-      (o) => new Date(o.dataAbertura).getMonth() === Number(mes)
+      (o) => new Date(o.dataAbertura).getMonth() === Number(mes),
     );
   }
 
   // ANO
   if (ano !== "") {
     ordensFiltradas = ordensFiltradas.filter(
-      (o) => new Date(o.dataAbertura).getFullYear() === Number(ano)
+      (o) => new Date(o.dataAbertura).getFullYear() === Number(ano),
     );
   }
 
   // STATUS
   if (status) {
-    ordensFiltradas = ordensFiltradas.filter(
-      (o) => o.status === status
-    );
+    ordensFiltradas = ordensFiltradas.filter((o) => o.status === status);
   }
 
   // SOLICITANTE
   if (solicitante) {
     ordensFiltradas = ordensFiltradas.filter((o) =>
-      o.nomeSolicitante?.toLowerCase().includes(solicitante)
+      o.nomeSolicitante?.toLowerCase().includes(solicitante),
     );
   }
 
   // SETOR SOLICITANTE
   if (setorSolicitante) {
     ordensFiltradas = ordensFiltradas.filter((o) =>
-      o.setorSolicitante?.toLowerCase().includes(setorSolicitante)
+      o.setorSolicitante?.toLowerCase().includes(setorSolicitante),
     );
   }
 
   // GERAR LINHAS
   ordensFiltradas.forEach((o) => {
-
     linhas += `
       <tr>
         <td>${o.numero}</td>
@@ -2470,7 +2407,6 @@ window.onload = () => window.print()
 `);
 
   w.document.close();
-
 };
 
 window.showPage = function (pageId, element) {
@@ -2495,13 +2431,11 @@ window.showPage = function (pageId, element) {
   // 🔥 INICIAR MAPA
   if (pageId === "nova-os") {
     setTimeout(iniciarMapa, 200);
+
+    atualizarNumeroOS();
   }
 };
 
-document.querySelector(".overlay").addEventListener("click", () => {
-  document.getElementById("sidebar").classList.remove("open");
-  document.querySelector(".overlay").classList.remove("show");
-});
 
 window.toggleMenu = function () {
   const sidebar = document.getElementById("sidebar");
