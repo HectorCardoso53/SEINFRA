@@ -59,6 +59,21 @@
        margin-left: auto;
    }
 
+   .btn-icon{
+    width:30px;
+    height:30px;
+    padding:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+.acoes{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    align-items:center;
+}
 
    .container {
        display: flex;
@@ -94,7 +109,6 @@
 
    .table-container table {
        width: 100%;
-       min-width: 900px;
        border-collapse: collapse;
 
    }
@@ -329,20 +343,27 @@
 
 
    #page-relatorios table {
-       min-width: 1200px;
-       overflow-x: auto;
+       width: 100%;
    }
+   #page-relatorios table{
+    table-layout: fixed;
+}
 
    #page-relatorios th,
    #page-relatorios td {
-       white-space: nowrap;
        font-size: 13px;
+       white-space: normal;
+       word-break: break-word;
    }
+
+   #page-relatorios td:nth-child(6){
+    max-width:260px;
+}
 
    table {
        width: 100%;
        border-collapse: collapse;
-       page-break-inside:avoid;
+       page-break-inside: avoid;
    }
 
    th,
@@ -364,7 +385,7 @@
    }
 
 
-   
+
 
    .status-badge {
        padding: 5px 12px;
@@ -906,6 +927,7 @@
 
    .main-content {
        padding-bottom: 60px;
+       overflow-x:hidden;
    }
 
    /* =========================
@@ -1017,6 +1039,7 @@
    .detail-row button {
        align-self: flex-start;
    }
+
    .user-card {
        background: #fff;
        border-radius: 10px;

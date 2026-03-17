@@ -337,6 +337,8 @@ body {
     display: flex;
     flex-direction: column;
     background: white;
+
+    width: calc(100% - 260px);
 }
 
 .topbar {
@@ -387,6 +389,8 @@ body {
     padding: 32px;
     flex: 1;
     background: white;
+
+    max-width: 100%;
 }
 
 /* ─── PAGE SECTIONS ─────────────────────────────── */
@@ -617,6 +621,11 @@ select {
     margin-bottom: 18px;
     gap: 12px;
     flex-wrap: wrap;
+}
+
+.table-container{
+    width:100%;
+    overflow-x:auto;
 }
 
 .filter-group {
