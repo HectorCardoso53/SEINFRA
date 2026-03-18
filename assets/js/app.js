@@ -20,28 +20,45 @@ let longitudeSelecionada = null;
 let mapa = null;
 let marcador = null;
 let materiaisEncerramento = [];
-let ultimaDoc = null;
 let carregando = false;
+let paginaAtual = 1;
+let historicoDocs = [];
 
-async function carregarMaisOrdens() {
-  if (carregando) return;
-
+async function carregarPagina(pagina) {
   carregando = true;
 
-  const resultado = await buscarOrdensPaginadas(ultimaDoc, 20);
+  let docReferencia = null;
 
-  ultimaDoc = resultado.ultimoDocumento;
+  if (pagina > 1) {
+    docReferencia = historicoDocs[pagina - 2];
+  }
 
-  const idsExistentes = new Set(ordens.map((o) => o.id));
+  const resultado = await buscarOrdensPaginadas(docReferencia, 20);
 
-  const novas = resultado.lista.filter((o) => !idsExistentes.has(o.id));
+  document.getElementById("pagina-info").innerText = `Página ${pagina}`;
 
-  ordens = ordens.concat(novas);
+  // 🔥 salva referência da página
+  historicoDocs[pagina - 1] = resultado.ultimoDocumento;
+
+  // 🔥 substitui dados (não acumula)
+  ordens = resultado.lista;
 
   carregarTabelaRelatorios(ordens);
 
+  paginaAtual = pagina;
+
   carregando = false;
 }
+
+window.proximaPagina = function () {
+  if (carregando) return;
+  carregarPagina(paginaAtual + 1);
+};
+
+window.paginaAnterior = function () {
+  if (paginaAtual === 1 || carregando) return;
+  carregarPagina(paginaAtual - 1);
+};
 
 function extrairNumeroOS(numero) {
   if (!numero) return 0;
@@ -108,7 +125,7 @@ async function inicializarSistema() {
 
   await atualizarNumeroOS();
 
-  await carregarMaisOrdens(); // 🔥 FALTAVA ISSO
+  await carregarPagina(1);
 
   atualizarDashboard();
   carregarTabelaDashboard();
@@ -254,51 +271,35 @@ document
   .addEventListener("submit", async function (e) {
     e.preventDefault();
 
-    const descricao = document.getElementById("descricao-servico").value.trim();
-
-    const responsavelExecucao =
-      document.getElementById("responsavel-execucao").value.trim() || "";
-
-    if (!descricao) {
-      mostrarAlerta("A descrição do serviço é obrigatória.", "Atenção");
-      return;
-    }
-
-    const setorSelect = document.getElementById("setor-responsavel").value;
-    const novoSetor = document.getElementById("novo-setor")?.value.trim();
-
-    const setorFinal = setorSelect === "outro" ? novoSetor : setorSelect;
-
-    const dadosOrdem = {
-      tipoOS: document.getElementById("tipo-os").value,
-      dataAbertura: document.getElementById("data-abertura").value,
-
-      latitude: latitudeSelecionada,
-      longitude: longitudeSelecionada,
-
-      setorResponsavel: setorFinal,
-
-      nomeSolicitante: document.getElementById("nome-solicitante").value,
-      cpfSolicitante: document.getElementById("cpf-solicitante").value,
-      telefoneSolicitante: document.getElementById("telefone-solicitante")
-        .value,
-
-      setorSolicitante: document.getElementById("setor-solicitante").value,
-
-      descricaoServico: descricao,
-      localServico: document.getElementById("local-servico").value,
-
-      pontoReferencia: document.getElementById("ponto-referencia").value,
-
-      materiais: [...materiais],
-
-      responsavelExecucao: responsavelExecucao,
-      responsavelAbertura: document.getElementById("responsavel-abertura")
-        .value,
-    };
-
     try {
-      // ✏️ EDITAR OS
+      const descricao = document
+        .getElementById("descricao-servico")
+        .value.trim();
+
+      const responsavelExecucao =
+        document.getElementById("responsavel-execucao").value.trim() || "";
+
+      const setorSelect = document.getElementById("setor-responsavel").value;
+      const novoSetor = document.getElementById("novo-setor")?.value.trim();
+
+      const setorFinal = setorSelect === "outro" ? novoSetor : setorSelect;
+
+      // 🔥 COLETA
+      const dadosBrutos = coletarDadosFormulario(
+        setorFinal,
+        descricao,
+        responsavelExecucao
+      );
+
+      // 🔥 VALIDAÇÃO (regra de negócio)
+      validarOrdem(dadosBrutos);
+
+      // 🔥 BUILD (estrutura final)
+      const dadosOrdem = buildOrdem(dadosBrutos);
+
+      // =========================
+      // ✏️ EDITAR
+      // =========================
       if (osAtual && osAtual.id) {
         await atualizarOrdemFirestore(osAtual.id, dadosOrdem);
 
@@ -308,54 +309,34 @@ document
 
         showPage("relatorios");
 
+        await carregarPagina(1);
         atualizarDashboard();
-        carregarTabelaDashboard();
-        aplicarFiltros();
 
         return;
       }
 
+      // =========================
       // 🆕 NOVA OS
-
-      // 🔹 pega o número que já está no campo da tela
-
-      dadosOrdem.status = "Aberta";
-      dadosOrdem.dataEncerramento = null;
-      dadosOrdem.observacaoFinal = null;
-      dadosOrdem.assinaturaChefia = null;
-      dadosOrdem.assinaturaRecebedor = null;
-
+      // =========================
       const resultado = await salvarOrdemFirestore(dadosOrdem);
 
-      mostrarAlerta(`Ordem ${resultado.numero} criada com sucesso!`, "Sucesso");
+      mostrarAlerta(
+        `Ordem ${resultado.numero} criada com sucesso!`,
+        "Sucesso"
+      );
 
-      // 🔥 CRIA OBJETO LOCAL
-      const novaOrdem = {
-        ...dadosOrdem,
-        id: resultado.id,
-        numero: resultado.numero,
-        status: "Aberta",
-        criadoEm: new Date(),
-      };
-
-      // 🔥 ADICIONA NO TOPO (IMPORTANTE)
-      ordens.unshift(novaOrdem);
-      // 🔥 ATUALIZA TUDO
-      aplicarFiltros();
-      carregarTabelaDashboard();
-      atualizarDashboard();
+      // 🔥 ATUALIZA LISTA CORRETAMENTE (sem unshift)
+      await carregarPagina(1);
 
       limparFormulario();
 
       atualizarDashboard();
-      carregarTabelaDashboard();
-      aplicarFiltros();
+
     } catch (error) {
       console.error(error);
       mostrarAlerta(error.message, "Erro");
     }
   });
-
 async function limparFormulario() {
   osAtual = null;
 
@@ -948,6 +929,86 @@ window.fecharModalEncerramento = function () {
   modal.classList.add("hidden");
   document.getElementById("form-encerramento").reset();
 };
+
+function coletarDadosFormulario(setorFinal, descricao, responsavelExecucao) {
+  return {
+    tipoOS: document.getElementById("tipo-os")?.value,
+    dataAbertura: document.getElementById("data-abertura")?.value,
+
+    latitude: latitudeSelecionada,
+    longitude: longitudeSelecionada,
+
+    setorResponsavel: setorFinal,
+
+    nomeSolicitante: document.getElementById("nome-solicitante")?.value.trim(),
+    cpf: document.getElementById("cpf-solicitante")?.value.trim(),
+    telefone: document.getElementById("telefone-solicitante")?.value.trim(),
+
+    setorSolicitante: document.getElementById("setor-solicitante")?.value,
+
+    descricao: descricao,
+    local: document.getElementById("local-servico")?.value.trim(),
+    pontoReferencia: document.getElementById("ponto-referencia")?.value.trim(),
+
+    materiais: [...materiais],
+
+    responsavelExecucao,
+    responsavelAbertura: document.getElementById("responsavel-abertura")?.value
+  };
+}
+
+
+function validarOrdem(dados) {
+
+  if (!dados.descricao) {
+    throw new Error("Descrição obrigatória");
+  }
+
+  if (!dados.nomeSolicitante) {
+    throw new Error("Nome do solicitante obrigatório");
+  }
+
+  if (dados.tipoOS === "interna" && !dados.setorSolicitante) {
+    throw new Error("Setor obrigatório para OS interna");
+  }
+
+  if (dados.tipoOS === "externa" && !dados.telefone) {
+    throw new Error("Telefone obrigatório para OS externa");
+  }
+}
+
+function buildOrdem(dados) {
+  return {
+    tipoOS: dados.tipoOS,
+    dataAbertura: dados.dataAbertura,
+
+    latitude: dados.latitude ?? null,
+    longitude: dados.longitude ?? null,
+
+    setorResponsavel: dados.setorResponsavel || null,
+
+    nomeSolicitante: dados.nomeSolicitante,
+    cpfSolicitante: dados.cpf || null,
+    telefoneSolicitante: dados.telefone || null,
+
+    setorSolicitante: dados.setorSolicitante || null,
+
+    descricaoServico: dados.descricao,
+    localServico: dados.local,
+    pontoReferencia: dados.pontoReferencia || null,
+
+    materiais: Array.isArray(dados.materiais) ? dados.materiais : [],
+
+    responsavelExecucao: dados.responsavelExecucao || null,
+    responsavelAbertura: dados.responsavelAbertura,
+
+    status: "Aberta",
+    dataEncerramento: null,
+    observacaoFinal: null,
+    assinaturaChefia: null,
+    assinaturaRecebedor: null
+  };
+}
 
 document
   .getElementById("form-encerramento")
@@ -2529,4 +2590,3 @@ telefoneInput?.addEventListener("input", function (e) {
 
   e.target.value = v;
 });
-

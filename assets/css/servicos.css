@@ -90,6 +90,13 @@ body {
     margin: auto;
 }
 
+.card.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+    cursor: not-allowed;
+    filter: grayscale(80%);
+}
+
 @media (max-width:768px) {
 
     .cards {

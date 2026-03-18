@@ -198,25 +198,30 @@ export async function buscarUltimasOrdensFirestore(qtd = 100) {
    DESCONTAR ESTOQUE
 ========================= */
 async function descontarEstoque(materiais) {
-  for (const mat of materiais) {
-    if (!mat.quantidade) continue;
+  const operacoes = materiais.map(async (mat) => {
+    if (!mat.quantidade) return;
 
     const idMaterial = normalizarNome(mat.nome);
     const ref = doc(db, "materiais", idMaterial);
 
-    const snap = await getDoc(ref);
-    if (!snap.exists()) continue;
+    await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(ref);
 
-    const atual = snap.data().estoque || 0;
+      if (!snap.exists()) return;
 
-    if (atual < mat.quantidade) {
-      throw new Error(`Estoque insuficiente para ${mat.nome}`);
-    }
+      const atual = snap.data().estoque || 0;
 
-    await updateDoc(ref, {
-      estoque: atual - mat.quantidade,
+      if (atual < mat.quantidade) {
+        throw new Error(`Estoque insuficiente para ${mat.nome}`);
+      }
+
+      transaction.update(ref, {
+        estoque: atual - mat.quantidade,
+      });
     });
-  }
+  });
+
+  await Promise.all(operacoes);
 }
 
 export async function consultarProximoNumeroOS() {
@@ -289,10 +294,10 @@ export async function salvarOrdemFirestore(ordem) {
   });
 
   if (ordem.materiais && ordem.materiais.length > 0) {
-    await descontarEstoque(ordem.materiais);
+    descontarEstoque(ordem.materiais);
   }
 
-  await atualizarEstatisticasCriacao(ordem);
+  atualizarEstatisticasCriacao(ordem);
 
   return {
   id: ref.id,

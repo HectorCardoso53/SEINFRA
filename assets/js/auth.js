@@ -60,8 +60,38 @@ window.login = async function () {
   btn.disabled = true;
 
   try {
-    await signInWithEmailAndPassword(auth, email, password);
-    window.location.replace('servicos.html');
+    // 🔐 LOGIN
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+
+    // 🔎 BUSCA DADOS DO USUÁRIO
+    const ref = doc(db, 'users', cred.user.uid); // ⚠️ CONFIRMA SE É 'users'
+    const snap = await getDoc(ref);
+
+    if (!snap.exists()) {
+      throw new Error("sem-perfil");
+    }
+
+    const data = snap.data();
+
+    // 🚨 VALIDA ROLE
+    if (!data.role) {
+      throw new Error("sem-role");
+    }
+
+    // 🚀 REDIRECIONAMENTO INTELIGENTE
+    if (data.role === 'visita') {
+      window.location.replace('home.html');
+
+    } else if (data.role === 'os') {
+     window.location.replace('dashboard.html');
+
+    } else if (data.role === 'admin') {
+      window.location.replace('admin.html');
+
+    } else {
+      throw new Error("role-invalido");
+    }
+
   } catch (error) {
     loading.style.display = 'none';
     btn.disabled = false;
@@ -70,8 +100,18 @@ window.login = async function () {
 
     if (error.code === 'auth/invalid-credential') {
       msg = '<i class="bi bi-exclamation-triangle"></i> E-mail ou senha inválidos';
+
     } else if (error.code === 'auth/network-request-failed') {
       msg = '<i class="bi bi-wifi-off"></i> Sem conexão com a internet';
+
+    } else if (error.message === "sem-perfil") {
+      msg = 'Usuário não possui cadastro no sistema';
+
+    } else if (error.message === "sem-role") {
+      msg = 'Usuário sem permissão definida';
+
+    } else if (error.message === "role-invalido") {
+      msg = 'Permissão inválida no sistema';
     }
 
     passwordError.innerHTML = msg;
@@ -79,7 +119,6 @@ window.login = async function () {
     passwordInput.classList.add('input-error');
   }
 };
-
 /* =========================
    LOGOUT
 ========================= */
