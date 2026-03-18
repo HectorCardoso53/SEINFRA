@@ -6,6 +6,8 @@ import {
   consultarProximoNumeroOS,
   buscarUltimasOrdensFirestore,
   sincronizarContadorOS,
+  buscarOrdensPaginadas,
+  buscarResumoDashboard,
 } from "./firestore.js";
 
 // 🔥 VARIÁVEIS GLOBAIS
@@ -17,10 +19,40 @@ let latitudeSelecionada = null;
 let longitudeSelecionada = null;
 let mapa = null;
 let marcador = null;
+let materiaisEncerramento = [];
+let ultimaDoc = null;
+let carregando = false;
+
+async function carregarMaisOrdens() {
+  if (carregando) return;
+
+  carregando = true;
+
+  const resultado = await buscarOrdensPaginadas(ultimaDoc, 20);
+
+  ultimaDoc = resultado.ultimoDocumento;
+
+  const idsExistentes = new Set(ordens.map((o) => o.id));
+
+  const novas = resultado.lista.filter((o) => !idsExistentes.has(o.id));
+
+  ordens = ordens.concat(novas);
+
+  carregarTabelaRelatorios(ordens);
+
+  carregando = false;
+}
+
+function extrairNumeroOS(numero) {
+  if (!numero) return 0;
+
+  const match = numero.match(/OS\s*(\d+)/);
+
+  return match ? parseInt(match[1]) : 0;
+}
 
 // Inicialização
 document.addEventListener("DOMContentLoaded", function () {
-
   inicializarSistema();
 
   carregarAnoMateriais();
@@ -32,7 +64,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
   if (tipoOS) {
     tipoOS.addEventListener("change", () => {
-
       if (tipoOS.value === "externa") {
         campoSetor.style.visibility = "hidden";
         campoSetor.style.height = "0";
@@ -43,10 +74,8 @@ document.addEventListener("DOMContentLoaded", function () {
         campoSetor.style.height = "auto";
         inputSetor.required = true;
       }
-
     });
   }
-
 });
 
 function iniciarMapa() {
@@ -66,8 +95,8 @@ function iniciarMapa() {
     longitudeSelecionada = lng;
 
     if (marcador && mapa) {
-  mapa.removeLayer(marcador);
-}
+      mapa.removeLayer(marcador);
+    }
     marcador = L.marker([lat, lng]).addTo(mapa);
 
     console.log("Local selecionado:", lat, lng);
@@ -75,11 +104,11 @@ function iniciarMapa() {
 }
 
 async function inicializarSistema() {
-  ordens = await buscarUltimasOrdensFirestore(200);
-
   setDataAtual();
 
   await atualizarNumeroOS();
+
+  await carregarMaisOrdens(); // 🔥 FALTAVA ISSO
 
   atualizarDashboard();
   carregarTabelaDashboard();
@@ -277,8 +306,6 @@ document
 
         osAtual = null;
 
-        ordens = await buscarUltimasOrdensFirestore(200);
-
         showPage("relatorios");
 
         atualizarDashboard();
@@ -298,12 +325,25 @@ document
       dadosOrdem.assinaturaChefia = null;
       dadosOrdem.assinaturaRecebedor = null;
 
-      const numeroGerado = await salvarOrdemFirestore(dadosOrdem);
+      const resultado = await salvarOrdemFirestore(dadosOrdem);
 
-      mostrarAlerta(`Ordem ${numeroGerado} criada com sucesso!`, "Sucesso");
+      mostrarAlerta(`Ordem ${resultado.numero} criada com sucesso!`, "Sucesso");
 
-      // 🔥 RECARREGA DO BANCO (NÃO INCREMENTA MANUALMENTE)
-      ordens = await buscarUltimasOrdensFirestore(200);
+      // 🔥 CRIA OBJETO LOCAL
+      const novaOrdem = {
+        ...dadosOrdem,
+        id: resultado.id,
+        numero: resultado.numero,
+        status: "Aberta",
+        criadoEm: new Date(),
+      };
+
+      // 🔥 ADICIONA NO TOPO (IMPORTANTE)
+      ordens.unshift(novaOrdem);
+      // 🔥 ATUALIZA TUDO
+      aplicarFiltros();
+      carregarTabelaDashboard();
+      atualizarDashboard();
 
       limparFormulario();
 
@@ -328,8 +368,8 @@ async function limparFormulario() {
   longitudeSelecionada = null;
 
   if (marcador && mapa) {
-  mapa.removeLayer(marcador);
-}
+    mapa.removeLayer(marcador);
+  }
 
   setDataAtual();
 
@@ -355,20 +395,14 @@ window.fecharConfirm = function () {
 };
 
 // Dashboard
-function atualizarDashboard() {
-  const total = ordens.length;
-  const abertas = ordens.filter((o) => o.status === "Aberta").length;
-  const andamento = ordens.filter((o) => o.status === "Em andamento").length;
-  const encerradas = ordens.filter((o) => o.status === "Encerrada").length;
-  const totalMateriais = ordens.reduce(
-    (acc, o) => acc + (o.materiais?.length || 0),
-    0,
-  );
+async function atualizarDashboard() {
+  const resumo = await buscarResumoDashboard();
 
-  document.getElementById("total-ordens").textContent = total;
-  document.getElementById("total-andamento").textContent = andamento;
-  document.getElementById("total-encerradas").textContent = encerradas;
-  document.getElementById("total-materiais").textContent = totalMateriais;
+  document.getElementById("total-ordens").textContent = resumo.total;
+  document.getElementById("total-andamento").textContent = resumo.andamento;
+  document.getElementById("total-encerradas").textContent = resumo.encerradas;
+  document.getElementById("total-materiais").textContent =
+    resumo.totalMateriais;
 
   atualizarGraficos();
 }
@@ -571,8 +605,6 @@ function carregarTabelaRelatorios(ordensParaExibir) {
   }
 
   tbody.innerHTML = ordensParaExibir
-    .slice()
-    .reverse()
     .map((ordem) => {
       const statusClasse = ordem.status
         ? ordem.status.toLowerCase().replace(/\s/g, "-")
@@ -799,8 +831,13 @@ window.alterarStatus = async function () {
     status: novoStatus,
   });
 
-  ordens = await buscarUltimasOrdensFirestore(200);
+  // 🔥 ATUALIZA NO ARRAY (CORRETO)
+  ordens = ordens.map((o) =>
+    o.id === osAtual.id ? { ...o, status: novoStatus } : o,
+  );
+
   visualizarOS(osAtual.id);
+
   atualizarDashboard();
   carregarTabelaDashboard();
   aplicarFiltros();
@@ -842,11 +879,11 @@ window.excluirOS = function (id) {
       try {
         await excluirOrdemFirestore(id);
 
-        ordens = await buscarUltimasOrdensFirestore(200);
+        ordens = ordens.filter((o) => o.id !== id);
 
-        atualizarDashboard();
-        carregarTabelaDashboard();
         aplicarFiltros();
+        carregarTabelaDashboard();
+        atualizarDashboard();
 
         mostrarAlerta("Ordem excluída com sucesso!", "Sucesso");
       } catch (error) {
@@ -939,9 +976,12 @@ document
       assinaturaChefia: assinaturaChefia,
       assinaturaRecebedor: assinaturaRecebedor,
       observacaoFinal: null,
+      materiais: [...materiais],
     });
 
-    ordens = await buscarUltimasOrdensFirestore(200);
+    ordens = ordens.map((o) =>
+      o.id === osAtual.id ? { ...o, status: "Encerrada" } : o,
+    );
 
     fecharModalEncerramento();
     visualizarOS(osAtual.id);
@@ -1021,10 +1061,12 @@ function carregarAnoMateriais() {
 let graficoStatus = null;
 let graficoMes = null;
 
-function atualizarGraficos() {
-  const abertas = ordens.filter((o) => o.status === "Aberta").length;
-  const andamento = ordens.filter((o) => o.status === "Em andamento").length;
-  const encerradas = ordens.filter((o) => o.status === "Encerrada").length;
+async function atualizarGraficos() {
+  const resumo = await buscarResumoDashboard();
+
+  const abertas = resumo.abertas;
+  const andamento = resumo.andamento;
+  const encerradas = resumo.encerradas;
 
   // STATUS DAS ORDENS
   if (graficoStatus) graficoStatus.destroy();
@@ -2437,7 +2479,6 @@ window.showPage = function (pageId, element) {
   }
 };
 
-
 window.toggleMenu = function () {
   const sidebar = document.getElementById("sidebar");
   const overlay = document.querySelector(".overlay");
@@ -2489,62 +2530,3 @@ telefoneInput?.addEventListener("input", function (e) {
   e.target.value = v;
 });
 
-// 🔧 FUNÇÃO TEMPORÁRIA PARA CORRIGIR NUMERAÇÃO DAS OS
-window.corrigirIDs = async function () {
-  const snapshot = await getDocs(collection(db, "ordens"));
-
-  let lista = [];
-
-  snapshot.forEach((docSnap) => {
-    lista.push({
-      id: docSnap.id,
-      ref: docSnap.ref,
-      ...docSnap.data(),
-    });
-  });
-
-  // ordenar
-  lista.sort((a, b) => {
-    const na = parseInt(a.numero.match(/\d+/)[0]);
-    const nb = parseInt(b.numero.match(/\d+/)[0]);
-    return na - nb;
-  });
-
-  let contador = 1;
-
-  for (const ordem of lista) {
-    const novoNumero = String(contador).padStart(3, "0");
-
-    await updateDoc(ordem.ref, {
-      numero: `OS ${novoNumero}/2026 - SEINFRA`,
-    });
-
-    contador++;
-  }
-
-  console.log("✅ Numeração corrigida");
-};
-
-window.backupOrdens = async function () {
-  const snapshot = await getDocs(collection(db, "ordens"));
-
-  for (const docSnap of snapshot.docs) {
-    const dados = docSnap.data();
-
-    await setDoc(doc(db, "ordens_backup", docSnap.id), dados);
-  }
-
-  console.log("✅ Backup concluído");
-};
-
-window.limparCampoID = async function () {
-  const snapshot = await getDocs(collection(db, "ordens"));
-
-  for (const docSnap of snapshot.docs) {
-    await updateDoc(docSnap.ref, {
-      id: deleteField(),
-    });
-  }
-
-  console.log("IDs internos removidos");
-};
