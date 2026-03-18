@@ -11,13 +11,12 @@
 </head>
 
 <body>
-
     <!-- Topbar Mobile -->
     <div class="topbar">
         <button class="menu-toggle" onclick="toggleMenu()">
             <i class="bi bi-list"></i>
         </button>
-        <span class="topbar-title">Sistema OS</span>
+        <span class="topbar-title">INFRASIS OS</span>
     </div>
 
     <div class="container">
@@ -27,10 +26,10 @@
                 <button class="menu-toggle" onclick="toggleMenu()">
                     <i class="bi bi-list"></i>
                 </button>
-                <a href="servicos.html">
+                <a>
                     <img src="assets/img/prefeitura.png" alt="Prefeitura" class="sidebar-logo">
                 </a>
-                <h2>Sistema OS</h2>
+                <h2>INFRASIS OS</h2>
                 <p>Gestão de Ordens de Serviço</p>
             </div>
 
@@ -92,7 +91,7 @@
             <!-- Header Global -->
             <div class="header header-global">
                 <div class="header-info">
-                    <h1 id="page-title">Sistema OS</h1>
+                    <h1 id="page-title">INFRASIS OS</h1>
                     <p id="page-subtitle">Gestão de Ordens de Serviço</p>
                 </div>
 
@@ -487,6 +486,12 @@
                     <button type="button" class="btn btn-primary" onclick="imprimirRelatorio()">
                         <i class="bi bi-printer"></i> Imprimir Relatório
                     </button>
+                </div>
+
+                <div class="paginacao">
+                    <button onclick="paginaAnterior()">Anterior</button>
+                    <span id="pagina-info">Página 1</span>
+                    <button onclick="proximaPagina()">Próxima</button>
                 </div>
             </div>
 
