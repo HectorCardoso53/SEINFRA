@@ -5,12 +5,14 @@ import {
   collection,
   getDocs,
   query,
+  where, // 🔥 FALTAVA ISSO
   orderBy,
   limit,
   doc,
   setDoc,
   getDoc,
   updateDoc,
+  startAfter,
   deleteDoc,
   deleteField,
   runTransaction,
@@ -19,6 +21,102 @@ import {
 import { auth } from "./firebase.js";
 
 export const db = getFirestore();
+
+
+export async function buscarResumoDashboard() {
+
+  const ref = doc(db, "estatisticas", "dashboard");
+
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) {
+    return {
+      total: 0,
+      abertas: 0,
+      andamento: 0,
+      encerradas: 0,
+      totalMateriais: 0
+    };
+  }
+
+  return snap.data();
+
+}
+
+
+async function atualizarEstatisticasCriacao(ordem) {
+
+  const ref = doc(db, "estatisticas", "dashboard");
+
+  await runTransaction(db, async (transaction) => {
+
+    const snap = await transaction.get(ref);
+
+    let dados = {
+      total: 0,
+      abertas: 0,
+      andamento: 0,
+      encerradas: 0,
+      totalMateriais: 0
+    };
+
+    if (snap.exists()) {
+      dados = snap.data();
+    }
+
+  dados.total += 1;
+
+if (ordem.status === "Aberta") dados.abertas += 1;
+if (ordem.status === "Em andamento") dados.andamento += 1;
+if (ordem.status === "Encerrada") dados.encerradas += 1;
+
+    if (ordem.materiais) {
+      dados.totalMateriais += ordem.materiais.length;
+    }
+
+    transaction.set(ref, dados);
+
+  });
+
+}
+
+export async function buscarOrdensPaginadas(ultimaDoc = null, limite = 20) {
+
+  let q;
+
+  if (ultimaDoc) {
+
+    q = query(
+      collection(db, "ordens"),
+      orderBy("dataAbertura", "desc"),
+      startAfter(ultimaDoc),
+      limit(limite)
+    );
+
+  } else {
+
+    q = query(
+      collection(db, "ordens"),
+      orderBy("dataAbertura", "desc"),
+      limit(limite)
+    );
+
+  }
+
+  const snapshot = await getDocs(q);
+
+  const lista = snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+
+  const ultimoDocumento = snapshot.docs[snapshot.docs.length - 1];
+
+  return {
+    lista,
+    ultimoDocumento
+  };
+}
 
 /* =========================
    UTIL
@@ -178,7 +276,7 @@ export async function sincronizarContadorOS() {
 ========================= */
 export async function salvarOrdemFirestore(ordem) {
 
-  const numeroOS = await gerarNumeroOS(); // 🔥 GERA O NÚMERO REAL
+  const numeroOS = await gerarNumeroOS();
 
   ordem.numero = numeroOS;
 
@@ -194,10 +292,13 @@ export async function salvarOrdemFirestore(ordem) {
     await descontarEstoque(ordem.materiais);
   }
 
-  return numeroOS;
+  await atualizarEstatisticasCriacao(ordem);
+
+  return {
+  id: ref.id,
+  numero: numeroOS
+};
 }
-
-
 /* =========================
    BUSCAR ORDENS
 ========================= */
@@ -229,7 +330,78 @@ export async function atualizarOrdemFirestore(id, dados) {
    EXCLUIR ORDEM
 ========================= */
 export async function excluirOrdemFirestore(id) {
+
   const ref = doc(db, "ordens", id);
 
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) return;
+
+  const ordem = snap.data();
+
   await deleteDoc(ref);
+
+  const refStats = doc(db, "estatisticas", "dashboard");
+
+  await runTransaction(db, async (transaction) => {
+
+    const statsSnap = await transaction.get(refStats);
+
+    if (!statsSnap.exists()) return;
+
+    let dados = statsSnap.data();
+
+    dados.total -= 1;
+
+    if (ordem.status === "Aberta") dados.abertas -= 1;
+    if (ordem.status === "Em andamento") dados.andamento -= 1;
+    if (ordem.status === "Encerrada") dados.encerradas -= 1;
+
+    if (ordem.materiais) {
+      dados.totalMateriais -= ordem.materiais.length;
+    }
+
+    transaction.set(refStats, dados);
+
+  });
+
 }
+
+export async function reconstruirDashboard() {
+
+  const snapshot = await getDocs(collection(db, "ordens"));
+
+  let total = 0;
+  let abertas = 0;
+  let andamento = 0;
+  let encerradas = 0;
+  let totalMateriais = 0;
+
+  snapshot.forEach(docSnap => {
+
+    const o = docSnap.data();
+
+    total++;
+
+    if (o.status === "Aberta") abertas++;
+    if (o.status === "Em andamento") andamento++;
+    if (o.status === "Encerrada") encerradas++;
+
+    if (o.materiais) {
+      totalMateriais += o.materiais.length;
+    }
+
+  });
+
+  await setDoc(doc(db, "estatisticas", "dashboard"), {
+    total,
+    abertas,
+    andamento,
+    encerradas,
+    totalMateriais
+  });
+
+  console.log("Dashboard reconstruído com sucesso");
+}
+
+window.reconstruirDashboard = reconstruirDashboard;
