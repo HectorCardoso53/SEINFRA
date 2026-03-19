@@ -8,7 +8,18 @@ import {
   sincronizarContadorOS,
   buscarOrdensPaginadas,
   buscarResumoDashboard,
+  buscarOrdensDashboard, // 🔥 AQUI
 } from "./firestore.js";
+
+import {
+  doc,
+  getDoc,
+  setDoc,
+  deleteDoc,
+  collection,
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+import { db } from "./firestore.js";
 
 // 🔥 VARIÁVEIS GLOBAIS
 let ordens = [];
@@ -17,12 +28,11 @@ let osAtual = null;
 
 let latitudeSelecionada = null;
 let longitudeSelecionada = null;
-let mapa = null;
-let marcador = null;
 let materiaisEncerramento = [];
 let carregando = false;
 let paginaAtual = 1;
 let historicoDocs = [];
+let ordensDashboard = [];
 
 async function carregarPagina(pagina) {
   carregando = true;
@@ -69,9 +79,10 @@ function extrairNumeroOS(numero) {
 }
 
 // Inicialização
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", async function () {
   inicializarSistema();
 
+  ordensDashboard = await buscarOrdensDashboard();
   carregarAnoMateriais();
   carregarFiltroAno();
 
@@ -95,35 +106,13 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 });
 
-function iniciarMapa() {
-  if (mapa) return;
-
-  mapa = L.map("mapa-os").setView([-1.7724905, -55.8626615], 13);
-
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-  }).addTo(mapa);
-
-  mapa.on("click", function (e) {
-    const lat = e.latlng.lat;
-    const lng = e.latlng.lng;
-
-    latitudeSelecionada = lat;
-    longitudeSelecionada = lng;
-
-    if (marcador && mapa) {
-      mapa.removeLayer(marcador);
-    }
-    marcador = L.marker([lat, lng]).addTo(mapa);
-
-    console.log("Local selecionado:", lat, lng);
-  });
-}
-
 async function inicializarSistema() {
   setDataAtual();
 
   await atualizarNumeroOS();
+
+  // 🔥 DASHBOARD REAL (todas as ordens)
+  ordensDashboard = await buscarOrdensDashboard();
 
   await carregarPagina(1);
 
@@ -265,11 +254,16 @@ function renderizarMateriais() {
     .join("");
 }
 
+let salvando = false;
+
 // Salvar OS
 document
   .getElementById("form-os")
   .addEventListener("submit", async function (e) {
     e.preventDefault();
+
+    if (salvando) return; // 🔥 trava clique duplo
+    salvando = true;
 
     try {
       const descricao = document
@@ -284,22 +278,17 @@ document
 
       const setorFinal = setorSelect === "outro" ? novoSetor : setorSelect;
 
-      // 🔥 COLETA
       const dadosBrutos = coletarDadosFormulario(
         setorFinal,
         descricao,
-        responsavelExecucao
+        responsavelExecucao,
       );
 
-      // 🔥 VALIDAÇÃO (regra de negócio)
       validarOrdem(dadosBrutos);
 
-      // 🔥 BUILD (estrutura final)
       const dadosOrdem = buildOrdem(dadosBrutos);
 
-      // =========================
       // ✏️ EDITAR
-      // =========================
       if (osAtual && osAtual.id) {
         await atualizarOrdemFirestore(osAtual.id, dadosOrdem);
 
@@ -315,28 +304,30 @@ document
         return;
       }
 
-      // =========================
       // 🆕 NOVA OS
-      // =========================
       const resultado = await salvarOrdemFirestore(dadosOrdem);
 
-      mostrarAlerta(
-        `Ordem ${resultado.numero} criada com sucesso!`,
-        "Sucesso"
-      );
+      mostrarAlerta(`Ordem ${resultado.numero} criada com sucesso!`, "Sucesso");
 
-      // 🔥 ATUALIZA LISTA CORRETAMENTE (sem unshift)
+      await reconstruirDashboard();
+
+      ordensDashboard = await buscarOrdensDashboard();
+
       await carregarPagina(1);
 
       limparFormulario();
-
       atualizarDashboard();
+      carregarTabelaDashboard();
 
     } catch (error) {
       console.error(error);
       mostrarAlerta(error.message, "Erro");
+    } finally {
+      salvando = false; // 🔥 ESSENCIAL
     }
   });
+
+
 async function limparFormulario() {
   osAtual = null;
 
@@ -344,13 +335,6 @@ async function limparFormulario() {
 
   materiais = [];
   renderizarMateriais();
-
-  latitudeSelecionada = null;
-  longitudeSelecionada = null;
-
-  if (marcador && mapa) {
-    mapa.removeLayer(marcador);
-  }
 
   setDataAtual();
 
@@ -380,6 +364,7 @@ async function atualizarDashboard() {
   const resumo = await buscarResumoDashboard();
 
   document.getElementById("total-ordens").textContent = resumo.total;
+  document.getElementById("total-abertas").textContent = resumo.abertas;
   document.getElementById("total-andamento").textContent = resumo.andamento;
   document.getElementById("total-encerradas").textContent = resumo.encerradas;
   document.getElementById("total-materiais").textContent =
@@ -408,7 +393,7 @@ window.gerarRelatorioMateriais = function () {
   let materiaisSomados = {};
   let quantidadeTotal = 0;
 
-  ordens.forEach((ordem) => {
+  ordensDashboard.forEach((ordem) => {
     if (!ordem.dataAbertura) return;
 
     const data = new Date(ordem.dataAbertura);
@@ -812,6 +797,7 @@ window.alterarStatus = async function () {
     status: novoStatus,
   });
 
+  await reconstruirDashboard();
   // 🔥 ATUALIZA NO ARRAY (CORRETO)
   ordens = ordens.map((o) =>
     o.id === osAtual.id ? { ...o, status: novoStatus } : o,
@@ -859,6 +845,8 @@ window.excluirOS = function (id) {
     async function () {
       try {
         await excluirOrdemFirestore(id);
+
+        await reconstruirDashboard();
 
         ordens = ordens.filter((o) => o.id !== id);
 
@@ -935,9 +923,6 @@ function coletarDadosFormulario(setorFinal, descricao, responsavelExecucao) {
     tipoOS: document.getElementById("tipo-os")?.value,
     dataAbertura: document.getElementById("data-abertura")?.value,
 
-    latitude: latitudeSelecionada,
-    longitude: longitudeSelecionada,
-
     setorResponsavel: setorFinal,
 
     nomeSolicitante: document.getElementById("nome-solicitante")?.value.trim(),
@@ -953,13 +938,11 @@ function coletarDadosFormulario(setorFinal, descricao, responsavelExecucao) {
     materiais: [...materiais],
 
     responsavelExecucao,
-    responsavelAbertura: document.getElementById("responsavel-abertura")?.value
+    responsavelAbertura: document.getElementById("responsavel-abertura")?.value,
   };
 }
 
-
 function validarOrdem(dados) {
-
   if (!dados.descricao) {
     throw new Error("Descrição obrigatória");
   }
@@ -1006,7 +989,7 @@ function buildOrdem(dados) {
     dataEncerramento: null,
     observacaoFinal: null,
     assinaturaChefia: null,
-    assinaturaRecebedor: null
+    assinaturaRecebedor: null,
   };
 }
 
@@ -1039,6 +1022,8 @@ document
       observacaoFinal: null,
       materiais: [...materiais],
     });
+
+    await reconstruirDashboard(); // 🔥 AQUI
 
     ordens = ordens.map((o) =>
       o.id === osAtual.id ? { ...o, status: "Encerrada" } : o,
@@ -1159,7 +1144,7 @@ async function atualizarGraficos() {
   // ORDENS POR MÊS
   let meses = new Array(12).fill(0);
 
-  ordens.forEach((o) => {
+  ordensDashboard.forEach((o) => {
     const data = new Date(o.dataAbertura);
     meses[data.getMonth()]++;
   });
@@ -2306,7 +2291,7 @@ window.imprimirRelatorio = function () {
     ?.value.trim()
     .toLowerCase();
 
-  let ordensFiltradas = [...ordens];
+  let ordensFiltradas = [...ordensDashboard];
 
   // DATA INICIAL
   if (dataInicio) {
@@ -2531,13 +2516,6 @@ window.showPage = function (pageId, element) {
 
   sidebar.classList.remove("open");
   overlay.classList.remove("show");
-
-  // 🔥 INICIAR MAPA
-  if (pageId === "nova-os") {
-    setTimeout(iniciarMapa, 200);
-
-    atualizarNumeroOS();
-  }
 };
 
 window.toggleMenu = function () {
@@ -2590,3 +2568,11 @@ telefoneInput?.addEventListener("input", function (e) {
 
   e.target.value = v;
 });
+
+window.debugStatus = async function () {
+  const lista = await buscarOrdensDashboard();
+
+  lista.forEach(o => {
+    console.log(o.status);
+  });
+};
