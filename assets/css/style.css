@@ -59,21 +59,21 @@
        margin-left: auto;
    }
 
-   .btn-icon{
-    width:30px;
-    height:30px;
-    padding:0;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-}
+   .btn-icon {
+       width: 30px;
+       height: 30px;
+       padding: 0;
+       display: flex;
+       align-items: center;
+       justify-content: center;
+   }
 
-.acoes{
-    display:flex;
-    flex-direction:column;
-    gap:4px;
-    align-items:center;
-}
+   .acoes {
+       display: flex;
+       flex-direction: column;
+       gap: 4px;
+       align-items: center;
+   }
 
    .container {
        display: flex;
@@ -100,6 +100,56 @@
 
    }
 
+   .sidebar {
+       display: flex;
+       flex-direction: column;
+       height: 100vh;
+       background: #0f172a;
+       /* azul escuro moderno */
+       color: #e2e8f0;
+       border-right: 1px solid rgba(255, 255, 255, 0.05);
+   }
+
+   .menu-footer {
+       margin-top: auto;
+       padding: 16px;
+       border-top: 1px solid rgba(255, 255, 255, 0.08);
+   }
+
+   /* Reaproveita o estilo do menu, mas com destaque sutil */
+   .menu-footer .menu-item {
+       display: flex;
+       align-items: center;
+       gap: 10px;
+       padding: 10px 12px;
+       border-radius: 10px;
+       text-decoration: none;
+       color: #cbd5f5;
+       transition: all 0.25s ease;
+       font-size: 14px;
+   }
+
+   /* Hover elegante */
+   .menu-footer .menu-item:hover {
+       background: rgba(59, 130, 246, 0.15);
+       color: #fff;
+       transform: translateX(3px);
+   }
+
+   /* Ícone mais refinado */
+   .menu-footer svg {
+       width: 18px;
+       height: 18px;
+       opacity: 0.8;
+   }
+
+   /* Indicador de link externo */
+   .menu-footer .menu-item span::after {
+       content: " ↗";
+       font-size: 12px;
+       opacity: 0.6;
+   }
+
    .assinaturas {
        display: flex;
        justify-content: space-around;
@@ -112,6 +162,20 @@
        border-collapse: collapse;
 
    }
+
+   .menu-icon-img {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    border-radius: 4px; /* suaviza se tiver fundo */
+}
+
+/* Garante alinhamento com os outros itens */
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
 
    /* Header da Sidebar */
    .sidebar-header {
@@ -345,9 +409,10 @@
    #page-relatorios table {
        width: 100%;
    }
-   #page-relatorios table{
-    table-layout: fixed;
-}
+
+   #page-relatorios table {
+       table-layout: fixed;
+   }
 
    #page-relatorios th,
    #page-relatorios td {
@@ -356,9 +421,9 @@
        word-break: break-word;
    }
 
-   #page-relatorios td:nth-child(6){
-    max-width:260px;
-}
+   #page-relatorios td:nth-child(6) {
+       max-width: 260px;
+   }
 
    table {
        width: 100%;
@@ -927,7 +992,7 @@
 
    .main-content {
        padding-bottom: 60px;
-       overflow-x:hidden;
+       overflow-x: hidden;
    }
 
    /* =========================
