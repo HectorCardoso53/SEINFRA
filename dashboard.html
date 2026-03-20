@@ -311,7 +311,8 @@
 
                             <div class="form-group" id="campo-setor-solicitante">
                                 <label>Setor do Solicitante</label>
-                                <input type="text" id="setor-solicitante">
+                                <input type="text" id="setor-solicitante" list="lista-setores-solicitante">
+                                <datalist id="lista-setores-solicitante"></datalist>
                             </div>
 
                         </div>
@@ -456,6 +457,21 @@
                                 <option value="Encerrada">Encerrada</option>
                             </select>
                         </div>
+
+                        <div class="form-group">
+                            <label>Diretoria</label>
+                            <select id="filtro-diretoria">
+                                <option value="">Todas</option>
+                                <option>DIRETORIA ADMINISTRATIVA</option>
+                                <option>DIRETORIA DE INFRAESTRUTURA</option>
+                                <option>DIRETORIA DE SANEAMENTO</option>
+                                <option>DIRETORIA DE LIMPEZA URBANA</option>
+                                <option>DIRETORIA DE SERVIÇO E ABASTECIMENTO DE ÁGUA</option>
+                                <option>DIRETORIA DE TRANSPORTES PÚBLICOS COLETIVOS</option>
+                                <option>DIRETORIA DE AEROPORTO</option>
+                            </select>
+                        </div>
+
                         <div class="form-group">
                             <label>Buscar por Solicitante</label>
                             <input type="text" id="filtro-solicitante" placeholder="Digite o nome do solicitante">

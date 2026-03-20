@@ -1,11 +1,17 @@
 import {
   salvarOrdemFirestore,
-  atualizarOrdemFirestore,
   excluirOrdemFirestore,
   consultarProximoNumeroOS,
   buscarOrdensPaginadas,
-   ouvirResumoDashboard //
-   
+  buscarResumoDashboard,
+  buscarOrdensDashboard,
+  buscarUltimasOrdensFirestore,
+  buscarOrdemPorId,
+  reconstruirDashboard,
+  contarOrdensFirestore,
+  buscarOrdensFirestore,
+  buscarOrdensComFiltro,
+  atualizarStatusComDashboard 
 } from "./firestore.js";
 
 // 🔥 VARIÁVEIS GLOBAIS
@@ -13,11 +19,53 @@ let ordens = [];
 let materiais = [];
 let osAtual = null;
 
+const KEY_SETOR_SOLICITANTE = "setores_solicitante";
+
+function getSetoresSolicitante() {
+  const dados = localStorage.getItem(KEY_SETOR_SOLICITANTE);
+  return dados ? JSON.parse(dados) : [];
+}
+
+function salvarSetoresSolicitante(lista) {
+  localStorage.setItem(KEY_SETOR_SOLICITANTE, JSON.stringify(lista));
+}
+
+function renderizarSetoresSolicitante() {
+  const lista = document.getElementById("lista-setores-solicitante");
+  if (!lista) return;
+
+  const setores = getSetoresSolicitante();
+
+  lista.innerHTML = setores.map((s) => `<option value="${s}">`).join("");
+}
+
+function salvarSetorDigitado() {
+  const input = document.getElementById("setor-solicitante");
+  if (!input) return;
+
+  let valor = input.value.trim();
+  if (!valor) return;
+
+  // 🔥 normalização (obrigatório)
+  valor = valor
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  let lista = getSetoresSolicitante();
+
+  if (!lista.includes(valor)) {
+    lista.push(valor);
+    salvarSetoresSolicitante(lista);
+  }
+}
+
 let materiaisEncerramento = [];
 let carregando = false;
 let paginaAtual = 1;
 let historicoDocs = [];
 let sistemaInicializado = false;
+let ordensFiltradasGlobal = [];
 
 async function carregarPagina(pagina) {
   carregando = true;
@@ -80,6 +128,15 @@ document.addEventListener("DOMContentLoaded", async function () {
       }
     });
   }
+
+  renderizarSetoresSolicitante();
+
+  const inputSetorAuto = document.getElementById("setor-solicitante");
+
+  inputSetorAuto?.addEventListener("blur", () => {
+    salvarSetorDigitado();
+    renderizarSetoresSolicitante();
+  });
 });
 
 async function inicializarSistema() {
@@ -90,23 +147,23 @@ async function inicializarSistema() {
   try {
     setDataAtual();
 
-    await atualizarNumeroOS(); // 🔥 AQUI
+    await atualizarNumeroOS();
 
+    // 🔥 CARREGA APENAS O ESSENCIAL
     await carregarPagina(1);
 
-    ouvirResumoDashboard((resumo) => {
-      atualizarDashboardComResumo(resumo);
-    });
+    const resumo = await buscarResumoDashboard();
+    atualizarDashboardComResumo(resumo);
 
-    carregarTabelaDashboard();
-    aplicarFiltros();
+    // ❌ NÃO carregar dashboard aqui
+    // ❌ NÃO aplicar filtro automático
 
     atualizarHeader("dashboard");
+
   } catch (error) {
     console.error("Erro ao inicializar sistema:", error);
   }
 }
-
 
 async function atualizarNumeroOS() {
   const numero = await consultarProximoNumeroOS();
@@ -258,9 +315,9 @@ document
         document.getElementById("responsavel-execucao").value.trim() || "";
 
       const setorSelect = document.getElementById("setor-responsavel").value;
-      const novoSetor = document.getElementById("novo-setor")?.value.trim();
 
-      const setorFinal = setorSelect === "outro" ? novoSetor : setorSelect;
+      // 🔥 AQUI (exatamente aqui)
+      const setorFinal = setorSelect;
 
       const dadosBrutos = coletarDadosFormulario(
         setorFinal,
@@ -276,19 +333,16 @@ document
       if (osAtual && osAtual.id) {
         await atualizarStatusComDashboard(osAtual.id, dadosOrdem);
 
-        // 🔥 ATUALIZA LOCAL (SEM BUSCAR NO FIRESTORE)
-        ordens = ordens.map((o) =>
-          o.id === osAtual.id ? { ...o, ...dadosOrdem } : o,
-        );
-
         mostrarAlerta("Ordem atualizada com sucesso!", "Sucesso");
 
         osAtual = null;
 
         showPage("relatorios");
 
-        carregarTabelaRelatorios(ordens);
-        carregarTabelaDashboard();
+        await carregarPagina(1);
+
+        const resumo = await buscarResumoDashboard();
+        atualizarDashboardComResumo(resumo);
 
         return;
       }
@@ -304,16 +358,16 @@ document
         criadoEm: new Date(),
       };
 
-      // 🔥 ADICIONA LOCAL (SEM RECARREGAR DO BANCO)
-      ordens.unshift(novaOrdem);
-
       mostrarAlerta(`Ordem ${resultado.numero} criada com sucesso!`, "Sucesso");
 
       limparFormulario();
 
+      await carregarPagina(1);
 
-      carregarTabelaRelatorios(ordens);
-      carregarTabelaDashboard();
+      const resumo = await buscarResumoDashboard();
+      atualizarDashboardComResumo(resumo);
+
+      await carregarTabelaDashboard();
     } catch (error) {
       console.error(error);
       mostrarAlerta(error.message, "Erro");
@@ -412,7 +466,7 @@ window.gerarRelatorioMateriais = function () {
   renderTabelaMateriaisMes(lista);
 };
 
-function atualizarDashboardComResumo(resumo) {
+async function atualizarDashboardComResumo(resumo) {
   document.getElementById("total-ordens").textContent = resumo.total;
   document.getElementById("total-abertas").textContent = resumo.abertas;
   document.getElementById("total-andamento").textContent = resumo.andamento;
@@ -420,52 +474,53 @@ function atualizarDashboardComResumo(resumo) {
   document.getElementById("total-materiais").textContent =
     resumo.totalMateriais;
 
-  atualizarGraficos(resumo);
+  await atualizarGraficos(resumo);
 }
 
-function carregarTabelaDashboard() {
+async function carregarTabelaDashboard() {
   const tbody = document.getElementById("tabela-dashboard");
-  const ultimasOrdens = ordens.slice(0, 5);
 
-  if (ultimasOrdens.length === 0) {
+  const ultimas = await buscarOrdensDashboard();
+
+  if (!ultimas || ultimas.length === 0) {
     tbody.innerHTML = `
-        <tr>
-            <td colspan="6" class="empty-state">
-                <h3>Nenhuma ordem de serviço cadastrada</h3>
-                <p>Clique em "Nova Ordem" para criar sua primeira OS</p>
-            </td>
-        </tr>`;
-    console.log(ultimasOrdens);
+      <tr>
+        <td colspan="6" class="empty-state">
+          <h3>Nenhuma ordem de serviço cadastrada</h3>
+          <p>Clique em "Nova Ordem" para criar sua primeira OS</p>
+        </td>
+      </tr>`;
     return;
   }
 
-  tbody.innerHTML = ultimasOrdens
+  tbody.innerHTML = ultimas
     .map(
       (ordem) => `
         <tr>
-            <td>${ordem.numero}</td>
-            <td>${formatarData(ordem.dataAbertura)}</td>
-            <td>${ordem.nomeSolicitante}</td>
-            <td>${(ordem.descricaoServico || "Sem descrição").substring(0, 50)}...</td>
-            <td>
-                <span class="status-badge status-${ordem.status.toLowerCase().replace(" ", "-")}">
-                    ${ordem.status}
-                </span>
-            </td>
-            <td>
-                <button class="btn btn-primary btn-small"
-                    onclick="visualizarOS('${ordem.id}')">
-                    Ver Detalhes
-                </button>
-            </td>
+          <td>${ordem.numero}</td>
+          <td>${formatarData(ordem.dataAbertura)}</td>
+          <td>${ordem.nomeSolicitante}</td>
+          <td>${(ordem.descricaoServico || "").substring(0, 50)}...</td>
+          <td>
+            <span class="status-badge status-${ordem.status.toLowerCase().replace(" ", "-")}">
+              ${ordem.status}
+            </span>
+          </td>
+          <td>
+            <button class="btn btn-primary btn-small"
+              onclick="visualizarOS('${ordem.id}')">
+              Ver Detalhes
+            </button>
+          </td>
         </tr>
-    `,
+      `,
     )
     .join("");
 }
 
 // Relatórios
-window.aplicarFiltros = function () {
+window.aplicarFiltros = async function () {
+  const diretoria = document.getElementById("filtro-diretoria")?.value;
   const dataInicio = document.getElementById("filtro-data-inicio").value;
   const dataFim = document.getElementById("filtro-data-fim").value;
   const mes = document.getElementById("filtro-mes").value;
@@ -482,49 +537,72 @@ window.aplicarFiltros = function () {
     ?.value.trim()
     .toLowerCase();
 
-  let ordensFiltradas = [...ordens];
+  // 🔥 DETECTA FILTRO
+  const temFiltro =
+    dataInicio ||
+    dataFim ||
+    mes !== "" ||
+    ano !== "" ||
+    status ||
+    diretoria ||
+    solicitante ||
+    setorSolicitante;
 
-  if (dataInicio) {
-    const inicio = new Date(dataInicio + "T00:00:00");
+  let baseDados = [];
 
-    ordensFiltradas = ordensFiltradas.filter(
-      (o) => new Date(o.dataAbertura) >= inicio,
-    );
+  // 🔥 REGRA PRINCIPAL
+  if (temFiltro) {
+    baseDados = await buscarOrdensComFiltro({
+      status,
+      setor: setorSolicitante,
+    });
+  } else {
+    baseDados = ordens; // 🔥 só página
   }
 
-  if (dataFim) {
-    ordensFiltradas = ordensFiltradas.filter(
-      (o) => new Date(o.dataAbertura) <= new Date(dataFim + "T23:59:59"),
-    );
-  }
+  let ordensFiltradas = baseDados.filter((o) => {
+    if (!o.dataAbertura) return false;
 
-  if (mes !== "") {
-    ordensFiltradas = ordensFiltradas.filter(
-      (o) => new Date(o.dataAbertura).getMonth() === Number(mes),
-    );
-  }
+    const data = new Date(o.dataAbertura);
 
-  if (ano !== "") {
-    ordensFiltradas = ordensFiltradas.filter(
-      (o) => new Date(o.dataAbertura).getFullYear() === Number(ano),
-    );
-  }
+    if (dataInicio && data < new Date(dataInicio + "T00:00:00")) return false;
+    if (dataFim && data > new Date(dataFim + "T23:59:59")) return false;
 
-  if (status) {
-    ordensFiltradas = ordensFiltradas.filter((o) => o.status === status);
-  }
+    if (mes !== "" && data.getMonth() !== Number(mes)) return false;
+    if (ano !== "" && data.getFullYear() !== Number(ano)) return false;
 
-  if (solicitante) {
-    ordensFiltradas = ordensFiltradas.filter((o) =>
-      o.nomeSolicitante?.toLowerCase().includes(solicitante),
-    );
-  }
+    if (status && o.status !== status) return false;
 
-  // 🔥 NOVO FILTRO POR SETOR
-  if (setorSolicitante) {
-    ordensFiltradas = ordensFiltradas.filter((o) =>
-      o.setorSolicitante?.toLowerCase().includes(setorSolicitante),
-    );
+    if (
+      solicitante &&
+      !o.nomeSolicitante?.toLowerCase().includes(solicitante)
+    ) {
+      return false;
+    }
+
+    if (
+      setorSolicitante &&
+      !o.setorSolicitante?.toLowerCase().includes(setorSolicitante)
+    ) {
+      return false;
+    }
+
+    if (diretoria && o.setorResponsavel !== diretoria) {
+      return false;
+    }
+
+    return true;
+  });
+
+  // 🔥 ORDENAÇÃO SEGURA
+  ordensFiltradas.sort((a, b) => {
+    return (b.numeroSequencial || 0) - (a.numeroSequencial || 0);
+  });
+
+  // 🔥 ESCONDE PAGINAÇÃO SE TIVER FILTRO
+  const paginacao = document.querySelector(".paginacao");
+  if (paginacao) {
+    paginacao.style.display = temFiltro ? "none" : "block";
   }
 
   carregarTabelaRelatorios(ordensFiltradas);
@@ -786,15 +864,10 @@ window.alterarStatus = async function () {
 
   await atualizarStatusComDashboard(osAtual.id, novoStatus);
 
-  // 🔥 ATUALIZA NO ARRAY (CORRETO)
-  ordens = ordens.map((o) =>
-    o.id === osAtual.id ? { ...o, status: novoStatus } : o,
-  );
+  await carregarPagina(1);
 
-  visualizarOS(osAtual.id);
-
-  carregarTabelaDashboard();
-  aplicarFiltros();
+  const resumo = await buscarResumoDashboard();
+  atualizarDashboardComResumo(resumo);
 };
 
 // Encerramento
@@ -833,10 +906,10 @@ window.excluirOS = function (id) {
       try {
         await excluirOrdemFirestore(id);
 
-        ordens = ordens.filter((o) => o.id !== id);
+        await carregarPagina(1);
 
-        aplicarFiltros();
-        carregarTabelaDashboard();
+        const resumo = await buscarResumoDashboard();
+        atualizarDashboardComResumo(resumo);
 
         mostrarAlerta("Ordem excluída com sucesso!", "Sucesso");
       } catch (error) {
@@ -1007,14 +1080,12 @@ document
       materiais: [...materiais],
     });
 
-    ordens = ordens.map((o) =>
-      o.id === osAtual.id ? { ...o, status: "Encerrada" } : o,
-    );
-
     fecharModalEncerramento();
-    visualizarOS(osAtual.id);
-    carregarTabelaDashboard();
-    aplicarFiltros();
+
+    await carregarPagina(1);
+
+    const resumo = await buscarResumoDashboard();
+    atualizarDashboardComResumo(resumo);
 
     mostrarAlerta("Ordem de Serviço encerrada com sucesso!", "Sucesso");
   });
@@ -1064,8 +1135,6 @@ function renderTabelaMateriaisMes(lista) {
     )
     .join("");
 }
-
-
 
 function carregarAnoMateriais() {
   const select = document.getElementById("materiais-ano");
@@ -1122,12 +1191,18 @@ async function atualizarGraficos(resumo) {
     },
   });
 
-  // ORDENS POR MÊS
+  const lista = ordens;
+
   let meses = new Array(12).fill(0);
 
-  ordens.forEach((o) => {
+  lista.forEach((o) => {
+    if (!o.dataAbertura) return;
+
     const data = new Date(o.dataAbertura);
-    meses[data.getMonth()]++;
+
+    if (!isNaN(data)) {
+      meses[data.getMonth()]++;
+    }
   });
 
   if (graficoMes) graficoMes.destroy();
@@ -2251,16 +2326,18 @@ window.imprimirMateriaisMes = function () {
   w.document.close();
 };
 
-window.imprimirRelatorio = function () {
+window.imprimirRelatorio = async function () {
   let linhas = "";
 
   const dataEmissao = new Date().toLocaleString("pt-BR");
 
+  // 🔥 FILTROS
   const dataInicio = document.getElementById("filtro-data-inicio").value;
   const dataFim = document.getElementById("filtro-data-fim").value;
   const mes = document.getElementById("filtro-mes").value;
   const ano = document.getElementById("filtro-ano").value;
   const status = document.getElementById("filtro-status").value;
+  const diretoria = document.getElementById("filtro-diretoria")?.value;
 
   const solicitante = document
     .getElementById("filtro-solicitante")
@@ -2272,85 +2349,99 @@ window.imprimirRelatorio = function () {
     ?.value.trim()
     .toLowerCase();
 
-  let ordensFiltradas = [...ordens];
+  // 🔥 DETECTA SE TEM FILTRO
+  const temFiltro =
+    dataInicio ||
+    dataFim ||
+    mes !== "" ||
+    ano !== "" ||
+    status ||
+    diretoria ||
+    solicitante ||
+    setorSolicitante;
 
-  // DATA INICIAL
-  if (dataInicio) {
-    const inicio = new Date(dataInicio + "T00:00:00");
+  // 🔥 BUSCA TODAS AS ORDENS (APENAS AQUI)
+  let todasOrdens;
 
-    ordensFiltradas = ordensFiltradas.filter(
-      (o) => new Date(o.dataAbertura) >= inicio,
-    );
+  if (temFiltro) {
+    todasOrdens = await buscarOrdensComFiltro({
+      status,
+      setor: setorSolicitante,
+    });
+  } else {
+    todasOrdens = ordens; // usa cache da página
   }
 
-  // DATA FINAL
-  if (dataFim) {
-    ordensFiltradas = ordensFiltradas.filter(
-      (o) => new Date(o.dataAbertura) <= new Date(dataFim + "T23:59:59"),
-    );
+  let ordensFiltradas = [...todasOrdens];
+
+  // 🔥 APLICA FILTRO (SE EXISTIR)
+  if (temFiltro) {
+    ordensFiltradas = ordensFiltradas.filter((o) => {
+      if (!o.dataAbertura) return false;
+
+      const data = new Date(o.dataAbertura);
+
+      if (dataInicio && data < new Date(dataInicio + "T00:00:00")) return false;
+      if (dataFim && data > new Date(dataFim + "T23:59:59")) return false;
+
+      if (mes !== "" && data.getMonth() !== Number(mes)) return false;
+      if (ano !== "" && data.getFullYear() !== Number(ano)) return false;
+
+      if (status && o.status !== status) return false;
+
+      if (
+        solicitante &&
+        !o.nomeSolicitante?.toLowerCase().includes(solicitante)
+      ) {
+        return false;
+      }
+
+      if (
+        setorSolicitante &&
+        !o.setorSolicitante?.toLowerCase().includes(setorSolicitante)
+      ) {
+        return false;
+      }
+
+      if (diretoria && o.setorResponsavel !== diretoria) {
+        return false;
+      }
+
+      return true;
+    });
   }
 
-  // MÊS
-  if (mes !== "") {
-    ordensFiltradas = ordensFiltradas.filter(
-      (o) => new Date(o.dataAbertura).getMonth() === Number(mes),
-    );
-  }
+  // 🔥 ORDENAÇÃO
+  ordensFiltradas.sort((a, b) => {
+    return (b.numeroSequencial || 0) - (a.numeroSequencial || 0);
+  });
 
-  // ANO
-  if (ano !== "") {
-    ordensFiltradas = ordensFiltradas.filter(
-      (o) => new Date(o.dataAbertura).getFullYear() === Number(ano),
-    );
-  }
-
-  // STATUS
-  if (status) {
-    ordensFiltradas = ordensFiltradas.filter((o) => o.status === status);
-  }
-
-  // SOLICITANTE
-  if (solicitante) {
-    ordensFiltradas = ordensFiltradas.filter((o) =>
-      o.nomeSolicitante?.toLowerCase().includes(solicitante),
-    );
-  }
-
-  // SETOR SOLICITANTE
-  if (setorSolicitante) {
-    ordensFiltradas = ordensFiltradas.filter((o) =>
-      o.setorSolicitante?.toLowerCase().includes(setorSolicitante),
-    );
-  }
-
-  // GERAR LINHAS
+  // 🔥 GERAR LINHAS
   ordensFiltradas.forEach((o) => {
     linhas += `
       <tr>
-        <td>${o.numero}</td>
-        <td>${formatarData(o.dataAbertura)}</td>
-        <td>${o.status}</td>
-        <td>${o.nomeSolicitante}</td>
-        <td>${o.setorSolicitante}</td>
-        <td>${o.descricaoServico}</td>
+        <td>${o.numero || "-"}</td>
+        <td>${o.dataAbertura ? formatarData(o.dataAbertura) : "-"}</td>
+        <td>${o.status || "-"}</td>
+        <td>${o.nomeSolicitante || "-"}</td>
+        <td>${o.setorSolicitante || "-"}</td>
+        <td>${(o.descricaoServico || "-").substring(0, 100)}</td>
       </tr>
     `;
   });
 
+  // 🔥 ABRE JANELA
   const w = window.open("", "_blank");
 
   w.document.write(`
-
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
 
 <meta charset="UTF-8">
 <title>Relatório</title>
 
 <style>
-
 @page{
   size:A4 portrait;
   margin:20mm;
@@ -2422,7 +2513,6 @@ td:nth-child(6){
   margin-top:30px;
   font-size:12px;
 }
-
 </style>
 
 </head>
@@ -2430,14 +2520,11 @@ td:nth-child(6){
 <body>
 
 <div class="header">
-
-<img src="assets/img/prefeitura.png">
-
-<div class="header-text">
-<h1>Prefeitura Municipal de Oriximiná</h1>
-<p>Secretaria de Infraestrutura – SEINFRA</p>
-</div>
-
+  <img src="assets/img/prefeitura.png">
+  <div class="header-text">
+    <h1>Prefeitura Municipal de Oriximiná</h1>
+    <p>Secretaria de Infraestrutura – SEINFRA</p>
+  </div>
 </div>
 
 <div class="titulo">
@@ -2445,7 +2532,6 @@ RELATÓRIO DE ORDENS DE SERVIÇO
 </div>
 
 <table>
-
 <thead>
 <tr>
 <th>Nº OS</th>
@@ -2458,7 +2544,7 @@ RELATÓRIO DE ORDENS DE SERVIÇO
 </thead>
 
 <tbody>
-${linhas}
+${linhas || `<tr><td colspan="6">Nenhuma ordem encontrada</td></tr>`}
 </tbody>
 
 </table>
@@ -2473,7 +2559,6 @@ window.onload = () => window.print()
 
 </body>
 </html>
-
 `);
 
   w.document.close();
@@ -2491,6 +2576,11 @@ window.showPage = function (pageId, element) {
   });
 
   if (element) element.classList.add("active");
+
+  // 🔥 CARREGA DASHBOARD SÓ QUANDO ABRIR
+  if (pageId === "dashboard") {
+    carregarTabelaDashboard();
+  }
 
   const sidebar = document.getElementById("sidebar");
   const overlay = document.querySelector(".overlay");
@@ -2608,4 +2698,10 @@ function renderizarMateriaisEncerramento() {
 window.removerMaterialEncerramento = function (index) {
   materiaisEncerramento.splice(index, 1);
   renderizarMateriaisEncerramento();
+};
+
+window.contarOrdens = async function () {
+  const total = await contarOrdensFirestore();
+
+  console.log("Total de ordens:", total);
 };
