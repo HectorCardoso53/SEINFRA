@@ -1,52 +1,44 @@
-"use strict";
-
 import {
   getFirestore,
   collection,
   getDocs,
   query,
-  where, // 🔥 FALTAVA ISSO
   orderBy,
   limit,
   doc,
+  where,
   setDoc,
   getDoc,
   updateDoc,
   startAfter,
   deleteDoc,
   runTransaction,
-   getCountFromServer,
-   onSnapshot
+  getCountFromServer,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-import { auth } from "./firebase.js";
+import { auth, db } from "./firebase.js";
 
-export const db = getFirestore();
+export async function contarOrdensFirestore() {
+  const ref = collection(db, "ordens");
 
-export function ouvirResumoDashboard(callback) {
-  const ref = doc(db, "estatisticas", "dashboard");
+  const snapshot = await getCountFromServer(ref);
 
-  return onSnapshot(ref, (snap) => {
-    if (!snap.exists()) {
-      callback({
-        total: 0,
-        abertas: 0,
-        andamento: 0,
-        encerradas: 0,
-        totalMateriais: 0,
-      });
-      return;
-    }
-
-    callback(snap.data());
-  });
+  return snapshot.data().count;
 }
 
+
+export async function buscarResumoDashboard() {
+  const ref = doc(db, "estatisticas", "dashboard");
+  const snap = await getDoc(ref);
+
+  return snap.exists() ? snap.data() : null;
+}
 export async function buscarOrdensDashboard() {
+   console.log("🔥 BUSCANDO ORDENS (dashboard)");
   const q = query(
     collection(db, "ordens"),
-    orderBy("dataAbertura", "desc"),
-    limit(20) // 🔥 obrigatório
+     orderBy("numeroSequencial", "desc"),
+    limit(20), // 🔥 obrigatório
   );
 
   const snapshot = await getDocs(q);
@@ -58,6 +50,7 @@ export async function buscarOrdensDashboard() {
 }
 
 export async function buscarOrdensPaginadas(ultimaDoc = null, limite = 20) {
+   console.log("🔥 BUSCANDO ORDENS (paginadas)");
   let q;
 
   if (ultimaDoc) {
@@ -100,6 +93,32 @@ function normalizarNome(nome) {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9 ]/g, "")
     .replace(/\s+/g, "-");
+}
+
+export async function buscarOrdensComFiltro({ status, setor }) {
+  let q = collection(db, "ordens");
+
+  let constraints = [];
+
+  if (status) {
+    constraints.push(where("status", "==", status));
+  }
+
+  if (setor) {
+    constraints.push(where("setorSolicitante", "==", setor));
+  }
+
+  constraints.push(orderBy("numeroSequencial", "desc"));
+  constraints.push(limit(50));
+
+  const queryFinal = query(q, ...constraints);
+
+  const snapshot = await getDocs(queryFinal);
+
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
 }
 
 /* =========================
@@ -303,7 +322,6 @@ export async function salvarOrdemFirestore(ordem) {
   });
 }
 
-
 export async function atualizarStatusComDashboard(id, dadosAtualizacao) {
   const ordemRef = doc(db, "ordens", id);
   const statsRef = doc(db, "estatisticas", "dashboard");
@@ -339,9 +357,12 @@ export async function atualizarStatusComDashboard(id, dadosAtualizacao) {
     };
 
     // 🔥 REMOVE DO ANTIGO
-    if (statusAntigo === "Aberta") novasStats.abertas = Math.max(0, novasStats.abertas - 1);
-    if (statusAntigo === "Em andamento") novasStats.andamento = Math.max(0, novasStats.andamento - 1);
-    if (statusAntigo === "Encerrada") novasStats.encerradas = Math.max(0, novasStats.encerradas - 1);
+    if (statusAntigo === "Aberta")
+      novasStats.abertas = Math.max(0, novasStats.abertas - 1);
+    if (statusAntigo === "Em andamento")
+      novasStats.andamento = Math.max(0, novasStats.andamento - 1);
+    if (statusAntigo === "Encerrada")
+      novasStats.encerradas = Math.max(0, novasStats.encerradas - 1);
 
     // 🔥 ADICIONA NO NOVO
     if (novoStatus === "Aberta") novasStats.abertas += 1;
@@ -359,6 +380,7 @@ export async function atualizarStatusComDashboard(id, dadosAtualizacao) {
    BUSCAR ORDENS
 ========================= */
 export async function buscarOrdensFirestore() {
+   console.log("🔥 BUSCANDO TODAS AS ORDENS (PERIGO)");
   const snapshot = await getDocs(collection(db, "ordens"));
 
   const lista = [];
@@ -420,6 +442,7 @@ export async function excluirOrdemFirestore(id) {
 }
 
 export async function reconstruirDashboard() {
+    console.log("🔥 RECONSTRUINDO DASHBOARD (LEITURA MASSIVA)");
   if (!window.isAdmin) {
     console.warn("Acesso negado");
     return;
@@ -462,60 +485,15 @@ export async function reconstruirDashboard() {
 
 
 
-window.reordenarTudo = async function () {
-  const snapshot = await getDocs(collection(db, "ordens"));
 
-  const lista = [];
+export async function buscarOrdemPorId(id) {
+  const ref = doc(db, "ordens", id);
+  const snap = await getDoc(ref);
 
-  snapshot.forEach((docSnap) => {
-    const data = docSnap.data();
+  if (!snap.exists()) return null;
 
-    lista.push({
-      id: docSnap.id,
-      ...data,
-    });
-  });
-
-  // ordena por data de criação (mais antigo primeiro)
-  lista.sort((a, b) => {
-    const t1 = a.criadoEm?.seconds || 0;
-    const t2 = b.criadoEm?.seconds || 0;
-    return t1 - t2;
-  });
-
-  console.log("Total de OS:", lista.length);
-
-  let contador = 1;
-  const ano = new Date().getFullYear();
-
-  for (const o of lista) {
-    const numeroFormatado = String(contador).padStart(3, "0");
-    const novoNumero = `OS ${numeroFormatado}/${ano} - SEINFRA`;
-
-    await updateDoc(doc(db, "ordens", o.id), {
-      numero: novoNumero,
-      numeroSequencial: contador,
-    });
-
-    console.log("✔", o.id, "→", novoNumero);
-
-    contador++;
-  }
-
-  console.log("🔥 REORDENAÇÃO FINALIZADA");
-};
-
-
-window.firebaseDebug = {
-  getDocs,
-  collection,
-  doc,
-  updateDoc,
-  deleteDoc,
-  setDoc,
-    getCountFromServer,
-  db
-};
-
-window.reconstruirDashboard = reconstruirDashboard;
-
+  return {
+    id: snap.id,
+    ...snap.data()
+  };
+}
