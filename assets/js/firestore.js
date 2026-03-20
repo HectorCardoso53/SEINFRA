@@ -15,65 +15,39 @@ import {
   startAfter,
   deleteDoc,
   runTransaction,
+   getCountFromServer,
+   onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 import { auth } from "./firebase.js";
 
 export const db = getFirestore();
 
-export async function buscarResumoDashboard() {
+export function ouvirResumoDashboard(callback) {
   const ref = doc(db, "estatisticas", "dashboard");
 
-  const snap = await getDoc(ref);
-
-  if (!snap.exists()) {
-    return {
-      total: 0,
-      abertas: 0,
-      andamento: 0,
-      encerradas: 0,
-      totalMateriais: 0,
-    };
-  }
-
-  return snap.data();
-}
-/*
-async function atualizarEstatisticasCriacao(ordem) {
-  const ref = doc(db, "estatisticas", "dashboard");
-
-  await runTransaction(db, async (transaction) => {
-    const snap = await transaction.get(ref);
-
-    let dados = {
-      total: 0,
-      abertas: 0,
-      andamento: 0,
-      encerradas: 0,
-      totalMateriais: 0,
-    };
-
-    if (snap.exists()) {
-      dados = snap.data();
+  return onSnapshot(ref, (snap) => {
+    if (!snap.exists()) {
+      callback({
+        total: 0,
+        abertas: 0,
+        andamento: 0,
+        encerradas: 0,
+        totalMateriais: 0,
+      });
+      return;
     }
 
-    dados.total += 1;
-
-    if (ordem.status === "Aberta") dados.abertas += 1;
-    if (ordem.status === "Em andamento") dados.andamento += 1;
-    if (ordem.status === "Encerrada") dados.encerradas += 1;
-
-    if (ordem.materiais) {
-      dados.totalMateriais += ordem.materiais.length;
-    }
-
-    transaction.set(ref, dados);
+    callback(snap.data());
   });
 }
-*/
 
 export async function buscarOrdensDashboard() {
-  const q = query(collection(db, "ordens"), orderBy("dataAbertura", "desc"));
+  const q = query(
+    collection(db, "ordens"),
+    orderBy("dataAbertura", "desc"),
+    limit(20) // 🔥 obrigatório
+  );
 
   const snapshot = await getDocs(q);
 
@@ -265,60 +239,36 @@ export async function sincronizarContadorOS() {
 export async function salvarOrdemFirestore(ordem) {
   return await runTransaction(db, async (transaction) => {
     const ano = new Date().getFullYear();
+
     const contadorRef = doc(db, "contadores", "os_" + ano);
+    const statsRef = doc(db, "estatisticas", "dashboard");
 
+    // 🔥 LEITURAS PRIMEIRO (OBRIGATÓRIO)
     const snap = await transaction.get(contadorRef);
+    const statsSnap = await transaction.get(statsRef);
 
-    let baseNumero = 0;
+    let numeroFinal = 1;
 
     if (snap.exists()) {
-      baseNumero = snap.data().ultimoNumero || 0;
+      numeroFinal = (snap.data().ultimoNumero || 0) + 1;
     }
 
-    // 🔥 CONTROLE DE TENTATIVA (ANTI-COLISÃO)
-    const tentativaMax = 10;
-    let tentativa = 0;
+    const numeroFormatado = String(numeroFinal).padStart(3, "0");
+    const numeroOS = `OS ${numeroFormatado}/${ano} - SEINFRA`;
 
-    let numeroFinal;
-    let numeroOS;
-    let ordemRef;
+    const ordemRef = doc(collection(db, "ordens"));
 
-    while (tentativa < tentativaMax) {
-      const numero = baseNumero + 1 + tentativa;
-
-      const numeroFormatado = String(numero).padStart(3, "0");
-      numeroOS = `OS ${numeroFormatado}/${ano} - SEINFRA`;
-
-      const idSeguro = numeroOS.replace(/\//g, "-");
-      ordemRef = doc(db, "ordens", idSeguro);
-
-      const jaExiste = await transaction.get(ordemRef);
-
-      if (!jaExiste.exists()) {
-        numeroFinal = numero;
-        break;
-      }
-
-      tentativa++;
-    }
-
-    // 🚨 SE NÃO CONSEGUIR GERAR
-    if (!numeroFinal) {
-      throw new Error("Falha ao gerar número único para OS");
-    }
-
-    // 🔥 ATUALIZA CONTADOR COM O NÚMERO REAL
+    // 🔥 AGORA SIM: WRITES
     if (snap.exists()) {
       transaction.update(contadorRef, {
         ultimoNumero: numeroFinal,
       });
     } else {
       transaction.set(contadorRef, {
-        ultimoNumero: numeroFinal,
+        ultimoNumero: 1,
       });
     }
 
-    // 🔥 SALVA ORDEM
     transaction.set(ordemRef, {
       ...ordem,
       numero: numeroOS,
@@ -327,10 +277,82 @@ export async function salvarOrdemFirestore(ordem) {
       criadoPor: auth.currentUser?.email || "sistema",
     });
 
+    if (!statsSnap.exists()) {
+      transaction.set(statsRef, {
+        total: 1,
+        abertas: 1,
+        andamento: 0,
+        encerradas: 0,
+        totalMateriais: ordem.materiais?.length || 0,
+      });
+    } else {
+      const stats = statsSnap.data();
+
+      transaction.update(statsRef, {
+        total: (stats.total || 0) + 1,
+        abertas: (stats.abertas || 0) + 1,
+        totalMateriais:
+          (stats.totalMateriais || 0) + (ordem.materiais?.length || 0),
+      });
+    }
+
     return {
       id: ordemRef.id,
       numero: numeroOS,
     };
+  });
+}
+
+
+export async function atualizarStatusComDashboard(id, dadosAtualizacao) {
+  const ordemRef = doc(db, "ordens", id);
+  const statsRef = doc(db, "estatisticas", "dashboard");
+
+  await runTransaction(db, async (transaction) => {
+    const ordemSnap = await transaction.get(ordemRef);
+    const statsSnap = await transaction.get(statsRef);
+
+    if (!ordemSnap.exists() || !statsSnap.exists()) return;
+
+    const ordem = ordemSnap.data();
+    const statusAntigo = ordem.status;
+    const novoStatus = dadosAtualizacao.status;
+
+    // 🔥 validação básica
+    if (!novoStatus) return;
+
+    // 🔥 se não mudou, não faz nada
+    if (statusAntigo === novoStatus) {
+      transaction.update(ordemRef, dadosAtualizacao);
+      return;
+    }
+
+    const stats = statsSnap.data();
+
+    // 🔥 cria novo objeto (não muta direto)
+    let novasStats = {
+      total: stats.total || 0,
+      abertas: stats.abertas || 0,
+      andamento: stats.andamento || 0,
+      encerradas: stats.encerradas || 0,
+      totalMateriais: stats.totalMateriais || 0,
+    };
+
+    // 🔥 REMOVE DO ANTIGO
+    if (statusAntigo === "Aberta") novasStats.abertas = Math.max(0, novasStats.abertas - 1);
+    if (statusAntigo === "Em andamento") novasStats.andamento = Math.max(0, novasStats.andamento - 1);
+    if (statusAntigo === "Encerrada") novasStats.encerradas = Math.max(0, novasStats.encerradas - 1);
+
+    // 🔥 ADICIONA NO NOVO
+    if (novoStatus === "Aberta") novasStats.abertas += 1;
+    if (novoStatus === "Em andamento") novasStats.andamento += 1;
+    if (novoStatus === "Encerrada") novasStats.encerradas += 1;
+
+    // 🔥 ATUALIZA ORDEM
+    transaction.update(ordemRef, dadosAtualizacao);
+
+    // 🔥 ATUALIZA DASHBOARD
+    transaction.update(statsRef, novasStats);
   });
 }
 /* =========================
@@ -398,6 +420,13 @@ export async function excluirOrdemFirestore(id) {
 }
 
 export async function reconstruirDashboard() {
+  if (!window.isAdmin) {
+    console.warn("Acesso negado");
+    return;
+  }
+
+  console.warn("⚠️ RECONSTRUINDO DASHBOARD...");
+
   const snapshot = await getDocs(collection(db, "ordens"));
 
   let total = 0;
@@ -428,8 +457,10 @@ export async function reconstruirDashboard() {
     totalMateriais,
   });
 
-  console.log("Dashboard reconstruído com sucesso");
+  console.log("✅ Dashboard reconstruído");
 }
+
+
 
 window.reordenarTudo = async function () {
   const snapshot = await getDocs(collection(db, "ordens"));
@@ -474,125 +505,17 @@ window.reordenarTudo = async function () {
   console.log("🔥 REORDENAÇÃO FINALIZADA");
 };
 
-window.reconstruirDashboard = reconstruirDashboard;
 
-window.listarDuplicadas = async function () {
-  const lista = await buscarOrdensDashboard();
-
-  const mapa = {};
-
-  lista.forEach((o) => {
-    if (!mapa[o.numero]) {
-      mapa[o.numero] = [];
-    }
-    mapa[o.numero].push(o);
-  });
-
-  Object.keys(mapa).forEach((numero) => {
-    if (mapa[numero].length > 1) {
-      console.log("💥 DUPLICADA:", numero, mapa[numero]);
-    }
-  });
-};
-
-window.analisarDuplicadas = async function () {
-  const lista = await buscarOrdensDashboard();
-
-  const mapa = {};
-
-  // Agrupa por número
-  lista.forEach((o) => {
-    if (!mapa[o.numero]) mapa[o.numero] = [];
-    mapa[o.numero].push(o);
-  });
-
-  Object.keys(mapa).forEach((numero) => {
-    const grupo = mapa[numero];
-
-    if (grupo.length < 2) return;
-
-    console.log("=================================");
-    console.log("💥 DUPLICADA:", numero);
-
-    const [a, b] = grupo;
-
-    const campos = new Set([...Object.keys(a), ...Object.keys(b)]);
-
-    campos.forEach((campo) => {
-      const v1 = a[campo];
-      const v2 = b[campo];
-
-      if (JSON.stringify(v1) !== JSON.stringify(v2)) {
-        console.log(`🔸 ${campo}:`);
-        console.log("   A:", v1);
-        console.log("   B:", v2);
-      }
-    });
-
-    console.log("=================================");
-  });
-};
-
-window.corrigirDuplicadas = async function () {
-  const lista = await buscarOrdensDashboard();
-
-  const mapa = {};
-
-  lista.forEach((o) => {
-    if (!mapa[o.numero]) mapa[o.numero] = [];
-    mapa[o.numero].push(o);
-  });
-
-  for (const numero in mapa) {
-    const grupo = mapa[numero];
-
-    if (grupo.length < 2) continue;
-
-    console.log("⚠️ Corrigindo:", numero);
-
-    // mantém o mais antigo
-    grupo.sort((a, b) => {
-      const t1 = a.criadoEm?.seconds || 0;
-      const t2 = b.criadoEm?.seconds || 0;
-      return t1 - t2;
-    });
-
-    const manter = grupo[0];
-
-    for (let i = 1; i < grupo.length; i++) {
-      const o = grupo[i];
-
-      let novoNumero;
-      let existe = true;
-
-      // 🔥 LOOP ATÉ ACHAR UM NÚMERO LIVRE
-      while (existe) {
-        novoNumero = await gerarNumeroOS();
-
-        const q = query(
-          collection(db, "ordens"),
-          where("numero", "==", novoNumero),
-        );
-
-        const snap = await getDocs(q);
-
-        existe = !snap.empty;
-      }
-
-      const match = novoNumero.match(/OS\s*(\d+)/);
-      const numeroSequencial = match ? parseInt(match[1]) : 0;
-
-      await atualizarOrdemFirestore(o.id, {
-        numero: novoNumero,
-        numeroSequencial: numeroSequencial,
-      });
-
-      console.log("✔ Atualizado:", o.id, "→", novoNumero);
-    }
-  }
-
-  console.log("🔥 Correção finalizada (SEM duplicação)");
+window.firebaseDebug = {
+  getDocs,
+  collection,
+  doc,
+  updateDoc,
+  deleteDoc,
+  setDoc,
+    getCountFromServer,
+  db
 };
 
 window.reconstruirDashboard = reconstruirDashboard;
-window.sincronizarContadorOS = sincronizarContadorOS;
+
