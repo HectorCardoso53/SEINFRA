@@ -2,37 +2,22 @@ import {
   salvarOrdemFirestore,
   atualizarOrdemFirestore,
   excluirOrdemFirestore,
-  gerarNumeroOS,
   consultarProximoNumeroOS,
-  buscarUltimasOrdensFirestore,
-  sincronizarContadorOS,
   buscarOrdensPaginadas,
-  buscarResumoDashboard,
-  buscarOrdensDashboard, // 🔥 AQUI
+   ouvirResumoDashboard //
+   
 } from "./firestore.js";
-
-import {
-  doc,
-  getDoc,
-  setDoc,
-  deleteDoc,
-  collection,
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-import { db } from "./firestore.js";
 
 // 🔥 VARIÁVEIS GLOBAIS
 let ordens = [];
 let materiais = [];
 let osAtual = null;
 
-let latitudeSelecionada = null;
-let longitudeSelecionada = null;
 let materiaisEncerramento = [];
 let carregando = false;
 let paginaAtual = 1;
 let historicoDocs = [];
-let ordensDashboard = [];
+let sistemaInicializado = false;
 
 async function carregarPagina(pagina) {
   carregando = true;
@@ -70,19 +55,10 @@ window.paginaAnterior = function () {
   carregarPagina(paginaAtual - 1);
 };
 
-function extrairNumeroOS(numero) {
-  if (!numero) return 0;
-
-  const match = numero.match(/OS\s*(\d+)/);
-
-  return match ? parseInt(match[1]) : 0;
-}
-
 // Inicialização
 document.addEventListener("DOMContentLoaded", async function () {
   inicializarSistema();
 
-  ordensDashboard = await buscarOrdensDashboard();
   carregarAnoMateriais();
   carregarFiltroAno();
 
@@ -107,21 +83,30 @@ document.addEventListener("DOMContentLoaded", async function () {
 });
 
 async function inicializarSistema() {
-  setDataAtual();
+  if (sistemaInicializado) return;
 
-  await atualizarNumeroOS();
+  sistemaInicializado = true;
 
-  // 🔥 DASHBOARD REAL (todas as ordens)
-  ordensDashboard = await buscarOrdensDashboard();
+  try {
+    setDataAtual();
 
-  await carregarPagina(1);
+    await atualizarNumeroOS(); // 🔥 AQUI
 
-  atualizarDashboard();
-  carregarTabelaDashboard();
-  aplicarFiltros();
+    await carregarPagina(1);
 
-  atualizarHeader("dashboard");
+    ouvirResumoDashboard((resumo) => {
+      atualizarDashboardComResumo(resumo);
+    });
+
+    carregarTabelaDashboard();
+    aplicarFiltros();
+
+    atualizarHeader("dashboard");
+  } catch (error) {
+    console.error("Erro ao inicializar sistema:", error);
+  }
 }
+
 
 async function atualizarNumeroOS() {
   const numero = await consultarProximoNumeroOS();
@@ -256,13 +241,12 @@ function renderizarMateriais() {
 
 let salvando = false;
 
-// Salvar OS
 document
   .getElementById("form-os")
   .addEventListener("submit", async function (e) {
     e.preventDefault();
 
-    if (salvando) return; // 🔥 trava clique duplo
+    if (salvando) return;
     salvando = true;
 
     try {
@@ -290,7 +274,12 @@ document
 
       // ✏️ EDITAR
       if (osAtual && osAtual.id) {
-        await atualizarOrdemFirestore(osAtual.id, dadosOrdem);
+        await atualizarStatusComDashboard(osAtual.id, dadosOrdem);
+
+        // 🔥 ATUALIZA LOCAL (SEM BUSCAR NO FIRESTORE)
+        ordens = ordens.map((o) =>
+          o.id === osAtual.id ? { ...o, ...dadosOrdem } : o,
+        );
 
         mostrarAlerta("Ordem atualizada com sucesso!", "Sucesso");
 
@@ -298,8 +287,8 @@ document
 
         showPage("relatorios");
 
-        await carregarPagina(1);
-        atualizarDashboard();
+        carregarTabelaRelatorios(ordens);
+        carregarTabelaDashboard();
 
         return;
       }
@@ -307,26 +296,31 @@ document
       // 🆕 NOVA OS
       const resultado = await salvarOrdemFirestore(dadosOrdem);
 
+      const novaOrdem = {
+        id: resultado.id,
+        ...dadosOrdem,
+        numero: resultado.numero,
+        status: "Aberta",
+        criadoEm: new Date(),
+      };
+
+      // 🔥 ADICIONA LOCAL (SEM RECARREGAR DO BANCO)
+      ordens.unshift(novaOrdem);
+
       mostrarAlerta(`Ordem ${resultado.numero} criada com sucesso!`, "Sucesso");
 
-      await reconstruirDashboard();
-
-      ordensDashboard = await buscarOrdensDashboard();
-
-      await carregarPagina(1);
-
       limparFormulario();
-      atualizarDashboard();
-      carregarTabelaDashboard();
 
+
+      carregarTabelaRelatorios(ordens);
+      carregarTabelaDashboard();
     } catch (error) {
       console.error(error);
       mostrarAlerta(error.message, "Erro");
     } finally {
-      salvando = false; // 🔥 ESSENCIAL
+      salvando = false;
     }
   });
-
 
 async function limparFormulario() {
   osAtual = null;
@@ -359,20 +353,6 @@ window.fecharConfirm = function () {
   document.getElementById("modal-confirm").classList.add("hidden");
 };
 
-// Dashboard
-async function atualizarDashboard() {
-  const resumo = await buscarResumoDashboard();
-
-  document.getElementById("total-ordens").textContent = resumo.total;
-  document.getElementById("total-abertas").textContent = resumo.abertas;
-  document.getElementById("total-andamento").textContent = resumo.andamento;
-  document.getElementById("total-encerradas").textContent = resumo.encerradas;
-  document.getElementById("total-materiais").textContent =
-    resumo.totalMateriais;
-
-  atualizarGraficos();
-}
-
 window.gerarRelatorioMateriais = function () {
   const mesSelect = document.getElementById("materiais-mes");
   const anoSelect = document.getElementById("materiais-ano");
@@ -393,7 +373,7 @@ window.gerarRelatorioMateriais = function () {
   let materiaisSomados = {};
   let quantidadeTotal = 0;
 
-  ordensDashboard.forEach((ordem) => {
+  ordens.forEach((ordem) => {
     if (!ordem.dataAbertura) return;
 
     const data = new Date(ordem.dataAbertura);
@@ -431,6 +411,17 @@ window.gerarRelatorioMateriais = function () {
 
   renderTabelaMateriaisMes(lista);
 };
+
+function atualizarDashboardComResumo(resumo) {
+  document.getElementById("total-ordens").textContent = resumo.total;
+  document.getElementById("total-abertas").textContent = resumo.abertas;
+  document.getElementById("total-andamento").textContent = resumo.andamento;
+  document.getElementById("total-encerradas").textContent = resumo.encerradas;
+  document.getElementById("total-materiais").textContent =
+    resumo.totalMateriais;
+
+  atualizarGraficos(resumo);
+}
 
 function carregarTabelaDashboard() {
   const tbody = document.getElementById("tabela-dashboard");
@@ -793,11 +784,8 @@ window.alterarStatus = async function () {
 
   const novoStatus = osAtual.status === "Aberta" ? "Em andamento" : "Aberta";
 
-  await atualizarOrdemFirestore(osAtual.id, {
-    status: novoStatus,
-  });
+  await atualizarStatusComDashboard(osAtual.id, novoStatus);
 
-  await reconstruirDashboard();
   // 🔥 ATUALIZA NO ARRAY (CORRETO)
   ordens = ordens.map((o) =>
     o.id === osAtual.id ? { ...o, status: novoStatus } : o,
@@ -805,7 +793,6 @@ window.alterarStatus = async function () {
 
   visualizarOS(osAtual.id);
 
-  atualizarDashboard();
   carregarTabelaDashboard();
   aplicarFiltros();
 };
@@ -846,13 +833,10 @@ window.excluirOS = function (id) {
       try {
         await excluirOrdemFirestore(id);
 
-        await reconstruirDashboard();
-
         ordens = ordens.filter((o) => o.id !== id);
 
         aplicarFiltros();
         carregarTabelaDashboard();
-        atualizarDashboard();
 
         mostrarAlerta("Ordem excluída com sucesso!", "Sucesso");
       } catch (error) {
@@ -1014,7 +998,7 @@ document
       return;
     }
 
-    await atualizarOrdemFirestore(osAtual.id, {
+    await atualizarStatusComDashboard(osAtual.id, {
       status: "Encerrada",
       dataEncerramento: dataEncerramento,
       assinaturaChefia: assinaturaChefia,
@@ -1023,15 +1007,12 @@ document
       materiais: [...materiais],
     });
 
-    await reconstruirDashboard(); // 🔥 AQUI
-
     ordens = ordens.map((o) =>
       o.id === osAtual.id ? { ...o, status: "Encerrada" } : o,
     );
 
     fecharModalEncerramento();
     visualizarOS(osAtual.id);
-    atualizarDashboard();
     carregarTabelaDashboard();
     aplicarFiltros();
 
@@ -1084,6 +1065,8 @@ function renderTabelaMateriaisMes(lista) {
     .join("");
 }
 
+
+
 function carregarAnoMateriais() {
   const select = document.getElementById("materiais-ano");
 
@@ -1107,9 +1090,7 @@ function carregarAnoMateriais() {
 let graficoStatus = null;
 let graficoMes = null;
 
-async function atualizarGraficos() {
-  const resumo = await buscarResumoDashboard();
-
+async function atualizarGraficos(resumo) {
   const abertas = resumo.abertas;
   const andamento = resumo.andamento;
   const encerradas = resumo.encerradas;
@@ -1144,7 +1125,7 @@ async function atualizarGraficos() {
   // ORDENS POR MÊS
   let meses = new Array(12).fill(0);
 
-  ordensDashboard.forEach((o) => {
+  ordens.forEach((o) => {
     const data = new Date(o.dataAbertura);
     meses[data.getMonth()]++;
   });
@@ -2291,7 +2272,7 @@ window.imprimirRelatorio = function () {
     ?.value.trim()
     .toLowerCase();
 
-  let ordensFiltradas = [...ordensDashboard];
+  let ordensFiltradas = [...ordens];
 
   // DATA INICIAL
   if (dataInicio) {
@@ -2569,10 +2550,62 @@ telefoneInput?.addEventListener("input", function (e) {
   e.target.value = v;
 });
 
-window.debugStatus = async function () {
-  const lista = await buscarOrdensDashboard();
+window.adicionarMaterialEncerramento = function () {
+  const nomeInput = document.getElementById("enc-material-nome");
+  const unidadeInput = document.getElementById("enc-material-unidade");
+  const quantidadeInput = document.getElementById("enc-material-quantidade");
 
-  lista.forEach(o => {
-    console.log(o.status);
+  if (!nomeInput || !unidadeInput || !quantidadeInput) {
+    console.error("Campos de encerramento não encontrados");
+    return;
+  }
+
+  const nome = nomeInput.value.trim();
+  const unidade = unidadeInput.value.trim();
+  const quantidade = quantidadeInput.value;
+
+  if (!nome || !unidade) {
+    mostrarAlerta("Preencha material e unidade.", "Atenção");
+    return;
+  }
+
+  materiaisEncerramento.push({
+    nome,
+    unidade,
+    quantidade: quantidade ? parseFloat(quantidade) : null,
   });
+
+  // limpa campos
+  nomeInput.value = "";
+  unidadeInput.value = "";
+  quantidadeInput.value = "";
+
+  renderizarMateriaisEncerramento();
+};
+
+function renderizarMateriaisEncerramento() {
+  const lista = document.getElementById("lista-materiais-encerramento");
+
+  if (!lista) return;
+
+  if (materiaisEncerramento.length === 0) {
+    lista.innerHTML = "";
+    return;
+  }
+
+  lista.innerHTML = materiaisEncerramento
+    .map(
+      (m, i) => `
+      <div class="material-item">
+        <strong>${m.nome}</strong> - ${m.quantidade || ""} ${m.unidade}
+        <button onclick="removerMaterialEncerramento(${i})">Remover</button>
+      </div>
+    `,
+    )
+    .join("");
+}
+
+window.removerMaterialEncerramento = function (index) {
+  materiaisEncerramento.splice(index, 1);
+  renderizarMateriaisEncerramento();
 };
