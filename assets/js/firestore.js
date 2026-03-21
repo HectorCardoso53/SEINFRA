@@ -95,32 +95,31 @@ function normalizarNome(nome) {
     .replace(/\s+/g, "-");
 }
 
-export async function buscarOrdensComFiltro({ status, setor }) {
-  let q = collection(db, "ordens");
+export async function buscarOrdensComFiltro({ status, setorSolicitante }) {
+  const q = query(
+    collection(db, "ordens"),
+    orderBy("numeroSequencial", "desc"),
+    limit(200) // 🔥 limite controlado (não infinito)
+  );
 
-  let constraints = [];
+  const snapshot = await getDocs(q);
 
-  if (status) {
-    constraints.push(where("status", "==", status));
-  }
-
-  if (setor) {
-    constraints.push(where("setorSolicitante", "==", setor));
-  }
-
-  constraints.push(orderBy("numeroSequencial", "desc"));
-  constraints.push(limit(50));
-
-  const queryFinal = query(q, ...constraints);
-
-  const snapshot = await getDocs(queryFinal);
-
-  return snapshot.docs.map(doc => ({
+  let lista = snapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data()
   }));
-}
 
+  // filtro no JS
+  if (status) {
+    lista = lista.filter(o => o.status === status);
+  }
+
+  if (setorSolicitante) {
+    lista = lista.filter(o => o.setorSolicitante === setorSolicitante);
+  }
+
+  return lista;
+}
 /* =========================
    GERAR NÚMERO DE OS SEGURO
 ========================= */

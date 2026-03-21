@@ -11,7 +11,7 @@ import {
   contarOrdensFirestore,
   buscarOrdensFirestore,
   buscarOrdensComFiltro,
-  atualizarStatusComDashboard 
+  atualizarStatusComDashboard,
 } from "./firestore.js";
 
 // 🔥 VARIÁVEIS GLOBAIS
@@ -159,7 +159,6 @@ async function inicializarSistema() {
     // ❌ NÃO aplicar filtro automático
 
     atualizarHeader("dashboard");
-
   } catch (error) {
     console.error("Erro ao inicializar sistema:", error);
   }
@@ -534,8 +533,7 @@ window.aplicarFiltros = async function () {
 
   const setorSolicitante = document
     .getElementById("filtro-setor-solicitante")
-    ?.value.trim()
-    .toLowerCase();
+    ?.value.trim();
 
   // 🔥 DETECTA FILTRO
   const temFiltro =
@@ -554,7 +552,7 @@ window.aplicarFiltros = async function () {
   if (temFiltro) {
     baseDados = await buscarOrdensComFiltro({
       status,
-      setor: setorSolicitante,
+      setorSolicitante,
     });
   } else {
     baseDados = ordens; // 🔥 só página
@@ -2346,8 +2344,7 @@ window.imprimirRelatorio = async function () {
 
   const setorSolicitante = document
     .getElementById("filtro-setor-solicitante")
-    ?.value.trim()
-    .toLowerCase();
+    ?.value.trim();
 
   // 🔥 DETECTA SE TEM FILTRO
   const temFiltro =
