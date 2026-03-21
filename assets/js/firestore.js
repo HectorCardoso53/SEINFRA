@@ -26,7 +26,6 @@ export async function contarOrdensFirestore() {
   return snapshot.data().count;
 }
 
-
 export async function buscarResumoDashboard() {
   const ref = doc(db, "estatisticas", "dashboard");
   const snap = await getDoc(ref);
@@ -34,10 +33,10 @@ export async function buscarResumoDashboard() {
   return snap.exists() ? snap.data() : null;
 }
 export async function buscarOrdensDashboard() {
-   console.log("🔥 BUSCANDO ORDENS (dashboard)");
+  console.log("🔥 BUSCANDO ORDENS (dashboard)");
   const q = query(
     collection(db, "ordens"),
-     orderBy("numeroSequencial", "desc"),
+    orderBy("numeroSequencial", "desc"),
     limit(20), // 🔥 obrigatório
   );
 
@@ -50,7 +49,7 @@ export async function buscarOrdensDashboard() {
 }
 
 export async function buscarOrdensPaginadas(ultimaDoc = null, limite = 20) {
-   console.log("🔥 BUSCANDO ORDENS (paginadas)");
+  console.log("🔥 BUSCANDO ORDENS (paginadas)");
   let q;
 
   if (ultimaDoc) {
@@ -82,6 +81,7 @@ export async function buscarOrdensPaginadas(ultimaDoc = null, limite = 20) {
     ultimoDocumento,
   };
 }
+
 /* =========================
    UTIL
 ========================= */
@@ -99,23 +99,23 @@ export async function buscarOrdensComFiltro({ status, setorSolicitante }) {
   const q = query(
     collection(db, "ordens"),
     orderBy("numeroSequencial", "desc"),
-    limit(200) // 🔥 limite controlado (não infinito)
+    limit(200), // 🔥 limite controlado (não infinito)
   );
 
   const snapshot = await getDocs(q);
 
-  let lista = snapshot.docs.map(doc => ({
+  let lista = snapshot.docs.map((doc) => ({
     id: doc.id,
-    ...doc.data()
+    ...doc.data(),
   }));
 
   // filtro no JS
   if (status) {
-    lista = lista.filter(o => o.status === status);
+    lista = lista.filter((o) => o.status === status);
   }
 
   if (setorSolicitante) {
-    lista = lista.filter(o => o.setorSolicitante === setorSolicitante);
+    lista = lista.filter((o) => o.setorSolicitante === setorSolicitante);
   }
 
   return lista;
@@ -165,12 +165,7 @@ export async function buscarUltimasOrdensFirestore(qtd = 100) {
 
   const lista = [];
 
-  snapshot.forEach((docSnap) => {
-    lista.push({
-      id: docSnap.id,
-      ...docSnap.data(),
-    });
-  });
+ 
 
   return lista;
 }
@@ -227,21 +222,7 @@ export async function sincronizarContadorOS() {
 
   let maior = 0;
 
-  snapshot.forEach((docSnap) => {
-    const numero = docSnap.data().numero;
 
-    if (!numero) return;
-
-    const match = numero.match(/OS\s*(\d+)/);
-
-    if (match) {
-      const n = parseInt(match[1]);
-
-      if (n > maior) {
-        maior = n;
-      }
-    }
-  });
 
   const ano = new Date().getFullYear();
 
@@ -296,21 +277,35 @@ export async function salvarOrdemFirestore(ordem) {
     });
 
     if (!statsSnap.exists()) {
+      const meses = new Array(12).fill(0);
+
+      const data = new Date(ordem.dataAbertura);
+      meses[data.getMonth()] = 1;
+
       transaction.set(statsRef, {
         total: 1,
         abertas: 1,
         andamento: 0,
         encerradas: 0,
         totalMateriais: ordem.materiais?.length || 0,
+        ordensPorMes: meses,
       });
     } else {
       const stats = statsSnap.data();
+
+      let meses = stats.ordensPorMes || new Array(12).fill(0);
+
+      const data = new Date(ordem.dataAbertura);
+      const mesIndex = data.getMonth();
+
+      meses[mesIndex] = (meses[mesIndex] || 0) + 1;
 
       transaction.update(statsRef, {
         total: (stats.total || 0) + 1,
         abertas: (stats.abertas || 0) + 1,
         totalMateriais:
           (stats.totalMateriais || 0) + (ordem.materiais?.length || 0),
+        ordensPorMes: meses,
       });
     }
 
@@ -379,17 +374,12 @@ export async function atualizarStatusComDashboard(id, dadosAtualizacao) {
    BUSCAR ORDENS
 ========================= */
 export async function buscarOrdensFirestore() {
-   console.log("🔥 BUSCANDO TODAS AS ORDENS (PERIGO)");
+  console.log("🔥 BUSCANDO TODAS AS ORDENS (PERIGO)");
   const snapshot = await getDocs(collection(db, "ordens"));
 
   const lista = [];
 
-  snapshot.forEach((docSnap) => {
-    lista.push({
-      id: docSnap.id,
-      ...docSnap.data(),
-    });
-  });
+
 
   return lista;
 }
@@ -441,7 +431,7 @@ export async function excluirOrdemFirestore(id) {
 }
 
 export async function reconstruirDashboard() {
-    console.log("🔥 RECONSTRUINDO DASHBOARD (LEITURA MASSIVA)");
+  console.log("🔥 RECONSTRUINDO DASHBOARD (LEITURA MASSIVA)");
   if (!window.isAdmin) {
     console.warn("Acesso negado");
     return;
@@ -457,33 +447,42 @@ export async function reconstruirDashboard() {
   let encerradas = 0;
   let totalMateriais = 0;
 
-  snapshot.forEach((docSnap) => {
-    const o = docSnap.data();
+ 
 
-    total++;
+  let ordensPorMes = new Array(12).fill(0);
 
-    if (o.status === "Aberta") abertas++;
-    if (o.status === "Em andamento") andamento++;
-    if (o.status === "Encerrada") encerradas++;
+snapshot.forEach((docSnap) => {
+  const o = docSnap.data();
 
-    if (o.materiais) {
-      totalMateriais += o.materiais.length;
+  total++;
+
+  if (o.status === "Aberta") abertas++;
+  if (o.status === "Em andamento") andamento++;
+  if (o.status === "Encerrada") encerradas++;
+
+  if (o.materiais) {
+    totalMateriais += o.materiais.length;
+  }
+
+  if (o.dataAbertura) {
+    const data = new Date(o.dataAbertura);
+    if (!isNaN(data)) {
+      ordensPorMes[data.getMonth()]++;
     }
-  });
+  }
+});
 
-  await setDoc(doc(db, "estatisticas", "dashboard"), {
-    total,
-    abertas,
-    andamento,
-    encerradas,
-    totalMateriais,
-  });
+await setDoc(doc(db, "estatisticas", "dashboard"), {
+  total,
+  abertas,
+  andamento,
+  encerradas,
+  totalMateriais,
+  ordensPorMes,
+});
 
   console.log("✅ Dashboard reconstruído");
 }
-
-
-
 
 export async function buscarOrdemPorId(id) {
   const ref = doc(db, "ordens", id);
@@ -493,6 +492,6 @@ export async function buscarOrdemPorId(id) {
 
   return {
     id: snap.id,
-    ...snap.data()
+    ...snap.data(),
   };
 }
