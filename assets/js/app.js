@@ -5,11 +5,8 @@ import {
   buscarOrdensPaginadas,
   buscarResumoDashboard,
   buscarOrdensDashboard,
-  buscarUltimasOrdensFirestore,
-  buscarOrdemPorId,
   reconstruirDashboard,
   contarOrdensFirestore,
-  buscarOrdensFirestore,
   buscarOrdensComFiltro,
   atualizarStatusComDashboard,
 } from "./firestore.js";
@@ -18,6 +15,7 @@ import {
 let ordens = [];
 let materiais = [];
 let osAtual = null;
+let resumoCache = null;
 
 const KEY_SETOR_SOLICITANTE = "setores_solicitante";
 
@@ -152,8 +150,7 @@ async function inicializarSistema() {
     // 🔥 CARREGA APENAS O ESSENCIAL
     await carregarPagina(1);
 
-    const resumo = await buscarResumoDashboard();
-    atualizarDashboardComResumo(resumo);
+    await carregarResumoDashboard();
 
     // ❌ NÃO carregar dashboard aqui
     // ❌ NÃO aplicar filtro automático
@@ -340,8 +337,7 @@ document
 
         await carregarPagina(1);
 
-        const resumo = await buscarResumoDashboard();
-        atualizarDashboardComResumo(resumo);
+        await carregarResumoDashboard();
 
         return;
       }
@@ -363,10 +359,7 @@ document
 
       await carregarPagina(1);
 
-      const resumo = await buscarResumoDashboard();
-      atualizarDashboardComResumo(resumo);
-
-      await carregarTabelaDashboard();
+      await carregarResumoDashboard();
     } catch (error) {
       console.error(error);
       mostrarAlerta(error.message, "Erro");
@@ -374,6 +367,18 @@ document
       salvando = false;
     }
   });
+
+async function carregarResumoDashboard() {
+  if (resumoCache) {
+    atualizarDashboardComResumo(resumoCache);
+    return;
+  }
+
+  const resumo = await buscarResumoDashboard();
+  resumoCache = resumo;
+
+  atualizarDashboardComResumo(resumo);
+}
 
 async function limparFormulario() {
   osAtual = null;
@@ -864,8 +869,7 @@ window.alterarStatus = async function () {
 
   await carregarPagina(1);
 
-  const resumo = await buscarResumoDashboard();
-  atualizarDashboardComResumo(resumo);
+  await carregarResumoDashboard();
 };
 
 // Encerramento
@@ -906,9 +910,7 @@ window.excluirOS = function (id) {
 
         await carregarPagina(1);
 
-        const resumo = await buscarResumoDashboard();
-        atualizarDashboardComResumo(resumo);
-
+        await carregarResumoDashboard();
         mostrarAlerta("Ordem excluída com sucesso!", "Sucesso");
       } catch (error) {
         console.error(error);
@@ -1082,8 +1084,7 @@ document
 
     await carregarPagina(1);
 
-    const resumo = await buscarResumoDashboard();
-    atualizarDashboardComResumo(resumo);
+    await carregarResumoDashboard();
 
     mostrarAlerta("Ordem de Serviço encerrada com sucesso!", "Sucesso");
   });
@@ -1162,12 +1163,11 @@ async function atualizarGraficos(resumo) {
   const andamento = resumo.andamento;
   const encerradas = resumo.encerradas;
 
-  // STATUS DAS ORDENS
+  // STATUS
   if (graficoStatus) graficoStatus.destroy();
 
   graficoStatus = new Chart(document.getElementById("grafico-status"), {
     type: "doughnut",
-
     data: {
       labels: ["Abertas", "Em andamento", "Encerradas"],
       datasets: [
@@ -1177,53 +1177,27 @@ async function atualizarGraficos(resumo) {
         },
       ],
     },
-
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: {
-          position: "bottom",
-        },
+        legend: { position: "bottom" },
       },
     },
   });
 
-  const lista = ordens;
-
-  let meses = new Array(12).fill(0);
-
-  lista.forEach((o) => {
-    if (!o.dataAbertura) return;
-
-    const data = new Date(o.dataAbertura);
-
-    if (!isNaN(data)) {
-      meses[data.getMonth()]++;
-    }
-  });
+  // 🔥 AGORA CORRETO (SEM LEITURA)
+  const meses = resumo.ordensPorMes || new Array(12).fill(0);
 
   if (graficoMes) graficoMes.destroy();
 
   graficoMes = new Chart(document.getElementById("grafico-mes"), {
     type: "bar",
-
     data: {
       labels: [
-        "Jan",
-        "Fev",
-        "Mar",
-        "Abr",
-        "Mai",
-        "Jun",
-        "Jul",
-        "Ago",
-        "Set",
-        "Out",
-        "Nov",
-        "Dez",
+        "Jan","Fev","Mar","Abr","Mai","Jun",
+        "Jul","Ago","Set","Out","Nov","Dez"
       ],
-
       datasets: [
         {
           label: "Ordens",
@@ -1232,7 +1206,6 @@ async function atualizarGraficos(resumo) {
         },
       ],
     },
-
     options: {
       responsive: true,
       plugins: {
@@ -2574,11 +2547,6 @@ window.showPage = function (pageId, element) {
 
   if (element) element.classList.add("active");
 
-  // 🔥 CARREGA DASHBOARD SÓ QUANDO ABRIR
-  if (pageId === "dashboard") {
-    carregarTabelaDashboard();
-  }
-
   const sidebar = document.getElementById("sidebar");
   const overlay = document.querySelector(".overlay");
 
@@ -2702,3 +2670,6 @@ window.contarOrdens = async function () {
 
   console.log("Total de ordens:", total);
 };
+
+
+window.reconstruirDashboard = reconstruirDashboard;
