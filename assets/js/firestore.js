@@ -99,7 +99,7 @@ export async function buscarOrdensComFiltro({ status, setorSolicitante }) {
   const q = query(
     collection(db, "ordens"),
     orderBy("numeroSequencial", "desc"),
-    limit(200)
+    limit(200),
   );
 
   const snapshot = await getDocs(q);
@@ -180,8 +180,6 @@ export async function buscarUltimasOrdensFirestore(qtd = 100) {
 
   const lista = [];
 
- 
-
   return lista;
 }
 
@@ -237,8 +235,6 @@ export async function sincronizarContadorOS() {
 
   let maior = 0;
 
-
-
   const ano = new Date().getFullYear();
 
   await setDoc(doc(db, "contadores", "os_" + ano), {
@@ -257,7 +253,7 @@ export async function salvarOrdemFirestore(ordem) {
     const contadorRef = doc(db, "contadores", "os_" + ano);
     const statsRef = doc(db, "estatisticas", "dashboard");
 
-    // 🔥 LEITURAS PRIMEIRO (OBRIGATÓRIO)
+    // 🔥 LEITURAS
     const snap = await transaction.get(contadorRef);
     const statsSnap = await transaction.get(statsRef);
 
@@ -272,7 +268,7 @@ export async function salvarOrdemFirestore(ordem) {
 
     const ordemRef = doc(collection(db, "ordens"));
 
-    // 🔥 AGORA SIM: WRITES
+    // 🔥 CONTADOR
     if (snap.exists()) {
       transaction.update(contadorRef, {
         ultimoNumero: numeroFinal,
@@ -283,6 +279,7 @@ export async function salvarOrdemFirestore(ordem) {
       });
     }
 
+    // 🔥 SALVA ORDEM
     transaction.set(ordemRef, {
       ...ordem,
       numero: numeroOS,
@@ -291,11 +288,15 @@ export async function salvarOrdemFirestore(ordem) {
       criadoPor: auth.currentUser?.email || "sistema",
     });
 
+    // 🔥 DASHBOARD
     if (!statsSnap.exists()) {
       const meses = new Array(12).fill(0);
 
       const data = new Date(ordem.dataAbertura);
-      meses[data.getMonth()] = 1;
+
+      if (!isNaN(data)) {
+        meses[data.getMonth()] = 1;
+      }
 
       transaction.set(statsRef, {
         total: 1,
@@ -311,9 +312,13 @@ export async function salvarOrdemFirestore(ordem) {
       let meses = stats.ordensPorMes || new Array(12).fill(0);
 
       const data = new Date(ordem.dataAbertura);
-      const mesIndex = data.getMonth();
 
-      meses[mesIndex] = (meses[mesIndex] || 0) + 1;
+      if (!isNaN(data)) {
+        const mesIndex = data.getMonth();
+        meses[mesIndex] = (meses[mesIndex] || 0) + 1;
+      } else {
+        console.warn("Data inválida:", ordem.dataAbertura);
+      }
 
       transaction.update(statsRef, {
         total: (stats.total || 0) + 1,
@@ -394,18 +399,98 @@ export async function buscarOrdensFirestore() {
 
   const lista = [];
 
-
-
   return lista;
 }
 
 /* =========================
    ATUALIZAR ORDEM
 ========================= */
-export async function atualizarOrdemFirestore(id, dados) {
-  const ref = doc(db, "ordens", id);
+export async function atualizarOrdemComDashboard(id, novosDados) {
+  const ordemRef = doc(db, "ordens", id);
+  const statsRef = doc(db, "estatisticas", "dashboard");
 
-  await updateDoc(ref, dados);
+  await runTransaction(db, async (transaction) => {
+    const ordemSnap = await transaction.get(ordemRef);
+    const statsSnap = await transaction.get(statsRef);
+
+    if (!ordemSnap.exists() || !statsSnap.exists()) return;
+
+    const ordemAntiga = ordemSnap.data();
+    const stats = statsSnap.data();
+
+    let novosStats = {
+      total: stats.total || 0,
+      abertas: stats.abertas || 0,
+      andamento: stats.andamento || 0,
+      encerradas: stats.encerradas || 0,
+      totalMateriais: stats.totalMateriais || 0,
+      ordensPorMes: stats.ordensPorMes || new Array(12).fill(0),
+    };
+
+    // ========================
+    // 🔥 STATUS
+    // ========================
+    if (novosDados.status && novosDados.status !== ordemAntiga.status) {
+      // remove antigo
+      if (ordemAntiga.status === "Aberta") {
+        novosStats.abertas = Math.max(0, novosStats.abertas - 1);
+      }
+
+      if (ordemAntiga.status === "Em andamento") {
+        novosStats.andamento = Math.max(0, novosStats.andamento - 1);
+      }
+
+      if (ordemAntiga.status === "Encerrada") {
+        novosStats.encerradas = Math.max(0, novosStats.encerradas - 1);
+      }
+
+      // adiciona novo
+      if (novosDados.status === "Aberta") novosStats.abertas++;
+      if (novosDados.status === "Em andamento") novosStats.andamento++;
+      if (novosDados.status === "Encerrada") novosStats.encerradas++;
+    }
+
+    // ========================
+    // 🔥 MATERIAIS
+    // ========================
+    if (novosDados.materiais) {
+      const antigos = ordemAntiga.materiais?.length || 0;
+      const novos = novosDados.materiais?.length || 0;
+
+      novosStats.totalMateriais += novos - antigos;
+    }
+
+    // ========================
+    // 🔥 DATA (GRÁFICO)
+    // ========================
+    if (
+      novosDados.dataAbertura &&
+      novosDados.dataAbertura !== ordemAntiga.dataAbertura
+    ) {
+      const antiga = new Date(ordemAntiga.dataAbertura);
+      const nova = new Date(novosDados.dataAbertura);
+
+      if (!isNaN(antiga)) {
+        const mesAntigo = antiga.getMonth();
+        novosStats.ordensPorMes[mesAntigo] = Math.max(
+          0,
+          novosStats.ordensPorMes[mesAntigo] - 1,
+        );
+      }
+
+      if (!isNaN(nova)) {
+        const mesNovo = nova.getMonth();
+        novosStats.ordensPorMes[mesNovo] =
+          (novosStats.ordensPorMes[mesNovo] || 0) + 1;
+      }
+    }
+
+    // ========================
+    // 🔥 UPDATE FINAL
+    // ========================
+    transaction.update(ordemRef, novosDados);
+    transaction.update(statsRef, novosStats);
+  });
 }
 
 /* =========================
@@ -413,35 +498,65 @@ export async function atualizarOrdemFirestore(id, dados) {
 ========================= */
 export async function excluirOrdemFirestore(id) {
   const ref = doc(db, "ordens", id);
-
-  const snap = await getDoc(ref);
-
-  if (!snap.exists()) return;
-
-  const ordem = snap.data();
-
-  await deleteDoc(ref);
-
   const refStats = doc(db, "estatisticas", "dashboard");
 
   await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
     const statsSnap = await transaction.get(refStats);
 
-    if (!statsSnap.exists()) return;
+    if (!snap.exists() || !statsSnap.exists()) return;
 
-    let dados = statsSnap.data();
+    const ordem = snap.data();
+    const dados = statsSnap.data();
 
-    dados.total -= 1;
+    // 🔥 REMOVE ORDEM
+    transaction.delete(ref);
 
-    if (ordem.status === "Aberta") dados.abertas -= 1;
-    if (ordem.status === "Em andamento") dados.andamento -= 1;
-    if (ordem.status === "Encerrada") dados.encerradas -= 1;
+    // 🔥 TOTAL
+    dados.total = Math.max(0, (dados.total || 0) - 1);
 
-    if (ordem.materiais) {
-      dados.totalMateriais -= ordem.materiais.length;
+    // 🔥 STATUS
+    if (ordem.status === "Aberta") {
+      dados.abertas = Math.max(0, (dados.abertas || 0) - 1);
     }
 
-    transaction.set(refStats, dados);
+    if (ordem.status === "Em andamento") {
+      dados.andamento = Math.max(0, (dados.andamento || 0) - 1);
+    }
+
+    if (ordem.status === "Encerrada") {
+      dados.encerradas = Math.max(0, (dados.encerradas || 0) - 1);
+    }
+
+    // 🔥 MATERIAIS
+    if (ordem.materiais) {
+      dados.totalMateriais = Math.max(
+        0,
+        (dados.totalMateriais || 0) - ordem.materiais.length,
+      );
+    }
+
+    // 🔥 CORREÇÃO DO GRÁFICO (AQUI ESTAVA TEU BUG)
+    if (ordem.dataAbertura) {
+      const data = new Date(ordem.dataAbertura);
+
+      if (!isNaN(data)) {
+        const mesIndex = data.getMonth();
+
+        if (!dados.ordensPorMes) {
+          dados.ordensPorMes = new Array(12).fill(0);
+        }
+
+        if (dados.ordensPorMes[mesIndex] > 0) {
+          dados.ordensPorMes[mesIndex] -= 1;
+        }
+      } else {
+        console.warn("Data inválida ao excluir:", ordem.dataAbertura);
+      }
+    }
+
+    // 🔥 SALVA
+    transaction.update(refStats, dados);
   });
 }
 
@@ -462,39 +577,37 @@ export async function reconstruirDashboard() {
   let encerradas = 0;
   let totalMateriais = 0;
 
- 
-
   let ordensPorMes = new Array(12).fill(0);
 
-snapshot.forEach((docSnap) => {
-  const o = docSnap.data();
+  snapshot.forEach((docSnap) => {
+    const o = docSnap.data();
 
-  total++;
+    total++;
 
-  if (o.status === "Aberta") abertas++;
-  if (o.status === "Em andamento") andamento++;
-  if (o.status === "Encerrada") encerradas++;
+    if (o.status === "Aberta") abertas++;
+    if (o.status === "Em andamento") andamento++;
+    if (o.status === "Encerrada") encerradas++;
 
-  if (o.materiais) {
-    totalMateriais += o.materiais.length;
-  }
-
-  if (o.dataAbertura) {
-    const data = new Date(o.dataAbertura);
-    if (!isNaN(data)) {
-      ordensPorMes[data.getMonth()]++;
+    if (o.materiais) {
+      totalMateriais += o.materiais.length;
     }
-  }
-});
 
-await setDoc(doc(db, "estatisticas", "dashboard"), {
-  total,
-  abertas,
-  andamento,
-  encerradas,
-  totalMateriais,
-  ordensPorMes,
-});
+    if (o.dataAbertura) {
+      const data = new Date(o.dataAbertura);
+      if (!isNaN(data)) {
+        ordensPorMes[data.getMonth()]++;
+      }
+    }
+  });
+
+  await setDoc(doc(db, "estatisticas", "dashboard"), {
+    total,
+    abertas,
+    andamento,
+    encerradas,
+    totalMateriais,
+    ordensPorMes,
+  });
 
   console.log("✅ Dashboard reconstruído");
 }
