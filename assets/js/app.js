@@ -335,7 +335,7 @@ document
 
       // ✏️ EDITAR
       if (osAtual && osAtual.id) {
-        await atualizarOrdemComDashboard(osAtual.id, dadosOrdem);
+        await atualizarStatusComDashboard(osAtual.id, dadosOrdem);
 
         mostrarAlerta("Ordem atualizada com sucesso!", "Sucesso");
 
