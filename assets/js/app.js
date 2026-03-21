@@ -335,7 +335,7 @@ document
 
       // ✏️ EDITAR
       if (osAtual && osAtual.id) {
-        await atualizarStatusComDashboard(osAtual.id, dadosOrdem);
+        await atualizarOrdemComDashboard(osAtual.id, dadosOrdem);
 
         mostrarAlerta("Ordem atualizada com sucesso!", "Sucesso");
 
@@ -377,13 +377,7 @@ document
   });
 
 async function carregarResumoDashboard() {
-  if (resumoCache) {
-    atualizarDashboardComResumo(resumoCache);
-    return;
-  }
-
   const resumo = await buscarResumoDashboard();
-  resumoCache = resumo;
 
   atualizarDashboardComResumo(resumo);
 }
@@ -872,7 +866,9 @@ window.alterarStatus = async function () {
 
   const novoStatus = osAtual.status === "Aberta" ? "Em andamento" : "Aberta";
 
-  await atualizarStatusComDashboard(osAtual.id, novoStatus);
+  await atualizarStatusComDashboard(osAtual.id, {
+    status: novoStatus,
+  });
 
   await carregarPagina(1);
 
