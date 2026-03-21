@@ -99,7 +99,7 @@ export async function buscarOrdensComFiltro({ status, setorSolicitante }) {
   const q = query(
     collection(db, "ordens"),
     orderBy("numeroSequencial", "desc"),
-    limit(200), // 🔥 limite controlado (não infinito)
+    limit(200)
   );
 
   const snapshot = await getDocs(q);
@@ -109,13 +109,28 @@ export async function buscarOrdensComFiltro({ status, setorSolicitante }) {
     ...doc.data(),
   }));
 
-  // filtro no JS
+  // 🔥 função de normalização
+  function normalizar(texto) {
+    return texto
+      ?.toLowerCase()
+      .trim()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }
+
+  // 🔥 filtro status
   if (status) {
     lista = lista.filter((o) => o.status === status);
   }
 
+  // 🔥 filtro setor (CORRIGIDO)
   if (setorSolicitante) {
-    lista = lista.filter((o) => o.setorSolicitante === setorSolicitante);
+    const filtro = normalizar(setorSolicitante);
+
+    lista = lista.filter((o) => {
+      const valor = normalizar(o.setorSolicitante || "");
+      return valor.includes(filtro);
+    });
   }
 
   return lista;
