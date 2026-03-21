@@ -19,6 +19,14 @@ let resumoCache = null;
 
 const KEY_SETOR_SOLICITANTE = "setores_solicitante";
 
+function normalizarTexto(texto) {
+  return texto
+    ?.toUpperCase()
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 function getSetoresSolicitante() {
   const dados = localStorage.getItem(KEY_SETOR_SOLICITANTE);
   return dados ? JSON.parse(dados) : [];
@@ -557,7 +565,6 @@ window.aplicarFiltros = async function () {
   if (temFiltro) {
     baseDados = await buscarOrdensComFiltro({
       status,
-      setorSolicitante,
     });
   } else {
     baseDados = ordens; // 🔥 só página
@@ -583,11 +590,11 @@ window.aplicarFiltros = async function () {
       return false;
     }
 
-    if (
-      setorSolicitante &&
-      !o.setorSolicitante?.toLowerCase().includes(setorSolicitante)
-    ) {
-      return false;
+    if (setorSolicitante) {
+      const filtro = normalizarTexto(setorSolicitante);
+      const valor = normalizarTexto(o.setorSolicitante || "");
+
+      if (!valor.includes(filtro)) return false;
     }
 
     if (diretoria && o.setorResponsavel !== diretoria) {
@@ -1195,8 +1202,18 @@ async function atualizarGraficos(resumo) {
     type: "bar",
     data: {
       labels: [
-        "Jan","Fev","Mar","Abr","Mai","Jun",
-        "Jul","Ago","Set","Out","Nov","Dez"
+        "Jan",
+        "Fev",
+        "Mar",
+        "Abr",
+        "Mai",
+        "Jun",
+        "Jul",
+        "Ago",
+        "Set",
+        "Out",
+        "Nov",
+        "Dez",
       ],
       datasets: [
         {
@@ -2299,10 +2316,8 @@ window.imprimirMateriaisMes = function () {
 
 window.imprimirRelatorio = async function () {
   let linhas = "";
-
   const dataEmissao = new Date().toLocaleString("pt-BR");
 
-  // 🔥 FILTROS
   const dataInicio = document.getElementById("filtro-data-inicio").value;
   const dataFim = document.getElementById("filtro-data-fim").value;
   const mes = document.getElementById("filtro-mes").value;
@@ -2319,74 +2334,58 @@ window.imprimirRelatorio = async function () {
     .getElementById("filtro-setor-solicitante")
     ?.value.trim();
 
-  // 🔥 DETECTA SE TEM FILTRO
-  const temFiltro =
-    dataInicio ||
-    dataFim ||
-    mes !== "" ||
-    ano !== "" ||
-    status ||
-    diretoria ||
-    solicitante ||
-    setorSolicitante;
-
-  // 🔥 BUSCA TODAS AS ORDENS (APENAS AQUI)
-  let todasOrdens;
-
-  if (temFiltro) {
-    todasOrdens = await buscarOrdensComFiltro({
-      status,
-      setor: setorSolicitante,
-    });
-  } else {
-    todasOrdens = ordens; // usa cache da página
+  if (!mes && !ano && !dataInicio && !dataFim) {
+    alert("Selecione um mês/ano ou um período.");
+    return;
   }
 
-  let ordensFiltradas = [...todasOrdens];
+  // 🔥 BUSCA LIMPA (SEM SETOR)
+  let todasOrdens = await buscarOrdensComFiltro({ status });
 
-  // 🔥 APLICA FILTRO (SE EXISTIR)
-  if (temFiltro) {
-    ordensFiltradas = ordensFiltradas.filter((o) => {
-      if (!o.dataAbertura) return false;
+  let ordensFiltradas = todasOrdens.filter((o) => {
+    if (!o.dataAbertura) return false;
 
-      const data = new Date(o.dataAbertura);
+    const data = new Date(o.dataAbertura);
 
-      if (dataInicio && data < new Date(dataInicio + "T00:00:00")) return false;
-      if (dataFim && data > new Date(dataFim + "T23:59:59")) return false;
+    if (dataInicio && data < new Date(dataInicio + "T00:00:00")) return false;
+    if (dataFim && data > new Date(dataFim + "T23:59:59")) return false;
 
-      if (mes !== "" && data.getMonth() !== Number(mes)) return false;
-      if (ano !== "" && data.getFullYear() !== Number(ano)) return false;
+    if (mes !== "" && data.getMonth() !== Number(mes)) return false;
+    if (ano !== "" && data.getFullYear() !== Number(ano)) return false;
 
-      if (status && o.status !== status) return false;
+    if (status && o.status !== status) return false;
 
-      if (
-        solicitante &&
-        !o.nomeSolicitante?.toLowerCase().includes(solicitante)
-      ) {
-        return false;
-      }
+    if (
+      solicitante &&
+      !o.nomeSolicitante?.toLowerCase().includes(solicitante)
+    ) {
+      return false;
+    }
 
-      if (
-        setorSolicitante &&
-        !o.setorSolicitante?.toLowerCase().includes(setorSolicitante)
-      ) {
-        return false;
-      }
+    // 🔥 CORREÇÃO REAL AQUI
+    if (setorSolicitante) {
+      const filtro = normalizarTexto(setorSolicitante);
+      const valor = normalizarTexto(o.setorSolicitante || "");
 
-      if (diretoria && o.setorResponsavel !== diretoria) {
-        return false;
-      }
+      if (!valor.includes(filtro)) return false;
+    }
 
-      return true;
-    });
+    if (diretoria && o.setorResponsavel !== diretoria) {
+      return false;
+    }
+
+    return true;
+  });
+
+  if (ordensFiltradas.length >= 200) {
+    alert("Muitos resultados. Refine o filtro.");
+    return;
   }
 
-  // 🔥 ORDENAÇÃO
   ordensFiltradas.sort((a, b) => {
     return (b.numeroSequencial || 0) - (a.numeroSequencial || 0);
   });
 
-  // 🔥 GERAR LINHAS
   ordensFiltradas.forEach((o) => {
     linhas += `
       <tr>
@@ -2400,7 +2399,6 @@ window.imprimirRelatorio = async function () {
     `;
   });
 
-  // 🔥 ABRE JANELA
   const w = window.open("", "_blank");
 
   w.document.write(`
@@ -2409,80 +2407,68 @@ window.imprimirRelatorio = async function () {
 <head>
 
 <meta charset="UTF-8">
-<title>Relatório</title>
+<title>Relatório de Ordens</title>
 
 <style>
-@page{
-  size:A4 portrait;
-  margin:20mm;
+
+@page {
+  size: A4 portrait;
+  margin: 20mm;
 }
 
-body{
-  font-family:Arial, sans-serif;
-  color:#000;
+body {
+  font-family: Arial, sans-serif;
+  color: #000;
 }
 
-.header{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:15px;
-  margin-bottom:25px;
-  text-align:center;
+.header {
+  text-align: center;
+  margin-bottom: 25px;
 }
 
-.header img{
-  width:50px;
+.header img {
+  width: 80px;
+  margin-bottom: 10px;
 }
 
-.header-text{
-  display:flex;
-  flex-direction:column;
-  align-items:flex-start;
+.header h1 {
+  font-size: 18px;
+  margin: 0;
 }
 
-.header-text h1{
-  font-size:18px;
-  margin:0;
+.header p {
+  font-size: 13px;
+  margin: 2px 0;
 }
 
-.header-text p{
-  font-size:13px;
-  margin:2px 0;
+.titulo {
+  text-align: center;
+  font-size: 16px;
+  font-weight: bold;
+  margin: 20px 0;
 }
 
-.titulo{
-  text-align:center;
-  font-size:16px;
-  font-weight:bold;
-  margin:20px 0;
+table {
+  width: 100%;
+  border-collapse: collapse;
 }
 
-table{
-  width:100%;
-  border-collapse:collapse;
+th, td {
+  border: 1px solid #000;
+  padding: 8px;
+  font-size: 13px;
 }
 
-th,td{
-  border:1px solid #000;
-  padding:6px;
-  font-size:12px;
-  vertical-align:top;
+th {
+  background-color: #f2f2f2;
 }
 
-th{
-  background:#f2f2f2;
+.footer {
+  margin-top: 40px;
+  font-size: 12px;
+  text-align: right;
 }
 
-td:nth-child(6){
-  max-width:300px;
-  word-break:break-word;
-}
-
-.footer{
-  margin-top:30px;
-  font-size:12px;
-}
 </style>
 
 </head>
@@ -2491,25 +2477,24 @@ td:nth-child(6){
 
 <div class="header">
   <img src="assets/img/prefeitura.png">
-  <div class="header-text">
-    <h1>Prefeitura Municipal de Oriximiná</h1>
-    <p>Secretaria de Infraestrutura – SEINFRA</p>
-  </div>
+  <h1>Prefeitura Municipal de Oriximiná</h1>
+  <p>Secretaria de Infraestrutura – SEINFRA</p>
 </div>
 
 <div class="titulo">
-RELATÓRIO DE ORDENS DE SERVIÇO
+  RELATÓRIO DE ORDENS DE SERVIÇO
 </div>
 
 <table>
+
 <thead>
 <tr>
-<th>Nº OS</th>
-<th>Data</th>
-<th>Status</th>
-<th>Solicitante</th>
-<th>Setor</th>
-<th>Descrição</th>
+  <th>Nº OS</th>
+  <th>Data</th>
+  <th>Status</th>
+  <th>Solicitante</th>
+  <th>Setor</th>
+  <th>Descrição</th>
 </tr>
 </thead>
 
@@ -2524,7 +2509,9 @@ Documento gerado em: ${dataEmissao}
 </div>
 
 <script>
-window.onload = () => window.print()
+window.onload = function(){
+  window.print();
+}
 </script>
 
 </body>
@@ -2670,6 +2657,5 @@ window.contarOrdens = async function () {
 
   console.log("Total de ordens:", total);
 };
-
 
 window.reconstruirDashboard = reconstruirDashboard;
