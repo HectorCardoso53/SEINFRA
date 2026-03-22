@@ -46,7 +46,23 @@ export async function buscarOrdensDashboard() {
     id: doc.id,
     ...doc.data(),
   }));
+
 }
+
+export async function buscarTodasOrdens() {
+  const q = query(
+    collection(db, "ordens"),
+    orderBy("numeroSequencial", "desc")
+  );
+
+  const snapshot = await getDocs(q);
+
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+}
+
 
 export async function buscarOrdensPaginadas(ultimaDoc = null, limite = 20) {
   console.log("🔥 BUSCANDO ORDENS (paginadas)");
@@ -95,15 +111,15 @@ function normalizarNome(nome) {
     .replace(/\s+/g, "-");
 }
 
-export async function buscarOrdensComFiltro({ status, setorSolicitante }) {
-  let constraints = [orderBy("numeroSequencial", "desc"), limit(50)];
+export async function buscarOrdensComFiltro({ status, setorResponsavel }) {
+  let constraints = [orderBy("numeroSequencial", "desc")];
 
   if (status) {
     constraints.push(where("status", "==", status));
   }
 
-  if (setorSolicitante) {
-    constraints.push(where("setorSolicitante", "==", setorSolicitante));
+  if (setorResponsavel) {
+    constraints.push(where("setorResponsavel", "==", setorResponsavel));
   }
 
   const q = query(collection(db, "ordens"), ...constraints);

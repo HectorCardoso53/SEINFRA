@@ -10,13 +10,19 @@ import {
   buscarOrdensComFiltro,
   atualizarStatusComDashboard,
   buscarOrdemPorId,
+  buscarTodasOrdens 
 } from "./firestore.js";
 
 // 🔥 VARIÁVEIS GLOBAIS
 let ordens = [];
 let materiais = [];
+let ordensCompletas = [];
 let osAtual = null;
-let resumoCache = null;
+let materiaisEncerramento = [];
+let carregando = false;
+let paginaAtual = 1;
+let historicoDocs = [];
+let sistemaInicializado = false;
 
 const KEY_SETOR_SOLICITANTE = "setores_solicitante";
 
@@ -66,13 +72,6 @@ function salvarSetorDigitado() {
     salvarSetoresSolicitante(lista);
   }
 }
-
-let materiaisEncerramento = [];
-let carregando = false;
-let paginaAtual = 1;
-let historicoDocs = [];
-let sistemaInicializado = false;
-let ordensFiltradasGlobal = [];
 
 async function carregarPagina(pagina) {
   carregando = true;
@@ -321,11 +320,8 @@ document
 
       const setorSelect = document.getElementById("setor-responsavel").value;
 
-      // 🔥 AQUI (exatamente aqui)
-      const setorFinal = setorSelect;
-
       const dadosBrutos = coletarDadosFormulario(
-        setorFinal,
+        setorSelect,
         descricao,
         responsavelExecucao,
       );
@@ -338,15 +334,18 @@ document
       if (osAtual && osAtual.id) {
         await atualizarStatusComDashboard(osAtual.id, dadosOrdem);
 
+        // 🔥 ATUALIZA LOCAL (SEM BUSCAR DO BANCO)
+        ordens = ordens.map((o) =>
+          o.id === osAtual.id ? { ...o, ...dadosOrdem } : o,
+        );
+
+        carregarTabelaRelatorios(ordens);
+
         mostrarAlerta("Ordem atualizada com sucesso!", "Sucesso");
 
         osAtual = null;
 
         showPage("relatorios");
-
-        await carregarPagina(1);
-
-        await carregarResumoDashboard();
 
         return;
       }
@@ -362,13 +361,17 @@ document
         criadoEm: new Date(),
       };
 
+      // 🔥 ADICIONA LOCAL (SEM RELOAD)
+      ordens.unshift(novaOrdem);
+
+      // 🔥 LIMITA PAGINA (mantém padrão de 20)
+      ordens = ordens.slice(0, 20);
+
+      carregarTabelaRelatorios(ordens);
+
       mostrarAlerta(`Ordem ${resultado.numero} criada com sucesso!`, "Sucesso");
 
       limparFormulario();
-
-      await carregarPagina(1);
-
-      await carregarResumoDashboard();
     } catch (error) {
       console.error(error);
       mostrarAlerta(error.message, "Erro");
@@ -414,65 +417,6 @@ window.fecharConfirm = function () {
   document.getElementById("modal-confirm").classList.add("hidden");
 };
 
-window.gerarRelatorioMateriais = function () {
-  const mesSelect = document.getElementById("materiais-mes");
-  const anoSelect = document.getElementById("materiais-ano");
-
-  if (!mesSelect || !anoSelect) {
-    console.error("Campos de mês ou ano não encontrados.");
-    return;
-  }
-
-  const mes = Number(mesSelect.value);
-  const ano = Number(anoSelect.value);
-
-  if (isNaN(mes) || isNaN(ano)) {
-    mostrarAlerta("Selecione o mês e o ano para gerar o relatório.", "Atenção");
-    return;
-  }
-
-  let materiaisSomados = {};
-  let quantidadeTotal = 0;
-
-  ordens.forEach((ordem) => {
-    if (!ordem.dataAbertura) return;
-
-    const data = new Date(ordem.dataAbertura);
-
-    if (data.getMonth() === mes && data.getFullYear() === ano) {
-      if (!ordem.materiais || ordem.materiais.length === 0) return;
-
-      ordem.materiais.forEach((mat) => {
-        const chave = mat.nome + "_" + mat.unidade;
-
-        if (!materiaisSomados[chave]) {
-          materiaisSomados[chave] = {
-            nome: mat.nome,
-            unidade: mat.unidade,
-            quantidade: 0,
-            os: 0,
-          };
-        }
-
-        const qtd = Number(mat.quantidade || 0);
-
-        materiaisSomados[chave].quantidade += qtd;
-        materiaisSomados[chave].os += 1;
-
-        quantidadeTotal += qtd;
-      });
-    }
-  });
-
-  const lista = Object.values(materiaisSomados);
-
-  // Atualiza cards
-  document.getElementById("total-materiais-mes").textContent = lista.length;
-  document.getElementById("total-quantidade-mes").textContent = quantidadeTotal;
-
-  renderTabelaMateriaisMes(lista);
-};
-
 async function atualizarDashboardComResumo(resumo) {
   document.getElementById("total-ordens").textContent = resumo.total;
   document.getElementById("total-abertas").textContent = resumo.abertas;
@@ -484,107 +428,74 @@ async function atualizarDashboardComResumo(resumo) {
   await atualizarGraficos(resumo);
 }
 
-async function carregarTabelaDashboard() {
-  const tbody = document.getElementById("tabela-dashboard");
-
-  const ultimas = await buscarOrdensDashboard();
-
-  if (!ultimas || ultimas.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="6" class="empty-state">
-          <h3>Nenhuma ordem de serviço cadastrada</h3>
-          <p>Clique em "Nova Ordem" para criar sua primeira OS</p>
-        </td>
-      </tr>`;
-    return;
-  }
-
-  tbody.innerHTML = ultimas
-    .map(
-      (ordem) => `
-        <tr>
-          <td>${ordem.numero}</td>
-          <td>${formatarData(ordem.dataAbertura)}</td>
-          <td>${ordem.nomeSolicitante}</td>
-          <td>${(ordem.descricaoServico || "").substring(0, 50)}...</td>
-          <td>
-            <span class="status-badge status-${ordem.status.toLowerCase().replace(" ", "-")}">
-              ${ordem.status}
-            </span>
-          </td>
-          <td>
-            <button class="btn btn-primary btn-small"
-              onclick="visualizarOS('${ordem.id}')">
-              Ver Detalhes
-            </button>
-          </td>
-        </tr>
-      `,
-    )
-    .join("");
-}
-
 // Relatórios
 window.aplicarFiltros = async function () {
-  const diretoria = document.getElementById("filtro-diretoria")?.value;
-  const dataInicio = document.getElementById("filtro-data-inicio").value;
-  const dataFim = document.getElementById("filtro-data-fim").value;
-  const mes = document.getElementById("filtro-mes").value;
-  const ano = document.getElementById("filtro-ano").value;
-  const status = document.getElementById("filtro-status").value;
-
-  const solicitante = document
-    .getElementById("filtro-solicitante")
-    .value.trim()
-    .toLowerCase();
-
-  const setorSolicitante = document
-    .getElementById("filtro-setor-solicitante")
-    ?.value.trim();
-
-  // 🔥 DETECTA FILTRO
-  const temFiltro =
-    dataInicio ||
-    dataFim ||
-    mes !== "" ||
-    ano !== "" ||
-    status ||
-    diretoria ||
-    solicitante ||
-    setorSolicitante;
-
-  let baseDados = [];
-
-  // 🔥 REGRA PRINCIPAL
-  if (temFiltro) {
-    baseDados = await buscarOrdensComFiltro({
-      status,
-    });
-  } else {
-    baseDados = ordens; // 🔥 só página
+  if (!ordensCompletas.length) {
+    console.log("🔥 carregando base completa...");
+    ordensCompletas = await buscarTodasOrdens();
   }
+  const diretoria = document.getElementById("filtro-diretoria")?.value || "";
+  const dataInicio = document.getElementById("filtro-data-inicio")?.value || "";
+  const dataFim = document.getElementById("filtro-data-fim")?.value || "";
+  const mes = document.getElementById("filtro-mes")?.value || "";
+  const ano = document.getElementById("filtro-ano")?.value || "";
+  const status = document.getElementById("filtro-status")?.value || "";
+
+  const solicitante =
+    document
+      .getElementById("filtro-solicitante")
+      ?.value?.trim()
+      .toLowerCase() || "";
+
+  const setorSolicitante =
+    document.getElementById("filtro-setor-solicitante")?.value?.trim() || "";
+
+  // 🔥 USA SEMPRE OS DADOS JÁ CARREGADOS
+  let baseDados = ordensCompletas;
+
+  console.log("TOTAL BASE:", baseDados.length);
 
   let ordensFiltradas = baseDados.filter((o) => {
-    if (!o.dataAbertura) return false;
+    if (!o) return false;
 
-    const data = new Date(o.dataAbertura);
+    // 🔥 TRATA DATA (Timestamp OU STRING)
+    let data = null;
 
-    if (dataInicio && data < new Date(dataInicio + "T00:00:00")) return false;
-    if (dataFim && data > new Date(dataFim + "T23:59:59")) return false;
-
-    if (mes !== "" && data.getMonth() !== Number(mes)) return false;
-    if (ano !== "" && data.getFullYear() !== Number(ano)) return false;
-
-    if (status && o.status !== status) return false;
-
-    if (
-      solicitante &&
-      !o.nomeSolicitante?.toLowerCase().includes(solicitante)
-    ) {
-      return false;
+    if (o.dataAbertura?.toDate) {
+      data = o.dataAbertura.toDate();
+    } else if (o.dataAbertura) {
+      data = new Date(o.dataAbertura);
     }
 
+    if (!data || isNaN(data)) return false;
+
+    // 🔥 FILTRO DATA
+    if (dataInicio) {
+      const inicio = new Date(dataInicio + "T00:00:00");
+      if (data < inicio) return false;
+    }
+
+    if (dataFim) {
+      const fim = new Date(dataFim + "T23:59:59");
+      if (data > fim) return false;
+    }
+
+    // 🔥 MÊS
+    if (mes !== "" && data.getMonth() !== Number(mes)) return false;
+
+    // 🔥 ANO
+    if (ano !== "" && data.getFullYear() !== Number(ano)) return false;
+
+    // 🔥 STATUS
+    if (status && o.status !== status) return false;
+
+    // 🔥 SOLICITANTE
+    if (solicitante) {
+      const nome = o.nomeSolicitante?.toLowerCase() || "";
+      if (!nome.includes(solicitante)) return false;
+    }
+
+    // 🔥 SETOR SOLICITANTE
     if (setorSolicitante) {
       const filtro = normalizarTexto(setorSolicitante);
       const valor = normalizarTexto(o.setorSolicitante || "");
@@ -592,9 +503,8 @@ window.aplicarFiltros = async function () {
       if (!valor.includes(filtro)) return false;
     }
 
-    if (diretoria && o.setorResponsavel !== diretoria) {
-      return false;
-    }
+    // 🔥 DIRETORIA
+    if (diretoria && o.setorResponsavel !== diretoria) return false;
 
     return true;
   });
@@ -605,6 +515,16 @@ window.aplicarFiltros = async function () {
   });
 
   // 🔥 ESCONDE PAGINAÇÃO SE TIVER FILTRO
+  const temFiltro =
+    dataInicio ||
+    dataFim ||
+    mes !== "" ||
+    ano !== "" ||
+    status ||
+    diretoria ||
+    solicitante ||
+    setorSolicitante;
+
   const paginacao = document.querySelector(".paginacao");
   if (paginacao) {
     paginacao.style.display = temFiltro ? "none" : "block";
@@ -700,6 +620,64 @@ function carregarTabelaRelatorios(ordensParaExibir) {
     .join("");
 }
 
+window.gerarRelatorioMateriais = function () {
+  const mesSelect = document.getElementById("materiais-mes");
+  const anoSelect = document.getElementById("materiais-ano");
+
+  if (!mesSelect || !anoSelect) {
+    console.error("Campos de mês ou ano não encontrados.");
+    return;
+  }
+
+  const mes = Number(mesSelect.value);
+  const ano = Number(anoSelect.value);
+
+  if (isNaN(mes) || isNaN(ano)) {
+    mostrarAlerta("Selecione o mês e o ano para gerar o relatório.", "Atenção");
+    return;
+  }
+
+  let materiaisSomados = {};
+  let quantidadeTotal = 0;
+
+  ordens.forEach((ordem) => {
+    if (!ordem.dataAbertura) return;
+
+    const data = new Date(ordem.dataAbertura);
+
+    if (data.getMonth() === mes && data.getFullYear() === ano) {
+      if (!ordem.materiais || ordem.materiais.length === 0) return;
+
+      ordem.materiais.forEach((mat) => {
+        const chave = mat.nome + "_" + mat.unidade;
+
+        if (!materiaisSomados[chave]) {
+          materiaisSomados[chave] = {
+            nome: mat.nome,
+            unidade: mat.unidade,
+            quantidade: 0,
+            os: 0,
+          };
+        }
+
+        const qtd = Number(mat.quantidade || 0);
+
+        materiaisSomados[chave].quantidade += qtd;
+        materiaisSomados[chave].os += 1;
+
+        quantidadeTotal += qtd;
+      });
+    }
+  });
+
+  const lista = Object.values(materiaisSomados);
+
+  // Atualiza cards
+  document.getElementById("total-materiais-mes").textContent = lista.length;
+  document.getElementById("total-quantidade-mes").textContent = quantidadeTotal;
+
+  renderTabelaMateriaisMes(lista);
+};
 // Visualizar OS
 window.visualizarOS = async function (id) {
   // 🔥 tenta pegar da lista (rápido)
@@ -1075,7 +1053,12 @@ document
     }
 
     // 🔥 BUSCA SEMPRE DO BANCO (fonte real)
-    const ordemAtualizada = await buscarOrdemPorId(osAtual.id);
+    let ordemAtualizada = osAtual;
+
+    // 🔥 só busca se estiver incompleto
+    if (!ordemAtualizada || ordemAtualizada.materiais === undefined) {
+      ordemAtualizada = await buscarOrdemPorId(osAtual.id);
+    }
 
     // 🔥 GARANTE ARRAY SEGURO
     const materiaisExistentes = Array.isArray(ordemAtualizada?.materiais)
@@ -2362,8 +2345,6 @@ window.imprimirRelatorio = async function () {
 
   const dataInicio = document.getElementById("filtro-data-inicio").value;
   const dataFim = document.getElementById("filtro-data-fim").value;
-  const mes = document.getElementById("filtro-mes").value;
-  const ano = document.getElementById("filtro-ano").value;
   const status = document.getElementById("filtro-status").value;
   const diretoria = document.getElementById("filtro-diretoria")?.value;
 
@@ -2376,8 +2357,8 @@ window.imprimirRelatorio = async function () {
     .getElementById("filtro-setor-solicitante")
     ?.value.trim();
 
-  if (!mes && !ano && !dataInicio && !dataFim) {
-    alert("Selecione um mês/ano ou um período.");
+  if (!dataInicio && !dataFim) {
+    alert("Selecione  um período.");
     return;
   }
 
@@ -2392,8 +2373,6 @@ window.imprimirRelatorio = async function () {
     if (dataInicio && data < new Date(dataInicio + "T00:00:00")) return false;
     if (dataFim && data > new Date(dataFim + "T23:59:59")) return false;
 
-    if (mes !== "" && data.getMonth() !== Number(mes)) return false;
-    if (ano !== "" && data.getFullYear() !== Number(ano)) return false;
 
     if (status && o.status !== status) return false;
 
