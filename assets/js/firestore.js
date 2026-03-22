@@ -96,19 +96,14 @@ function normalizarNome(nome) {
 }
 
 export async function buscarOrdensComFiltro({ status, setorSolicitante }) {
-  let constraints = [
-    orderBy("numeroSequencial", "desc"),
-    limit(50),
-  ];
+  let constraints = [orderBy("numeroSequencial", "desc"), limit(50)];
 
   if (status) {
     constraints.push(where("status", "==", status));
   }
 
   if (setorSolicitante) {
-    constraints.push(
-      where("setorSolicitante", "==", setorSolicitante)
-    );
+    constraints.push(where("setorSolicitante", "==", setorSolicitante));
   }
 
   const q = query(collection(db, "ordens"), ...constraints);
@@ -265,8 +260,13 @@ export async function salvarOrdemFirestore(ordem) {
     }
 
     // 🔥 SALVA ORDEM
+    // 🔥 SALVA ORDEM
     transaction.set(ordemRef, {
       ...ordem,
+
+      // 🔥 GARANTE QUE SEMPRE É ARRAY
+      materiais: Array.isArray(ordem.materiais) ? ordem.materiais : [],
+
       numero: numeroOS,
       numeroSequencial: numeroFinal,
       criadoEm: new Date(),

@@ -9,6 +9,7 @@ import {
   contarOrdensFirestore,
   buscarOrdensComFiltro,
   atualizarStatusComDashboard,
+  buscarOrdemPorId,
 } from "./firestore.js";
 
 // 🔥 VARIÁVEIS GLOBAIS
@@ -700,9 +701,19 @@ function carregarTabelaRelatorios(ordensParaExibir) {
 }
 
 // Visualizar OS
-window.visualizarOS = function (id) {
-  osAtual = ordens.find((o) => o.id === id);
-  if (!osAtual) return;
+window.visualizarOS = async function (id) {
+  // 🔥 tenta pegar da lista (rápido)
+  let ordem = ordens.find((o) => o.id === id);
+
+  // 🔥 se não tiver OU estiver inconsistente → busca do banco
+  if (!ordem || ordem.materiais === undefined) {
+    ordem = await buscarOrdemPorId(id);
+  }
+
+  if (!ordem) return;
+
+  // 🔥 AGORA SIM (sem sobrescrever depois)
+  osAtual = ordem;
 
   const materiaisHTML =
     osAtual.materiais?.length > 0
@@ -768,7 +779,6 @@ ${
     : ""
 }
 
-
 <div>
 <strong>Local no mapa:</strong>
 ${
@@ -780,13 +790,11 @@ Abrir no Google Maps
 }
 </div>
 
-
 <h3 style="border-bottom:1px solid #ddd; padding-bottom:8px; margin-top:15px;">
 Serviço
 </h3>
 
 <div><strong>Descrição:</strong> ${osAtual.descricaoServico}</div>
-
 
 ${
   osAtual.materiais?.length
@@ -800,7 +808,6 @@ Materiais Utilizados
     : ""
 }
 
-
 <h3 style="border-bottom:1px solid #ddd; padding-bottom:8px; margin-top:15px;">
 Encerramento
 </h3>
@@ -812,16 +819,13 @@ ${
 }
 
 <div><strong>Assinatura Chefia:</strong> ${osAtual.assinaturaChefia || "-"}</div>
-
 <div><strong>Assinatura Recebedor:</strong> ${osAtual.assinaturaRecebedor || "-"}</div>
-
 
 <h3 style="border-bottom:1px solid #ddd; padding-bottom:8px; margin-top:15px;">
 Controle Interno
 </h3>
 
 <div><strong>Criado por:</strong> ${osAtual.criadoPor || "-"}</div>
-
 <div><strong>Criado em:</strong> ${criadoEmFormatado}</div>
 
 </div>
@@ -852,14 +856,6 @@ window.fecharModalDetalhes = function () {
   osAtual = null;
 };
 
-function fecharMenuMobile() {
-  const sidebar = document.querySelector(".sidebar");
-  const overlay = document.querySelector(".overlay");
-
-  sidebar.classList.remove("open");
-  overlay.classList.remove("show");
-}
-
 // Alterar Status
 window.alterarStatus = async function () {
   if (!osAtual) return;
@@ -878,6 +874,10 @@ window.alterarStatus = async function () {
 // Encerramento
 window.mostrarEncerramento = function () {
   if (!osAtual) return;
+
+  // 🔥 CORREÇÃO CRÍTICA
+  materiaisEncerramento = [];
+  renderizarMateriaisEncerramento();
 
   const now = new Date();
   const ano = now.getFullYear();
@@ -1074,24 +1074,70 @@ document
       return;
     }
 
+    // 🔥 BUSCA SEMPRE DO BANCO (fonte real)
+    const ordemAtualizada = await buscarOrdemPorId(osAtual.id);
+
+    // 🔥 GARANTE ARRAY SEGURO
+    const materiaisExistentes = Array.isArray(ordemAtualizada?.materiais)
+      ? ordemAtualizada.materiais
+      : [];
+
+    const novosMateriais = Array.isArray(materiaisEncerramento)
+      ? materiaisEncerramento
+      : [];
+
+    let materiaisFinal = agruparMateriais([
+      ...materiaisExistentes,
+      ...novosMateriais,
+    ]);
+
     await atualizarStatusComDashboard(osAtual.id, {
       status: "Encerrada",
-      dataEncerramento: dataEncerramento,
-      assinaturaChefia: assinaturaChefia,
-      assinaturaRecebedor: assinaturaRecebedor,
+      dataEncerramento,
+      assinaturaChefia,
+      assinaturaRecebedor,
       observacaoFinal: null,
-      materiais: [...materiais],
+      materiais: materiaisFinal,
     });
+
+    // 🔥 LIMPA ESTADO (ESSENCIAL)
+    materiaisEncerramento = [];
+
+    // 🔥 (IMPORTANTE) limpa UI se tiver lista na tela
+    if (typeof renderizarMateriaisEncerramento === "function") {
+      renderizarMateriaisEncerramento();
+    }
 
     fecharModalEncerramento();
 
     await carregarPagina(1);
-
     await carregarResumoDashboard();
 
-    mostrarAlerta("Ordem de Serviço encerrada com sucesso!", "Sucesso");
+    mostrarAlerta("Ordem encerrada com sucesso!", "Sucesso");
   });
 
+function agruparMateriais(lista) {
+  const mapa = {};
+
+  lista.forEach((m) => {
+    if (!m.nome) return;
+
+    const chave = m.nome.trim().toLowerCase() + "_" + (m.unidade || "");
+
+    if (!mapa[chave]) {
+      mapa[chave] = {
+        nome: m.nome,
+        unidade: m.unidade || "",
+        quantidade: 0,
+      };
+    }
+
+    const qtd = Number(m.quantidade || 0);
+    mapa[chave].quantidade += qtd;
+  });
+
+  return Object.values(mapa);
+}
 function formatarData(dataISO) {
   const data = new Date(dataISO);
   const dia = String(data.getDate()).padStart(2, "0");
