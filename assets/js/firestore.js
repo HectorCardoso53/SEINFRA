@@ -52,7 +52,8 @@ export async function buscarOrdensDashboard() {
 export async function buscarTodasOrdens() {
   const q = query(
     collection(db, "ordens"),
-    orderBy("numeroSequencial", "desc")
+    orderBy("numeroSequencial", "desc"),
+    limit(500) // 🔥 LIMITE
   );
 
   const snapshot = await getDocs(q);
@@ -111,9 +112,24 @@ function normalizarNome(nome) {
     .replace(/\s+/g, "-");
 }
 
-export async function buscarOrdensComFiltro({ status, setorResponsavel }) {
-  let constraints = [orderBy("numeroSequencial", "desc")];
+export async function buscarOrdensComFiltro({
+  status,
+  setorResponsavel,
+  dataInicio,
+  dataFim,
+}) {
+  let constraints = [];
 
+  // 🔥 DATA (PRIORIDADE)
+  if (dataInicio) {
+    constraints.push(where("dataAbertura", ">=", dataInicio));
+  }
+
+  if (dataFim) {
+    constraints.push(where("dataAbertura", "<=", dataFim));
+  }
+
+  // 🔥 OUTROS FILTROS
   if (status) {
     constraints.push(where("status", "==", status));
   }
@@ -121,6 +137,9 @@ export async function buscarOrdensComFiltro({ status, setorResponsavel }) {
   if (setorResponsavel) {
     constraints.push(where("setorResponsavel", "==", setorResponsavel));
   }
+
+  // 🔥 OBRIGATÓRIO quando usa intervalo
+  constraints.push(orderBy("dataAbertura", "desc"));
 
   const q = query(collection(db, "ordens"), ...constraints);
 
