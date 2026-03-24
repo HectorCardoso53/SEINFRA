@@ -200,7 +200,7 @@
 
                 </div>
 
-            
+
 
             </div>
 
@@ -245,6 +245,13 @@
                                 <input type="text" id="novo-setor" placeholder="Digite a nova diretoria" class="hidden"
                                     style="margin-top:8px;">
                             </div>
+                            <div class="form-group" id="campo-setor-solicitante">
+                                <label>Setor do Solicitante</label>
+                                <select id="setor-solicitante" required>
+                                    <option value="">SELECIONE O SETOR</option>
+                                </select>
+                            </div>
+
                         </div>
                     </div>
 
@@ -269,11 +276,6 @@
                                     maxlength="15">
                             </div>
 
-                            <div class="form-group" id="campo-setor-solicitante">
-                                <label>Setor do Solicitante</label>
-                                <input type="text" id="setor-solicitante" list="lista-setores-solicitante">
-                                <datalist id="lista-setores-solicitante"></datalist>
-                            </div>
 
                         </div>
                     </div>
@@ -382,7 +384,7 @@
                             <input type="date" id="filtro-data-fim">
                         </div>
 
-                       
+
                         <div class="form-group">
                             <label>Status</label>
                             <select id="filtro-status">
@@ -402,8 +404,14 @@
                                 <option>DIRETORIA DE SANEAMENTO</option>
                                 <option>DIRETORIA DE LIMPEZA URBANA</option>
                                 <option>DIRETORIA DE SERVIÇO E ABASTECIMENTO DE ÁGUA</option>
-                                <option>DIRETORIA DE TRANSPORTES PÚBLICOS COLETIVOS</option>
                                 <option>DIRETORIA DE AEROPORTO</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Filtrar por Setor do Solicitante</label>
+                            <select id="filtro-setor-solicitante">
+                                <option value="">Todos</option>
                             </select>
                         </div>
 
@@ -413,8 +421,8 @@
                         </div>
 
                         <div class="form-group">
-                            <label>Filtrar por Setor do Solicitante</label>
-                            <input type="text" id="filtro-setor-solicitante" placeholder="Digite o setor">
+                            <label>Filtrar por Serviço</label>
+                            <input type="text" id="filtro-servico" placeholder="Ex: caçamba, pintura...">
                         </div>
 
                         <div class="form-group">

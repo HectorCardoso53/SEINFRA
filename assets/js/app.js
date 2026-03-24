@@ -21,7 +21,59 @@ let paginaAtual = 1;
 let historicoDocs = [];
 let sistemaInicializado = false;
 
-const KEY_SETOR_SOLICITANTE = "setores_solicitante";
+const setoresPorDiretoria = {
+  "DIRETORIA ADMINISTRATIVA": [
+    "RECEPÇÃO",
+    "PLANEJAMENTO",
+    "RECURSOS HUMANOS",
+    "COMPRAS E DEPÓSITO",
+    "COMUNICAÇÃO",
+    "LOGÍSTICA",
+    "LIMPEZA E HIGIENE",
+    "SHOPPING POPULAR",
+  ],
+
+  "DIRETORIA DE SANEAMENTO": [
+    "ADMINISTRATIVO",
+    "HIDRÁULICO",
+    "ESGOTAMENTO DE FOSSA SÉPTICA",
+    "SISTEMA DE ABASTECIMENTO DE ÁGUA",
+  ],
+
+  "DIRETORIA DE LIMPEZA URBANA": [
+    "ADMINISTRATIVO",
+    "CAPINA E VARRIÇÃO",
+    "DESOBSTRUÇÃO DE BUEIROS",
+    "RESÍDUOS SÓLIDOS - DOMÉSTICO, VEGETAL, SERVIÇOS DE SAÚDE",
+    "CAÇAMBA ESTACIONÁRIA",
+    "MANUTENÇÃO DE FONTES LUMINOSAS",
+  ],
+
+  "DIRETORIA DE INFRAESTRUTURA": [
+    "ADMINISTRATIVO",
+    "TERRAPLANAGEM",
+    "OFICINAS MECÂNICAS",
+    "SOLDA",
+    "LUBRIFICAÇÃO",
+    "CARPINTARIA/MOVELARIA",
+    "ELÉTRICA",
+    "CEMITÉRIO",
+    "REFRIGERAÇÃO",
+    "ASFALTO",
+    "PAVIMENTAÇÃO",
+    "BLOCO E BLOQUETE",
+    "PORTOS/RAMPAS HIDROVIÁRIAS",
+    "PINTURA",
+    "ABASTECIMENTO DE COMBUSTÍVEL",
+  ],
+
+  "DIRETORIA DE AEROPORTO": [
+    "POUSO E DECOLAGEM",
+    "CONTROLE DE PASSAGEIROS E BAGAGENS",
+    "INSPEÇÃO OPERACIONAL",
+    "SEGURANÇA AEROPORTUÁRIA",
+  ],
+};
 
 function normalizarTexto(texto) {
   return texto
@@ -31,43 +83,22 @@ function normalizarTexto(texto) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-function getSetoresSolicitante() {
-  const dados = localStorage.getItem(KEY_SETOR_SOLICITANTE);
-  return dados ? JSON.parse(dados) : [];
-}
+function carregarSetoresFiltro(diretoriaSelecionada) {
+  const select = document.getElementById("filtro-setor-solicitante");
 
-function salvarSetoresSolicitante(lista) {
-  localStorage.setItem(KEY_SETOR_SOLICITANTE, JSON.stringify(lista));
-}
+  if (!select) return;
 
-function renderizarSetoresSolicitante() {
-  const lista = document.getElementById("lista-setores-solicitante");
-  if (!lista) return;
+  const diretoria = normalizarTexto(diretoriaSelecionada);
+  const setores = setoresPorDiretoria[diretoria] || [];
 
-  const setores = getSetoresSolicitante();
+  select.innerHTML = '<option value="">Todos</option>';
 
-  lista.innerHTML = setores.map((s) => `<option value="${s}">`).join("");
-}
-
-function salvarSetorDigitado() {
-  const input = document.getElementById("setor-solicitante");
-  if (!input) return;
-
-  let valor = input.value.trim();
-  if (!valor) return;
-
-  // 🔥 normalização (obrigatório)
-  valor = valor
-    .toUpperCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-
-  let lista = getSetoresSolicitante();
-
-  if (!lista.includes(valor)) {
-    lista.push(valor);
-    salvarSetoresSolicitante(lista);
-  }
+  setores.forEach((setor) => {
+    const opt = document.createElement("option");
+    opt.value = setor;
+    opt.textContent = setor;
+    select.appendChild(opt);
+  });
 }
 
 async function carregarPagina(pagina) {
@@ -106,8 +137,31 @@ window.paginaAnterior = function () {
   carregarPagina(paginaAtual - 1);
 };
 
+function carregarSetores(diretoriaSelecionada) {
+  const selectSetor = document.getElementById("setor-solicitante");
+
+  const diretoria = normalizarTexto(diretoriaSelecionada);
+  const setores = setoresPorDiretoria[diretoria] || [];
+
+  selectSetor.innerHTML = '<option value="">SELECIONE O SETOR</option>';
+
+  setores.forEach((setor) => {
+    const option = document.createElement("option");
+    option.value = setor;
+    option.textContent = setor;
+    selectSetor.appendChild(option);
+  });
+}
+
 // Inicialização
 document.addEventListener("DOMContentLoaded", async function () {
+  const filtroDiretoria = document.getElementById("filtro-diretoria");
+
+  if (filtroDiretoria) {
+    filtroDiretoria.addEventListener("change", function () {
+      carregarSetoresFiltro(this.value);
+    });
+  }
   inicializarSistema();
 
   carregarAnoMateriais();
@@ -119,27 +173,21 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   if (tipoOS) {
     tipoOS.addEventListener("change", () => {
-      if (tipoOS.value === "externa") {
-        campoSetor.style.visibility = "hidden";
-        campoSetor.style.height = "0";
-        campoSetor.style.margin = "0";
-        inputSetor.required = false;
-      } else {
-        campoSetor.style.visibility = "visible";
-        campoSetor.style.height = "auto";
-        inputSetor.required = true;
-      }
+      campoSetor.style.visibility = "visible";
+      campoSetor.style.height = "auto";
+      campoSetor.style.margin = "";
+      inputSetor.required = true;
     });
   }
 
-  renderizarSetoresSolicitante();
+  const selectDiretoria = document.getElementById("setor-responsavel");
+  const selectSetor = document.getElementById("setor-solicitante");
 
-  const inputSetorAuto = document.getElementById("setor-solicitante");
-
-  inputSetorAuto?.addEventListener("blur", () => {
-    salvarSetorDigitado();
-    renderizarSetoresSolicitante();
-  });
+  if (selectDiretoria && selectSetor) {
+    selectDiretoria.addEventListener("change", () => {
+      carregarSetores(selectDiretoria.value);
+    });
+  }
 });
 
 async function inicializarSistema() {
@@ -337,6 +385,8 @@ document
 
         mostrarAlerta("Ordem atualizada com sucesso!", "Sucesso");
 
+        limparFormularioOS(); // 🔥 AQUI
+
         osAtual = null;
 
         showPage("relatorios");
@@ -369,6 +419,12 @@ document
       salvando = false;
     }
   });
+
+function validarSetor(diretoria, setor) {
+  const lista = setoresPorDiretoria[normalizarTexto(diretoria)] || [];
+
+  return lista.includes(setor);
+}
 
 async function carregarResumoDashboard() {
   const resumo = await buscarResumoDashboard();
@@ -423,6 +479,8 @@ window.aplicarFiltros = async function () {
   const diretoria = document.getElementById("filtro-diretoria")?.value || "";
   const dataInicio = document.getElementById("filtro-data-inicio")?.value || "";
   const dataFim = document.getElementById("filtro-data-fim")?.value || "";
+  const servico =
+    document.getElementById("filtro-servico")?.value?.toLowerCase() || "";
   const mes = document.getElementById("filtro-mes")?.value || "";
   const ano = document.getElementById("filtro-ano")?.value || "";
   const status = document.getElementById("filtro-status")?.value || "";
@@ -443,6 +501,10 @@ window.aplicarFiltros = async function () {
 
   let ordensFiltradas = baseDados.filter((o) => {
     if (!o) return false;
+    if (servico) {
+      const desc = o.descricaoServico?.toLowerCase() || "";
+      if (!desc.includes(servico)) return false;
+    }
 
     let data = null;
 
@@ -470,7 +532,7 @@ window.aplicarFiltros = async function () {
     if (setorSolicitante) {
       const filtro = normalizarTexto(setorSolicitante);
       const valor = normalizarTexto(o.setorSolicitante || "");
-      if (!valor.includes(filtro)) return false;
+      if (!valor.includes(filtro.replace("SETOR ", ""))) return false;
     }
 
     if (diretoria && o.setorResponsavel !== diretoria) return false;
@@ -520,12 +582,15 @@ function carregarFiltroAno() {
 function carregarTabelaRelatorios(ordensParaExibir) {
   const tbody = document.getElementById("tabela-relatorios");
 
+  // 🔥 função utilitária (evita repetir código)
+  const upper = (valor) => (valor || "-").toString().toUpperCase();
+
   if (!ordensParaExibir || ordensParaExibir.length === 0) {
     tbody.innerHTML = `
       <tr>
         <td colspan="7" class="empty-state">
-          <h3>Nenhuma ordem encontrada</h3>
-          <p>Tente ajustar os filtros</p>
+          <h3>NENHUMA ORDEM ENCONTRADA</h3>
+          <p>TENTE AJUSTAR OS FILTROS</p>
         </td>
       </tr>`;
     return;
@@ -539,7 +604,7 @@ function carregarTabelaRelatorios(ordensParaExibir) {
 
       return `
         <tr>
-          <td>${ordem.numero || "-"}</td>
+          <td>${upper(ordem.numero)}</td>
 
           <td>
             ${ordem.dataAbertura ? formatarData(ordem.dataAbertura) : "-"}
@@ -547,40 +612,40 @@ function carregarTabelaRelatorios(ordensParaExibir) {
 
           <td>
             <span class="status-badge status-${statusClasse}">
-              ${ordem.status || "-"}
+              ${upper(ordem.status)}
             </span>
           </td>
 
-          <td>${ordem.nomeSolicitante || "-"}</td>
+          <td>${upper(ordem.nomeSolicitante)}</td>
 
-          <td>${ordem.setorSolicitante || "-"}</td>
+          <td>${upper(ordem.setorSolicitante)}</td>
 
           <td>
-            ${(ordem.descricaoServico || "-").substring(0, 40)}...
+            ${upper(ordem.descricaoServico).substring(0, 40)}...
           </td>
 
           <td class="acoes">
-    <button 
-      class="btn btn-primary btn-icon"
-      onclick="visualizarOS('${ordem.id}')"
-      title="Visualizar">
-      <i class="bi bi-eye"></i>
-    </button>
+            <button 
+              class="btn btn-primary btn-icon"
+              onclick="visualizarOS('${ordem.id}')"
+              title="Visualizar">
+              <i class="bi bi-eye"></i>
+            </button>
 
-    <button 
-      class="btn btn-secondary btn-icon"
-      onclick="editarOS('${ordem.id}')"
-      title="Editar">
-      <i class="bi bi-pencil"></i>
-    </button>
+            <button 
+              class="btn btn-secondary btn-icon"
+              onclick="editarOS('${ordem.id}')"
+              title="Editar">
+              <i class="bi bi-pencil"></i>
+            </button>
 
-    <button 
-      class="btn btn-danger btn-icon"
-      onclick="excluirOS('${ordem.id}')"
-      title="Excluir">
-      <i class="bi bi-trash"></i>
-    </button>
-</td>
+            <button 
+              class="btn btn-danger btn-icon"
+              onclick="excluirOS('${ordem.id}')"
+              title="Excluir">
+              <i class="bi bi-trash"></i>
+            </button>
+          </td>
         </tr>
       `;
     })
@@ -648,12 +713,7 @@ window.gerarRelatorioMateriais = function () {
 // Visualizar OS
 window.visualizarOS = async function (id) {
   // 🔥 tenta pegar da lista (rápido)
-  let ordem = ordens.find((o) => o.id === id);
-
-  // 🔥 se não tiver OU estiver inconsistente → busca do banco
-  if (!ordem || ordem.materiais === undefined) {
-    ordem = await buscarOrdemPorId(id);
-  }
+   let ordem = await buscarOrdemPorId(id); // 🔥 sempre atualizado
 
   if (!ordem) return;
 
@@ -882,6 +942,29 @@ window.mostrarConfirmacao = function (mensagem, callbackConfirmar) {
   };
 };
 
+function limparFormularioOS(modoEdicao = false) {
+  if (!modoEdicao) {
+    document.getElementById("numero-os").value = "";
+  }
+
+  document.getElementById("data-abertura").value = "";
+  document.getElementById("tipo-os").value = "";
+  document.getElementById("setor-responsavel").value = "";
+  document.getElementById("setor-solicitante").innerHTML =
+    '<option value="">Selecione</option>';
+
+  document.getElementById("nome-solicitante").value = "";
+  document.getElementById("descricao-servico").value = "";
+  document.getElementById("local-servico").value = "";
+  document.getElementById("ponto-referencia").value = "";
+
+  document.getElementById("responsavel-execucao").value = "";
+  document.getElementById("responsavel-abertura").value = "";
+
+  materiais = [];
+  renderizarMateriais();
+}
+
 window.editarOS = function (id) {
   const ordem = ordens.find((o) => o.id === id);
   if (!ordem) return;
@@ -896,11 +979,25 @@ window.editarOS = function (id) {
 
   showPage("nova-os");
 
+  const tipo = (ordem.tipoOS || "").toLowerCase();
+  document.getElementById("tipo-os").value = tipo;
   document.getElementById("numero-os").value = ordem.numero;
   document.getElementById("data-abertura").value = ordem.dataAbertura;
   document.getElementById("setor-responsavel").value = ordem.setorResponsavel;
   document.getElementById("nome-solicitante").value = ordem.nomeSolicitante;
-  document.getElementById("setor-solicitante").value = ordem.setorSolicitante;
+  carregarSetores(ordem.setorResponsavel);
+  function limparSetor(valor) {
+    return valor
+      ?.replace(/^SETOR\s+/i, "")
+      .trim()
+      .toUpperCase();
+  }
+
+  const setorLimpo = limparSetor(ordem.setorSolicitante);
+
+  setTimeout(() => {
+    document.getElementById("setor-solicitante").value = setorLimpo;
+  }, 50);
   document.getElementById("descricao-servico").value = ordem.descricaoServico;
   document.getElementById("ponto-referencia").value =
     ordem.pontoReferencia || "";
@@ -948,21 +1045,38 @@ function coletarDadosFormulario(setorFinal, descricao, responsavelExecucao) {
 }
 
 function validarOrdem(dados) {
-  if (!dados.descricao) {
+  if (!dados.descricao || !dados.descricao.trim()) {
     throw new Error("Descrição obrigatória");
   }
 
-  if (!dados.nomeSolicitante) {
+  if (!dados.nomeSolicitante || !dados.nomeSolicitante.trim()) {
     throw new Error("Nome do solicitante obrigatório");
   }
 
-  if (dados.tipoOS === "interna" && !dados.setorSolicitante) {
-    throw new Error("Setor obrigatório para OS interna");
+  if (!dados.setorSolicitante || !dados.setorSolicitante.trim()) {
+    throw new Error("Setor solicitante obrigatório");
   }
 
-  if (dados.tipoOS === "externa" && !dados.telefone) {
-    throw new Error("Telefone obrigatório para OS externa");
+  if (!dados.setorResponsavel || !dados.setorResponsavel.trim()) {
+    throw new Error("Diretoria responsável obrigatória");
   }
+
+  if (!dados.local || !dados.local.trim()) {
+    throw new Error("Local do serviço obrigatório");
+  }
+
+  if (!dados.dataAbertura) {
+    throw new Error("Data de abertura obrigatória");
+  }
+
+  // 🔥 AQUI SIM (CORRETO)
+  if (!validarSetor(dados.setorResponsavel, dados.setorSolicitante)) {
+    throw new Error("Setor inválido para a diretoria selecionada");
+  }
+}
+
+function upper(v) {
+  return v ? v.toString().trim().toUpperCase() : null;
 }
 
 function buildOrdem(dados) {
@@ -970,25 +1084,28 @@ function buildOrdem(dados) {
     tipoOS: dados.tipoOS,
     dataAbertura: dados.dataAbertura,
 
-    latitude: dados.latitude ?? null,
-    longitude: dados.longitude ?? null,
+    setorResponsavel: upper(dados.setorResponsavel),
 
-    setorResponsavel: dados.setorResponsavel || null,
-
-    nomeSolicitante: dados.nomeSolicitante,
+    nomeSolicitante: upper(dados.nomeSolicitante),
     cpfSolicitante: dados.cpf || null,
     telefoneSolicitante: dados.telefone || null,
 
-    setorSolicitante: dados.setorSolicitante || null,
+    setorSolicitante: upper(dados.setorSolicitante),
 
-    descricaoServico: dados.descricao,
-    localServico: dados.local,
-    pontoReferencia: dados.pontoReferencia || null,
+    descricaoServico: upper(dados.descricao),
+    localServico: upper(dados.local),
+    pontoReferencia: upper(dados.pontoReferencia),
 
-    materiais: Array.isArray(dados.materiais) ? dados.materiais : [],
+    materiais: Array.isArray(dados.materiais)
+      ? dados.materiais.map((m) => ({
+          nome: upper(m.nome),
+          unidade: upper(m.unidade),
+          quantidade: m.quantidade || null,
+        }))
+      : [],
 
-    responsavelExecucao: dados.responsavelExecucao || null,
-    responsavelAbertura: dados.responsavelAbertura,
+    responsavelExecucao: upper(dados.responsavelExecucao),
+    responsavelAbertura: upper(dados.responsavelAbertura),
 
     status: "Aberta",
     dataEncerramento: null,
@@ -1050,6 +1167,10 @@ document
       materiais: materiaisFinal,
     });
 
+    await visualizarOS(osAtual.id);
+
+    // 🔥 ATUALIZA ESTADO LOCAL
+    osAtual.status = "Encerrada";
     // 🔥 LIMPA ESTADO (ESSENCIAL)
     materiaisEncerramento = [];
 
@@ -1321,14 +1442,9 @@ ORDEM DE SERVIÇO ${tipoTitulo}
 
 <h3>Solicitante</h3>
 
+// 🔥 SEMPRE MOSTRA SETOR
 <div><strong>Nome:</strong> ${solicitante}</div>
-
-${
-  tipoOS !== "externa"
-    ? `<div><strong>Setor:</strong> ${setorSolicitante}</div>`
-    : ""
-}
-
+<div><strong>Setor:</strong> ${setorSolicitante}</div>
 <div><strong>Setor Responsável:</strong> ${setorResponsavel}</div>
 
 </div>
@@ -1717,13 +1833,11 @@ Secretária
 
 <div class="assinatura-box">
 <div class="linha"></div>
-${osAtual.responsavelExecucao || ""}
 Responsável
 </div>
 
 <div class="assinatura-box">
 <div class="linha"></div>
-${osAtual.assinaturaRecebedor || ""}
 Requerente
 </div>
 
@@ -1773,13 +1887,15 @@ Responsável
 
 <div><strong>Nome:</strong> ${osAtual.nomeSolicitante}</div>
 
+<div><strong>Setor:</strong> ${osAtual.setorSolicitante}</div>
+
 ${
   tipoOS === "externa"
     ? `
 <div><strong>CPF:</strong> ${osAtual.cpfSolicitante || "-"}</div>
 <div><strong>Telefone:</strong> ${osAtual.telefoneSolicitante || "-"}</div>
 `
-    : `<div><strong>Setor:</strong> ${osAtual.setorSolicitante}</div>`
+    : ""
 }
 
 <div><strong>Setor Responsável:</strong> ${osAtual.setorResponsavel}</div>
@@ -2313,7 +2429,7 @@ window.imprimirRelatorio = async function () {
   const dataInicio = document.getElementById("filtro-data-inicio").value;
   const dataFim = document.getElementById("filtro-data-fim").value;
   const status = document.getElementById("filtro-status").value;
-  const diretoria = document.getElementById("filtro-diretoria")?.value;
+  const diretoria = document.getElementById("filtro-diretoria")?.value || "";
 
   const solicitante = document
     .getElementById("filtro-solicitante")
@@ -2646,3 +2762,16 @@ window.contarOrdens = async function () {
 };
 
 window.reconstruirDashboard = reconstruirDashboard;
+
+document.addEventListener("input", function (e) {
+  const el = e.target;
+
+  if (
+    (el.tagName === "INPUT" && el.type === "text") ||
+    el.tagName === "TEXTAREA"
+  ) {
+    const pos = el.selectionStart;
+    el.value = el.value.toUpperCase();
+    el.setSelectionRange(pos, pos);
+  }
+});
