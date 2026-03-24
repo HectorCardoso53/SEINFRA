@@ -4,19 +4,16 @@ import {
   consultarProximoNumeroOS,
   buscarOrdensPaginadas,
   buscarResumoDashboard,
-  buscarOrdensDashboard,
   reconstruirDashboard,
   contarOrdensFirestore,
-  buscarOrdensComFiltro,
   atualizarStatusComDashboard,
   buscarOrdemPorId,
-  buscarTodasOrdens 
+  buscarTodasOrdens,
 } from "./firestore.js";
 
 // 🔥 VARIÁVEIS GLOBAIS
 let ordens = [];
 let materiais = [];
-let ordensCompletas = [];
 let osAtual = null;
 let materiaisEncerramento = [];
 let carregando = false;
@@ -335,11 +332,8 @@ document
         await atualizarStatusComDashboard(osAtual.id, dadosOrdem);
 
         // 🔥 ATUALIZA LOCAL (SEM BUSCAR DO BANCO)
-        ordens = ordens.map((o) =>
-          o.id === osAtual.id ? { ...o, ...dadosOrdem } : o,
-        );
-
-        carregarTabelaRelatorios(ordens);
+        await carregarPagina(1);
+        await carregarResumoDashboard();
 
         mostrarAlerta("Ordem atualizada com sucesso!", "Sucesso");
 
@@ -362,12 +356,8 @@ document
       };
 
       // 🔥 ADICIONA LOCAL (SEM RELOAD)
-      ordens.unshift(novaOrdem);
-
-      // 🔥 LIMITA PAGINA (mantém padrão de 20)
-      ordens = ordens.slice(0, 20);
-
-      carregarTabelaRelatorios(ordens);
+      await carregarPagina(1);
+      await carregarResumoDashboard();
 
       mostrarAlerta(`Ordem ${resultado.numero} criada com sucesso!`, "Sucesso");
 
@@ -430,10 +420,6 @@ async function atualizarDashboardComResumo(resumo) {
 
 // Relatórios
 window.aplicarFiltros = async function () {
-  if (!ordensCompletas.length) {
-    console.log("🔥 carregando base completa...");
-    ordensCompletas = await buscarTodasOrdens();
-  }
   const diretoria = document.getElementById("filtro-diretoria")?.value || "";
   const dataInicio = document.getElementById("filtro-data-inicio")?.value || "";
   const dataFim = document.getElementById("filtro-data-fim")?.value || "";
@@ -450,15 +436,14 @@ window.aplicarFiltros = async function () {
   const setorSolicitante =
     document.getElementById("filtro-setor-solicitante")?.value?.trim() || "";
 
-  // 🔥 USA SEMPRE OS DADOS JÁ CARREGADOS
-  let baseDados = ordensCompletas;
+  // 🔥 FONTE ÚNICA DE VERDADE
+  let baseDados = await buscarTodasOrdens();
 
   console.log("TOTAL BASE:", baseDados.length);
 
   let ordensFiltradas = baseDados.filter((o) => {
     if (!o) return false;
 
-    // 🔥 TRATA DATA (Timestamp OU STRING)
     let data = null;
 
     if (o.dataAbertura?.toDate) {
@@ -469,52 +454,34 @@ window.aplicarFiltros = async function () {
 
     if (!data || isNaN(data)) return false;
 
-    // 🔥 FILTRO DATA
-    if (dataInicio) {
-      const inicio = new Date(dataInicio + "T00:00:00");
-      if (data < inicio) return false;
-    }
+    if (dataInicio && data < new Date(dataInicio + "T00:00:00")) return false;
+    if (dataFim && data > new Date(dataFim + "T23:59:59")) return false;
 
-    if (dataFim) {
-      const fim = new Date(dataFim + "T23:59:59");
-      if (data > fim) return false;
-    }
-
-    // 🔥 MÊS
     if (mes !== "" && data.getMonth() !== Number(mes)) return false;
-
-    // 🔥 ANO
     if (ano !== "" && data.getFullYear() !== Number(ano)) return false;
 
-    // 🔥 STATUS
     if (status && o.status !== status) return false;
 
-    // 🔥 SOLICITANTE
     if (solicitante) {
       const nome = o.nomeSolicitante?.toLowerCase() || "";
       if (!nome.includes(solicitante)) return false;
     }
 
-    // 🔥 SETOR SOLICITANTE
     if (setorSolicitante) {
       const filtro = normalizarTexto(setorSolicitante);
       const valor = normalizarTexto(o.setorSolicitante || "");
-
       if (!valor.includes(filtro)) return false;
     }
 
-    // 🔥 DIRETORIA
     if (diretoria && o.setorResponsavel !== diretoria) return false;
 
     return true;
   });
 
-  // 🔥 ORDENAÇÃO SEGURA
   ordensFiltradas.sort((a, b) => {
     return (b.numeroSequencial || 0) - (a.numeroSequencial || 0);
   });
 
-  // 🔥 ESCONDE PAGINAÇÃO SE TIVER FILTRO
   const temFiltro =
     dataInicio ||
     dataFim ||
@@ -2363,7 +2330,7 @@ window.imprimirRelatorio = async function () {
   }
 
   // 🔥 BUSCA LIMPA (SEM SETOR)
-  let todasOrdens = await buscarOrdensComFiltro({ status });
+  let todasOrdens = await buscarTodasOrdens();
 
   let ordensFiltradas = todasOrdens.filter((o) => {
     if (!o.dataAbertura) return false;
@@ -2372,7 +2339,6 @@ window.imprimirRelatorio = async function () {
 
     if (dataInicio && data < new Date(dataInicio + "T00:00:00")) return false;
     if (dataFim && data > new Date(dataFim + "T23:59:59")) return false;
-
 
     if (status && o.status !== status) return false;
 
