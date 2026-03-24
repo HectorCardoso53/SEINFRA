@@ -409,6 +409,7 @@ export async function atualizarStatusComDashboard(id, dadosAtualizacao) {
     // 🔥 ATUALIZA DASHBOARD
     transaction.update(statsRef, novasStats);
   });
+
 }
 /* =========================
    BUSCAR ORDENS
