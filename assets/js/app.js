@@ -46,7 +46,7 @@ const setoresPorDiretoria = {
     "DESOBSTRUÇÃO DE BUEIROS",
     "RESÍDUOS SÓLIDOS - DOMÉSTICO, VEGETAL, SERVIÇOS DE SAÚDE",
     "CAÇAMBA ESTACIONÁRIA",
-    "MANUTENÇÃO DE FONTES LUMINOSAS",
+    "LIMPEZA DE FONTES LUMINOSAS",
   ],
 
   "DIRETORIA DE INFRAESTRUTURA": [
@@ -712,20 +712,20 @@ window.gerarRelatorioMateriais = function () {
 };
 // Visualizar OS
 window.visualizarOS = async function (id) {
-  // 🔥 tenta pegar da lista (rápido)
-   let ordem = await buscarOrdemPorId(id); // 🔥 sempre atualizado
+  let ordem = await buscarOrdemPorId(id);
 
   if (!ordem) return;
 
-  // 🔥 AGORA SIM (sem sobrescrever depois)
   osAtual = ordem;
+
+  const tipoOS = (osAtual.tipoOS || "").toLowerCase();
 
   const materiaisHTML =
     osAtual.materiais?.length > 0
       ? osAtual.materiais
           .map(
             (m) =>
-              `<div style="margin-bottom:6px;">• ${m.nome} - ${m.quantidade || ""} ${m.unidade}</div>`,
+              `<div style="margin-bottom:6px;">• ${m.nome} - ${m.quantidade || ""} ${m.unidade}</div>`
           )
           .join("")
       : "";
@@ -759,9 +759,12 @@ Solicitante
 
 <div><strong>Nome:</strong> ${osAtual.nomeSolicitante}</div>
 
+<div><strong>CPF:</strong> ${osAtual.cpfSolicitante || "-"}</div>
+<div><strong>Telefone:</strong> ${osAtual.telefoneSolicitante || "-"}</div>
+
 ${
-  (osAtual.tipoOS || "").toLowerCase() !== "externa"
-    ? `<div><strong>Setor Solicitante:</strong> ${osAtual.setorSolicitante}</div>`
+  tipoOS !== "externa"
+    ? `<div><strong>Setor Solicitante:</strong> ${osAtual.setorSolicitante || "-"}</div>`
     : ""
 }
 
@@ -772,14 +775,14 @@ ${
 Execução
 </h3>
 
-<div><strong>Responsável Execução:</strong> ${osAtual.responsavelExecucao || ""}</div>
+<div><strong>Responsável Execução:</strong> ${osAtual.responsavelExecucao || "-"}</div>
 
 <div><strong>Responsável Abertura:</strong> ${osAtual.responsavelAbertura}</div>
 
 <div><strong>Local do Serviço:</strong> ${osAtual.localServico}</div>
 
 ${
-  (osAtual.tipoOS || "").toLowerCase() === "externa"
+  tipoOS === "externa"
     ? `<div><strong>Ponto de Referência:</strong> ${osAtual.pontoReferencia || "-"}</div>`
     : ""
 }
@@ -1361,6 +1364,9 @@ window.previsualizarOS = function () {
   const numero = document.getElementById("numero-os").value;
   const data = document.getElementById("data-abertura").value;
   const solicitante = document.getElementById("nome-solicitante").value;
+  const cpf = document.getElementById("cpf-solicitante")?.value || "-";
+  const telefone =
+    document.getElementById("telefone-solicitante")?.value || "-";
   const setorSolicitante = document.getElementById("setor-solicitante").value;
   const setorResponsavel = document.getElementById("setor-responsavel").value;
   const descricao = document.getElementById("descricao-servico").value;
@@ -1444,6 +1450,8 @@ ORDEM DE SERVIÇO ${tipoTitulo}
 
 // 🔥 SEMPRE MOSTRA SETOR
 <div><strong>Nome:</strong> ${solicitante}</div>
+<div><strong>CPF:</strong> ${cpf}</div>
+<div><strong>Telefone:</strong> ${telefone}</div>
 <div><strong>Setor:</strong> ${setorSolicitante}</div>
 <div><strong>Setor Responsável:</strong> ${setorResponsavel}</div>
 
@@ -1887,16 +1895,10 @@ Responsável
 
 <div><strong>Nome:</strong> ${osAtual.nomeSolicitante}</div>
 
-<div><strong>Setor:</strong> ${osAtual.setorSolicitante}</div>
-
-${
-  tipoOS === "externa"
-    ? `
 <div><strong>CPF:</strong> ${osAtual.cpfSolicitante || "-"}</div>
 <div><strong>Telefone:</strong> ${osAtual.telefoneSolicitante || "-"}</div>
-`
-    : ""
-}
+
+<div><strong>Setor:</strong> ${osAtual.setorSolicitante || "-"}</div>
 
 <div><strong>Setor Responsável:</strong> ${osAtual.setorResponsavel}</div>
 
