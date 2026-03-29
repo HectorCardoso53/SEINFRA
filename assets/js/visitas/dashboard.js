@@ -2,45 +2,89 @@
 // dashboard.js — Cards de estatísticas e gráficos Chart.js
 // ============================================================
 
-import { visits, chartService, chartMonth, setChartService, setChartMonth } from "./state.js";
+import {
+  visits,
+  chartService,
+  chartMonth,
+  setChartService,
+  setChartMonth,
+} from "./state.js";
 import { today } from "./utils.js";
 
-const CHART_COLORS = ["#3498db","#2ecc71","#f1c40f","#e74c3c","#9b59b6","#1abc9c","#e67e22"];
+const CHART_COLORS = [
+  "#3498db",
+  "#2ecc71",
+  "#f1c40f",
+  "#e74c3c",
+  "#9b59b6",
+  "#1abc9c",
+  "#e67e22",
+];
 
 /* =========================
    DASHBOARD PRINCIPAL
 ========================= */
 export function renderDashboard() {
-  const total      = visits.length;
-  const thisMonth  = visits.filter((v) => v.date?.slice(0, 7) === today().slice(0, 7)).length;
+  const total = visits.length;
+  const thisMonth = visits.filter(
+    (v) => v.date?.slice(0, 7) === today().slice(0, 7),
+  ).length;
   const todayCount = visits.filter((v) => v.date === today()).length;
 
   document.getElementById("stat-total").textContent = total;
   document.getElementById("stat-month").textContent = thisMonth;
   document.getElementById("stat-today").textContent = todayCount;
 
-  const sectorCounts = {};
+  // =========================
+  // CONTAGEM POR TIPO (INTERNO / EXTERNO)
+  // =========================
+  const tipoCounts = { interno: 0, externo: 0 };
+
   visits.forEach((v) => {
-    if (!v.sector) return;
-    sectorCounts[v.sector] = (sectorCounts[v.sector] || 0) + 1;
+    if (v.tipo === "interno") tipoCounts.interno++;
+    else if (v.tipo === "externo") tipoCounts.externo++;
   });
 
-  const topSector = Object.entries(sectorCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
-  document.getElementById("stat-top-service").textContent = topSector;
+  const elInterno = document.getElementById("stat-interno");
+  const elExterno = document.getElementById("stat-externo");
 
-  renderServiceChart(sectorCounts);
+  if (elInterno) elInterno.textContent = tipoCounts.interno;
+  if (elExterno) elExterno.textContent = tipoCounts.externo;
+
+  // =========================
+  // CONTAGEM POR DIRETORIA
+  // =========================
+  const diretoriaCounts = {};
+
+  visits.forEach((v) => {
+    const diretoria = v.diretoria || "NÃO INFORMADO";
+    diretoriaCounts[diretoria] = (diretoriaCounts[diretoria] || 0) + 1;
+  });
+
+  // Top diretoria
+  const topDiretoria =
+    Object.entries(diretoriaCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
+
+  document.getElementById("stat-top-service").textContent = topDiretoria;
+
+  // =========================
+  // GRÁFICOS
+  // =========================
+  renderServiceChart(diretoriaCounts);
   renderMonthChart();
 }
 
 /* =========================
-   GRÁFICO DE SETORES
+   GRÁFICO DE DIRETORIAS
 ========================= */
 function renderServiceChart(counts) {
   const canvas = document.getElementById("chart-service");
   if (!canvas) return;
 
-  const labels = Object.keys(counts).length ? Object.keys(counts) : ["Sem dados"];
-  const data   = Object.values(counts).length ? Object.values(counts) : [1];
+  const labels = Object.keys(counts).length
+    ? Object.keys(counts)
+    : ["Sem dados"];
+  const data = Object.values(counts).length ? Object.values(counts) : [1];
 
   if (chartService) chartService.destroy();
 
@@ -48,10 +92,23 @@ function renderServiceChart(counts) {
     type: "doughnut",
     data: {
       labels,
-      datasets: [{ data, backgroundColor: CHART_COLORS.slice(0, labels.length), borderWidth: 0 }],
+      datasets: [
+        {
+          data,
+          backgroundColor: CHART_COLORS.slice(0, labels.length),
+          borderWidth: 0,
+        },
+      ],
     },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+      },
+    },
   });
+
   setChartService(novo);
 }
 
@@ -63,15 +120,19 @@ function renderMonthChart() {
   if (!canvas) return;
 
   const monthMap = {};
+
   visits.forEach((v) => {
     if (!v.date) return;
     const ym = v.date.slice(0, 7);
     monthMap[ym] = (monthMap[ym] || 0) + 1;
   });
 
-  const sorted = Object.entries(monthMap).sort((a, b) => a[0].localeCompare(b[0])).slice(-8);
+  const sorted = Object.entries(monthMap)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .slice(-8);
+
   const labels = sorted.map(([ym]) => ym);
-  const data   = sorted.map(([, v]) => v);
+  const data = sorted.map(([, v]) => v);
 
   if (chartMonth) chartMonth.destroy();
 
@@ -79,9 +140,21 @@ function renderMonthChart() {
     type: "bar",
     data: {
       labels,
-      datasets: [{ data, backgroundColor: "#2D5A3D", borderRadius: 6 }],
+      datasets: [
+        {
+          data,
+          backgroundColor: "#2D5A3D",
+          borderRadius: 6,
+        },
+      ],
     },
-    options: { responsive: true, plugins: { legend: { display: false } } },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+      },
+    },
   });
+
   setChartMonth(novo);
 }

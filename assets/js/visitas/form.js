@@ -2,28 +2,35 @@
 // form.js — Formulário de visita: CRUD, validação e autocomplete
 // ============================================================
 
-import { loadVisits, saveVisit, updateVisit, loadPersons, savePerson } from "./db.js";
+import {
+  loadVisits,
+  saveVisit,
+  updateVisit,
+  loadPersons,
+  savePerson,
+} from "./db.js";
 import { showToast } from "./ui.js";
 import { renderTable, renderTodayVisits } from "./tabela.js";
 import { renderDashboard } from "./dashboard.js";
 import { toUpperSafe, today, validarCPF, escapeHtml } from "./utils.js";
-import { persons, editingId, setEditingId } from "./state.js";
+import { persons, visits, editingId, setEditingId } from "./state.js";
 
 /* =========================
    COLETAR DADOS DO FORMULÁRIO
 ========================= */
 function getFormData() {
   return {
-    name:      toUpperSafe(document.getElementById("f-name").value),
-    cpf:       document.getElementById("f-cpf").value.trim(),
-    phone:     document.getElementById("f-phone").value.trim(),
-    phone2:    document.getElementById("f-phone2").value.trim(),
-    address:   toUpperSafe(document.getElementById("f-address").value),
+    name: toUpperSafe(document.getElementById("f-name").value),
+    cpf: document.getElementById("f-cpf").value.trim(),
+    phone: document.getElementById("f-phone").value.trim(),
+    phone2: document.getElementById("f-phone2").value.trim(),
+    address: toUpperSafe(document.getElementById("f-address").value),
     reference: toUpperSafe(document.getElementById("f-reference").value),
-    date:      document.getElementById("f-date").value,
+    date: document.getElementById("f-date").value,
     diretoria: document.getElementById("f-diretoria").value,
-    sector:    document.getElementById("f-sector").value,
-    reason:    toUpperSafe(document.getElementById("f-reason").value),
+    sector: document.getElementById("f-sector").value,
+    tipo: document.getElementById("f-tipo").value, // 🔥 NOVO
+    reason: toUpperSafe(document.getElementById("f-reason").value),
   };
 }
 
@@ -69,7 +76,7 @@ function validateForm(data) {
 ========================= */
 async function garantirPessoaCadastrada(data) {
   const personExists = persons.some(
-    (p) => p.name.toLowerCase() === data.name.toLowerCase()
+    (p) => p.name.toLowerCase() === data.name.toLowerCase(),
   );
   if (!personExists) {
     await savePerson(data.name, data.phone);
@@ -120,15 +127,15 @@ export function editVisit(id, visits) {
 
   setEditingId(id);
 
-  document.getElementById("f-name").value      = v.name || "";
-  document.getElementById("f-cpf").value       = v.cpf || "";
-  document.getElementById("f-phone").value     = v.phone || "";
-  document.getElementById("f-phone2").value    = v.phone2 || "";
-  document.getElementById("f-address").value   = v.address || "";
+  document.getElementById("f-name").value = v.name || "";
+  document.getElementById("f-cpf").value = v.cpf || "";
+  document.getElementById("f-phone").value = v.phone || "";
+  document.getElementById("f-phone2").value = v.phone2 || "";
+  document.getElementById("f-address").value = v.address || "";
   document.getElementById("f-reference").value = v.reference || "";
-  document.getElementById("f-date").value      = v.date || "";
-  document.getElementById("f-sector").value    = v.sector || "";
-  document.getElementById("f-reason").value    = v.reason || "";
+  document.getElementById("f-date").value = v.date || "";
+  document.getElementById("f-sector").value = v.sector || "";
+  document.getElementById("f-reason").value = v.reason || "";
 
   document.getElementById("form-card-title").textContent = "Editar Visita";
   document.getElementById("btn-submit").innerHTML = "Salvar Alterações";
@@ -163,7 +170,7 @@ export function clearForm() {
 export async function handleSavePerson(e) {
   e.preventDefault();
 
-  const name  = document.getElementById("p-name").value.trim();
+  const name = document.getElementById("p-name").value.trim();
   const phone = document.getElementById("p-phone").value.trim();
 
   if (!name || !phone) {
@@ -171,7 +178,9 @@ export async function handleSavePerson(e) {
     return;
   }
 
-  const exists = persons.some((p) => p.name.toLowerCase() === name.toLowerCase());
+  const exists = persons.some(
+    (p) => p.name.toLowerCase() === name.toLowerCase(),
+  );
   if (exists) {
     showToast("Essa pessoa já está cadastrada", "error");
     return;
@@ -187,9 +196,9 @@ export async function handleSavePerson(e) {
    AUTOCOMPLETE DE PESSOAS
 ========================= */
 export function initPersonAutocomplete() {
-  const input   = document.getElementById("f-name");
-  const list    = document.getElementById("person-suggestions");
-  const phone   = document.getElementById("f-phone");
+  const input = document.getElementById("f-name");
+  const list = document.getElementById("person-suggestions");
+  const phone = document.getElementById("f-phone");
   const warning = document.getElementById("person-warning");
 
   if (!input) return;
@@ -200,7 +209,9 @@ export function initPersonAutocomplete() {
     if (warning) warning.style.display = "none";
     if (value.length < 2) return;
 
-    const matches = persons.filter((p) => p.name.toLowerCase().includes(value));
+    const matches = visits
+      .filter((v) => v.name.toLowerCase().includes(value))
+      .sort((a, b) => new Date(b.date) - new Date(a.date)); // pega o mais recente primeiro
 
     if (!matches.length) {
       if (warning) warning.style.display = "block";
@@ -224,7 +235,18 @@ export function initPersonAutocomplete() {
 
       div.onclick = () => {
         input.value = person.name;
-        phone.value = person.phone;
+
+        // 🔥 Preenche tudo automaticamente
+        document.getElementById("f-phone").value = person.phone || "";
+        document.getElementById("f-phone2").value = person.phone2 || "";
+        document.getElementById("f-cpf").value = person.cpf || "";
+        document.getElementById("f-address").value = person.address || "";
+        document.getElementById("f-reference").value = person.reference || "";
+        document.getElementById("f-diretoria").value = person.diretoria || "";
+        document.getElementById("f-sector").value = person.sector || "";
+        document.getElementById("f-tipo").value = person.tipo || "";
+        document.getElementById("f-reason").value = person.reason || "";
+
         if (warning) warning.style.display = "none";
         list.innerHTML = "";
       };

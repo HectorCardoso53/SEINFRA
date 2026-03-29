@@ -35,33 +35,69 @@ export function renderTable() {
   if (!total) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="10">
+        <td colspan="11">
           <div class="empty-state"><p>Nenhuma visita encontrada.</p></div>
         </td>
       </tr>`;
   } else {
     tbody.innerHTML = page.map((v) => {
-      const statusClasse = v.status ? v.status.toLowerCase().replace(/\s/g, "-") : "";
       return `
 <tr>
   <td><strong>${escapeHtml(v.name)}</strong></td>
+
   <td>${escapeHtml(v.cpf || "—")}</td>
-  <td>${escapeHtml(v.phone)}${v.phone2 ? "<br>" + escapeHtml(v.phone2) : ""}</td>
-  <td>${formatDate(v.date)}</td>
+
   <td>
-    <span class="badge" style="background:#e3f2fd;color:#1565c0">
-      ${v.diretoria ? escapeHtml(v.diretoria) : '<span style="color:#e53935;font-weight:600">PENDENTE</span>'}
+    ${escapeHtml(v.phone)}
+    ${v.phone2 ? "<br>" + escapeHtml(v.phone2) : ""}
+  </td>
+
+  <td>${formatDate(v.date)}</td>
+
+  <!-- 🔥 NOVO: TIPO (INTERNO / EXTERNO) -->
+  <td>
+    <span class="badge" style="
+      background:${v.tipo === "interno" ? "#e3f2fd" : "#fff3e0"};
+      color:${v.tipo === "interno" ? "#1565c0" : "#ef6c00"};
+      font-weight:600;
+    ">
+      ${v.tipo ? v.tipo.toUpperCase() : "—"}
     </span>
   </td>
-  <td><span class="badge">${escapeHtml(v.sector || "—")}</span></td>
+
+  <!-- DIRETORIA -->
+  <td>
+    <span class="badge" style="background:#e3f2fd;color:#1565c0">
+      ${v.diretoria 
+        ? escapeHtml(v.diretoria) 
+        : '<span style="color:#e53935;font-weight:600">PENDENTE</span>'}
+    </span>
+  </td>
+
+  <!-- SETOR -->
+  <td>
+    <span class="badge">
+      ${escapeHtml(v.sector || "—")}
+    </span>
+  </td>
+
   <td>${escapeHtml(v.address || "—")}</td>
+
   <td>${escapeHtml(v.reference || "—")}</td>
-  <td style="color:var(--text-muted);font-size:13px;max-width:260px;white-space:normal;word-break:break-word;">
+
+  <td style="
+    color:var(--text-muted);
+    font-size:13px;
+    max-width:260px;
+    white-space:normal;
+    word-break:break-word;
+  ">
     ${escapeHtml(v.reason)}
   </td>
+
   <td>
     <div class="td-actions">
-      <button class="btn btn-icon edit"  data-action="edit"   data-id="${escapeHtml(v.id)}" title="Editar">✏️</button>
+      <button class="btn btn-icon edit" data-action="edit" data-id="${escapeHtml(v.id)}" title="Editar">✏️</button>
       <button class="btn btn-icon delete" data-action="delete" data-id="${escapeHtml(v.id)}" title="Excluir">🗑️</button>
     </div>
   </td>
