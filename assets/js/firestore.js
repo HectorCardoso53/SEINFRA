@@ -1,5 +1,4 @@
 import {
-  getFirestore,
   collection,
   getDocs,
   query,
@@ -9,15 +8,29 @@ import {
   where,
   setDoc,
   getDoc,
-  updateDoc,
   startAfter,
-  deleteDoc,
   runTransaction,
   getCountFromServer,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 import { auth, db } from "./firebase.js";
 
+export async function buscarVisitasPorNome(nome) {
+  const nomeUpper = nome.toUpperCase();
+
+  const q = query(
+    collection(db, "visitas"),
+    where("name", ">=", nomeUpper),
+    where("name", "<=", nomeUpper + "\uf8ff")
+  );
+
+  const snapshot = await getDocs(q);
+
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+}
 export async function contarOrdensFirestore() {
   const ref = collection(db, "ordens");
 
@@ -642,5 +655,18 @@ export async function buscarOrdemPorId(id) {
   return {
     id: snap.id,
     ...snap.data(),
+  };
+}
+
+
+export async function buscarVisitaPorId(id) {
+  const docRef = doc(db, "visitas", id);
+  const snap = await getDoc(docRef);
+
+  if (!snap.exists()) return null;
+
+  return {
+    id: snap.id,
+    ...snap.data()
   };
 }

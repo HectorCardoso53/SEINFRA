@@ -163,18 +163,19 @@
    }
 
    .menu-icon-img {
-    width: 20px;
-    height: 20px;
-    object-fit: contain;
-    border-radius: 4px; /* suaviza se tiver fundo */
-}
+       width: 20px;
+       height: 20px;
+       object-fit: contain;
+       border-radius: 4px;
+       /* suaviza se tiver fundo */
+   }
 
-/* Garante alinhamento com os outros itens */
-.menu-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
+   /* Garante alinhamento com os outros itens */
+   .menu-item {
+       display: flex;
+       align-items: center;
+       gap: 10px;
+   }
 
    /* Header da Sidebar */
    .sidebar-header {
@@ -683,6 +684,33 @@
        display: none !important;
    }
 
+   .sugestao-container {
+       position: relative;
+       z-index: 1000;
+   }
+
+   .form-group {
+    position: relative;
+}
+
+.sugestoes-box {
+    position: absolute;
+    top: calc(100% + 4px); /* 👈 pequeno espaçamento */
+    left: 0;
+    width: 100%;
+
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+
+    z-index: 999999;
+
+    max-height: 220px;
+    overflow-y: auto;
+
+    box-shadow: 0 8px 20px rgba(0,0,0,0.12); /* 🔥 PROFISSIONAL */
+}
+
    @media(max-width:600px) {
 
        .material-item {
@@ -834,7 +862,7 @@
 
    .login-body {
        min-height: 100vh;
-       background:#0f172a;
+       background: #0f172a;
        display: flex;
        align-items: center;
        justify-content: center;

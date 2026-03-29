@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="assets/img/prefeitura.png">
     <title>Secretaria — Agendamento de Visitas</title>
     <link rel="stylesheet" href="/assets/css/cadastro.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -72,18 +73,6 @@
                 <span>Lista de Visitas</span>
             </button>
 
-            <button class="nav-item" data-nav="historico">
-
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2">
-                    <path d="M3 3v5h5" />
-                    <path d="M3.05 13a9 9 0 1 0 3-7.36L3 8" />
-                    <polyline points="12 7 12 12 15 15" />
-                </svg>
-
-                <span>Histórico</span>
-
-            </button>
 
             <button class="nav-item" data-nav="tutorial">
                 <svg fill="currentColor" viewBox="0 0 20 20">
@@ -306,22 +295,19 @@
                                 <input type="text" id="f-cpf" placeholder="000.000.000-00">
                             </div>
 
-                            <!-- SETOR -->
+                            <div class="form-group">
+                                <label>Diretoria Responsável</label>
+                                <select id="f-diretoria" required>
+                                    <option value="">Selecione...</option>
+                                    
+                                </select>
+                            </div>
                             <div class="form-group">
                                 <label>Setor <span class="required">*</span></label>
-
-                                <input type="text" id="f-sector" list="sector-list" placeholder="Selecione o setor">
-
-                                <datalist id="sector-list">
-                                    <option value="Secretaria">
-                                    <option value="Engenharia">
-                                    <option value="Protocolo">
-                                    <option value="Habitação">
-                                    <option value="Regularização fundiária">
-                                </datalist>
-
+                                <select id="f-sector">
+                                    <option value="">Selecione o setor</option>
+                                </select>
                             </div>
-
                             <!-- CONTATO 1 -->
                             <div class="form-group">
                                 <label>Contato 1 <span class="required">*</span></label>
@@ -458,15 +444,16 @@
 
                             <thead>
                                 <tr>
-
                                     <th>Nome</th>
                                     <th>CPF</th>
                                     <th>Telefone</th>
                                     <th>Data</th>
+                                    <th>Diretoria</th>
                                     <th>Setor</th>
+                                    <th>Endereço</th>
+                                    <th>Referência</th>
                                     <th>Motivo</th>
                                     <th>Ações</th>
-
                                 </tr>
                             </thead>
 
@@ -602,7 +589,7 @@
     <!-- ─── TOAST CONTAINER ────────────────────────────────── -->
     <div class="toast-container" id="toast-container"></div>
 
-    <script type="module" src="assets/js/script.js"></script>
+    <script type="module" src="assets/js/visitas/script.js"></script>
 </body>
 
 </html>
