@@ -17,7 +17,7 @@ import {
 
 import {
   handleFormSubmit, cancelEdit, clearForm,
-  editVisit, handleSavePerson, initPersonAutocomplete,
+  editVisit, initPersonAutocomplete,
 } from "./form.js";
 
 import { renderTable, renderTodayVisits, renderHistory, initFilters, changePage } from "./tabela.js";
@@ -113,9 +113,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("btn-clear")
     ?.addEventListener("click", clearForm);
 
-  // ── Formulário de pessoa
-  document.getElementById("person-form")
-    ?.addEventListener("submit", handleSavePerson);
 
   // ── Data automática
   const dateInput = document.getElementById("f-date");

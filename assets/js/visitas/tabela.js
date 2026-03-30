@@ -2,8 +2,17 @@
 // tabela.js — Tabela de visitas, filtros e paginação
 // ============================================================
 
-import { visits, currentPage, filterDate, searchTerm, PAGE_SIZE,
-  setCurrentPage, setFilterDate, setFilterService, setSearchTerm } from "./state.js";
+import {
+  visits,
+  currentPage,
+  filterDate,
+  searchTerm,
+  PAGE_SIZE,
+  setCurrentPage,
+  setFilterDate,
+  setFilterService,
+  setSearchTerm,
+} from "./state.js";
 import { formatDate, escapeHtml, today } from "./utils.js";
 
 /* =========================
@@ -35,8 +44,8 @@ export function renderTable() {
   if (!total) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="11">
-          <div class="empty-state"><p>Nenhuma visita encontrada.</p></div>
+        <td colspan="7">
+          <div class="empty-state"><p>Nenhum cadastro encontrado.</p></div>
         </td>
       </tr>`;
   } else {
@@ -44,61 +53,16 @@ export function renderTable() {
       return `
 <tr>
   <td><strong>${escapeHtml(v.name)}</strong></td>
-
   <td>${escapeHtml(v.cpf || "—")}</td>
-
-  <td>
-    ${escapeHtml(v.phone)}
-    ${v.phone2 ? "<br>" + escapeHtml(v.phone2) : ""}
-  </td>
-
-  <td>${formatDate(v.date)}</td>
-
-  <!-- 🔥 NOVO: TIPO (INTERNO / EXTERNO) -->
-  <td>
-    <span class="badge" style="
-      background:${v.tipo === "interno" ? "#e3f2fd" : "#fff3e0"};
-      color:${v.tipo === "interno" ? "#1565c0" : "#ef6c00"};
-      font-weight:600;
-    ">
-      ${v.tipo ? v.tipo.toUpperCase() : "—"}
-    </span>
-  </td>
-
-  <!-- DIRETORIA -->
-  <td>
-    <span class="badge" style="background:#e3f2fd;color:#1565c0">
-      ${v.diretoria 
-        ? escapeHtml(v.diretoria) 
-        : '<span style="color:#e53935;font-weight:600">PENDENTE</span>'}
-    </span>
-  </td>
-
-  <!-- SETOR -->
-  <td>
-    <span class="badge">
-      ${escapeHtml(v.sector || "—")}
-    </span>
-  </td>
-
+  <td>${escapeHtml(v.phone || "—")}</td>
   <td>${escapeHtml(v.address || "—")}</td>
-
   <td>${escapeHtml(v.reference || "—")}</td>
-
-  <td style="
-    color:var(--text-muted);
-    font-size:13px;
-    max-width:260px;
-    white-space:normal;
-    word-break:break-word;
-  ">
-    ${escapeHtml(v.reason)}
-  </td>
+  <td>${formatDate(v.date)}</td>
 
   <td>
     <div class="td-actions">
-      <button class="btn btn-icon edit" data-action="edit" data-id="${escapeHtml(v.id)}" title="Editar">✏️</button>
-      <button class="btn btn-icon delete" data-action="delete" data-id="${escapeHtml(v.id)}" title="Excluir">🗑️</button>
+      <button class="btn btn-icon edit" data-action="edit" data-id="${escapeHtml(v.id)}">✏️</button>
+      <button class="btn btn-icon delete" data-action="delete" data-id="${escapeHtml(v.id)}">🗑️</button>
     </div>
   </td>
 </tr>`;
@@ -119,7 +83,12 @@ function renderPagination(total, start) {
 
   let btns = `<button class="page-btn" data-page="${currentPage - 1}" ${currentPage <= 1 ? "disabled" : ""}>‹</button>`;
   for (let i = 1; i <= pages; i++) {
-    if (pages <= 6 || i === 1 || i === pages || Math.abs(i - currentPage) <= 1) {
+    if (
+      pages <= 6 ||
+      i === 1 ||
+      i === pages ||
+      Math.abs(i - currentPage) <= 1
+    ) {
       btns += `<button class="page-btn ${i === currentPage ? "active" : ""}" data-page="${i}">${i}</button>`;
     } else if (i === 2 && currentPage > 4) {
       btns += `<span style="padding:0 4px;color:var(--text-muted)">…</span>`;
@@ -149,24 +118,23 @@ export function renderTodayVisits() {
   const todayVisits = visits.filter((v) => v.date === today());
 
   if (!todayVisits.length) {
-    tbody.innerHTML = `<tr><td colspan="8">Nenhum atendimento registrado hoje</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6">Nenhum cadastro hoje</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = todayVisits.map((v) => {
-    const hour = new Date(v.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-    return `
+  tbody.innerHTML = todayVisits
+    .map((v) => {
+      return `
 <tr>
   <td><strong>${escapeHtml(v.name)}</strong></td>
   <td>${escapeHtml(v.cpf || "—")}</td>
-  <td>${escapeHtml(v.phone)}${v.phone2 ? "<br>" + escapeHtml(v.phone2) : ""}</td>
+  <td>${escapeHtml(v.phone || "—")}</td>
   <td>${escapeHtml(v.address || "—")}</td>
   <td>${escapeHtml(v.reference || "—")}</td>
-  <td>${escapeHtml(v.sector)}</td>
-  <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(v.reason)}</td>
-  <td>${hour}</td>
+  <td>${escapeHtml(v.date || "—")}</td>
 </tr>`;
-  }).join("");
+    })
+    .join("");
 }
 
 /* =========================
@@ -175,7 +143,9 @@ export function renderTodayVisits() {
 export function renderHistory(name) {
   const tbody = document.getElementById("history-tbody");
   const history = visits.filter(
-    (v) => v.name?.toLowerCase().includes(name.toLowerCase()) || v.phone?.includes(name)
+    (v) =>
+      v.name?.toLowerCase().includes(name.toLowerCase()) ||
+      v.phone?.includes(name),
   );
 
   if (!history.length) {
@@ -183,9 +153,13 @@ export function renderHistory(name) {
     return;
   }
 
-  tbody.innerHTML = history.map((v) => {
-    const hour = new Date(v.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-    return `
+  tbody.innerHTML = history
+    .map((v) => {
+      const hour = new Date(v.createdAt).toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      return `
 <tr>
   <td><strong>${escapeHtml(v.name)}</strong></td>
   <td>${escapeHtml(v.cpf || "—")}</td>
@@ -194,7 +168,8 @@ export function renderHistory(name) {
   <td>${escapeHtml(v.reason)}</td>
   <td>${hour}</td>
 </tr>`;
-  }).join("");
+    })
+    .join("");
 }
 
 /* =========================
@@ -219,13 +194,18 @@ export function initFilters() {
     renderTable();
   });
 
-  document.getElementById("btn-clear-filters")?.addEventListener("click", () => {
-    setFilterDate("");
-    setFilterService("");
-    setSearchTerm("");
-    const fields = ["filter-date", "filter-service", "filter-search"];
-    fields.forEach((id) => { const el = document.getElementById(id); if (el) el.value = ""; });
-    setCurrentPage(1);
-    renderTable();
-  });
+  document
+    .getElementById("btn-clear-filters")
+    ?.addEventListener("click", () => {
+      setFilterDate("");
+      setFilterService("");
+      setSearchTerm("");
+      const fields = ["filter-date", "filter-service", "filter-search"];
+      fields.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.value = "";
+      });
+      setCurrentPage(1);
+      renderTable();
+    });
 }
