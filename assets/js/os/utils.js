@@ -9,6 +9,7 @@ export const setoresPorDiretoria = {
     "RECURSOS HUMANOS",
     "COMPRAS E DEPÓSITO",
     "COMUNICAÇÃO",
+    "ALMOXARIFADO",
     "LOGÍSTICA",
     "LIMPEZA E HIGIENE",
     "SHOPPING POPULAR",
