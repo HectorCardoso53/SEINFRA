@@ -177,6 +177,7 @@
                 <!-- Stats -->
                 <div class="stats-grid">
 
+                    <!-- TOTAL -->
                     <div class="stat-card">
                         <div class="stat-icon green">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -186,9 +187,10 @@
                             </svg>
                         </div>
                         <div class="stat-value" id="stat-total">0</div>
-                        <div class="stat-label">Total de visitas</div>
+                        <div class="stat-label">Total de cadastros</div>
                     </div>
 
+                    <!-- ESTE MÊS -->
                     <div class="stat-card">
                         <div class="stat-icon blue">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -197,9 +199,10 @@
                             </svg>
                         </div>
                         <div class="stat-value" id="stat-month">0</div>
-                        <div class="stat-label">Este mês</div>
+                        <div class="stat-label">Cadastros no mês</div>
                     </div>
 
+                    <!-- HOJE -->
                     <div class="stat-card">
                         <div class="stat-icon amber">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -208,32 +211,10 @@
                             </svg>
                         </div>
                         <div class="stat-value" id="stat-today">0</div>
-                        <div class="stat-label">Hoje</div>
+                        <div class="stat-label">Cadastros hoje</div>
                     </div>
 
-                    <div class="stat-card">
-                        <div class="stat-icon blue">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2">
-                                <path d="M3 21h18" />
-                                <path d="M5 21V7l8-4v18" />
-                            </svg>
-                        </div>
-                        <div class="stat-value" id="stat-interno">0</div>
-                        <div class="stat-label">Internos</div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-icon amber">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="7" r="4" />
-                            </svg>
-                        </div>
-                        <div class="stat-value" id="stat-externo">0</div>
-                        <div class="stat-label">Externos</div>
-                    </div>
-
+                    <!-- TOP ENDEREÇO -->
                     <div class="stat-card">
                         <div class="stat-icon red">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -242,7 +223,7 @@
                             </svg>
                         </div>
                         <div class="stat-value" id="stat-top-service">—</div>
-                        <div class="stat-label">Top Diretoria</div>
+                        <div class="stat-label">Endereço mais frequente</div>
                     </div>
 
                 </div>
@@ -250,11 +231,11 @@
                 <!-- Charts -->
                 <div class="charts-grid">
 
-                    <!-- 🔵 GRÁFICO PIZZA -->
+                    <!-- 🔵 GRÁFICO POR ENDEREÇO -->
                     <div class="chart-card">
                         <div class="chart-header">
                             <div>
-                                <div class="chart-title">Visitas por Diretoria</div>
+                                <div class="chart-title">Cadastros por Endereço</div>
                                 <div class="chart-subtitle">Distribuição geral</div>
                             </div>
                         </div>
@@ -264,11 +245,11 @@
                         </div>
                     </div>
 
-                    <!-- 🟩 GRÁFICO BARRA -->
+                    <!-- 🟩 GRÁFICO POR MÊS -->
                     <div class="chart-card">
                         <div class="chart-header">
                             <div>
-                                <div class="chart-title">Visitas por Mês</div>
+                                <div class="chart-title">Cadastros por Mês</div>
                                 <div class="chart-subtitle">Últimos 8 meses</div>
                             </div>
                         </div>

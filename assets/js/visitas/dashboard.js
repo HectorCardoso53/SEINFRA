@@ -1,5 +1,5 @@
 // ============================================================
-// dashboard.js — Cards de estatísticas e gráficos Chart.js
+// dashboard.js — Dashboard simplificado (cadastro de visitantes)
 // ============================================================
 
 import {
@@ -9,6 +9,7 @@ import {
   setChartService,
   setChartMonth,
 } from "./state.js";
+
 import { today } from "./utils.js";
 
 const CHART_COLORS = [
@@ -26,69 +27,59 @@ const CHART_COLORS = [
 ========================= */
 export function renderDashboard() {
   const total = visits.length;
+
   const thisMonth = visits.filter(
-    (v) => v.date?.slice(0, 7) === today().slice(0, 7),
+    (v) => v.date?.slice(0, 7) === today().slice(0, 7)
   ).length;
+
   const todayCount = visits.filter((v) => v.date === today()).length;
 
+  // Estatísticas principais
   document.getElementById("stat-total").textContent = total;
   document.getElementById("stat-month").textContent = thisMonth;
   document.getElementById("stat-today").textContent = todayCount;
 
   // =========================
-  // CONTAGEM POR TIPO (INTERNO / EXTERNO)
+  // ENDEREÇO MAIS FREQUENTE
   // =========================
-  const tipoCounts = { interno: 0, externo: 0 };
+  const addressCount = {};
 
   visits.forEach((v) => {
-    if (v.tipo === "interno") tipoCounts.interno++;
-    else if (v.tipo === "externo") tipoCounts.externo++;
+    const addr = v.address || "Não informado";
+    addressCount[addr] = (addressCount[addr] || 0) + 1;
   });
 
-  const elInterno = document.getElementById("stat-interno");
-  const elExterno = document.getElementById("stat-externo");
+  const topAddress =
+    Object.entries(addressCount).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
 
-  if (elInterno) elInterno.textContent = tipoCounts.interno;
-  if (elExterno) elExterno.textContent = tipoCounts.externo;
-
-  // =========================
-  // CONTAGEM POR DIRETORIA
-  // =========================
-  const diretoriaCounts = {};
-
-  visits.forEach((v) => {
-    const diretoria = v.diretoria || "NÃO INFORMADO";
-    diretoriaCounts[diretoria] = (diretoriaCounts[diretoria] || 0) + 1;
-  });
-
-  // Top diretoria
-  const topDiretoria =
-    Object.entries(diretoriaCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
-
-  document.getElementById("stat-top-service").textContent = topDiretoria;
+  const topEl = document.getElementById("stat-top-service");
+  if (topEl) topEl.textContent = topAddress;
 
   // =========================
   // GRÁFICOS
   // =========================
-  renderServiceChart(diretoriaCounts);
+  renderAddressChart(addressCount);
   renderMonthChart();
 }
 
 /* =========================
-   GRÁFICO DE DIRETORIAS
+   GRÁFICO POR ENDEREÇO
 ========================= */
-function renderServiceChart(counts) {
+function renderAddressChart(counts) {
   const canvas = document.getElementById("chart-service");
   if (!canvas) return;
 
-  const labels = Object.keys(counts).length
-    ? Object.keys(counts)
-    : ["Sem dados"];
-  const data = Object.values(counts).length ? Object.values(counts) : [1];
+  // pega top 6 para não poluir
+  const entries = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6);
+
+  const labels = entries.length ? entries.map(([k]) => k) : ["Sem dados"];
+  const data = entries.length ? entries.map(([, v]) => v) : [1];
 
   if (chartService) chartService.destroy();
 
-  const novo = new Chart(canvas.getContext("2d"), {
+  const chart = new Chart(canvas.getContext("2d"), {
     type: "doughnut",
     data: {
       labels,
@@ -109,7 +100,7 @@ function renderServiceChart(counts) {
     },
   });
 
-  setChartService(novo);
+  setChartService(chart);
 }
 
 /* =========================
@@ -136,7 +127,7 @@ function renderMonthChart() {
 
   if (chartMonth) chartMonth.destroy();
 
-  const novo = new Chart(canvas.getContext("2d"), {
+  const chart = new Chart(canvas.getContext("2d"), {
     type: "bar",
     data: {
       labels,
@@ -156,5 +147,5 @@ function renderMonthChart() {
     },
   });
 
-  setChartMonth(novo);
+  setChartMonth(chart);
 }
