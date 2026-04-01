@@ -2,124 +2,130 @@
 <html lang="pt-BR">
 
 <head>
-    <meta charset="UTF-8">
-    <title>Serviços da SEINFRA</title>
+  <meta charset="UTF-8">
+  <title>Serviços da SEINFRA</title>
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="/assets/css/servicos.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="/assets/css/servicos.css">
 </head>
 
 <body>
 
-    <!-- HEADER -->
+  <!-- HEADER -->
 
-    <div class="header">
+  <div class="header">
 
-        <img src="assets/img/prefeitura.png" class="header-logo">
+    <img src="assets/img/prefeitura.png" class="header-logo">
 
-        <h2>Infrasis</h2>
+    <h2>Infrasis</h2>
 
-        <p>SEINFRA – Secretaria de Infraestrutura</p>
+    <p>SEINFRA – Secretaria de Infraestrutura</p>
 
-        <span>Secretária: Liliana Bentes</span>
+    <span>Secretária: Liliana Bentes</span>
 
-    </div>
+  </div>
 
-    <!-- CARDS -->
+  <!-- CARDS -->
 
-    <div class="cards">
+  <div class="cards">
 
-        <div class="card" id="btn-visita" onclick="abrirAgendamento()">
+    <div class="card" id="btn-visita" onclick="abrirAgendamento()">
 
-            <div class="icon">
-                <i class="bi bi-calendar-check"></i>
-            </div>
+      <div class="icon">
+        <i class="bi bi-calendar-check"></i>
+      </div>
 
-            <h3>Agendamento</h3>
+      <h3>Agendamento</h3>
 
-            <p>Cadastro de visitas</p>
-
-        </div>
-
-        <div class="card" id="btn-os" onclick="abrirOS()">
-
-            <div class="icon">
-                <i class="bi bi-tools"></i>
-            </div>
-
-            <h3>Ordem de Serviço</h3>
-
-            <p>Gerenciamento das OS</p>
-
-        </div>
+      <p>Cadastro de visitas</p>
 
     </div>
 
-    <!-- FOOTER -->
+    <div class="card" id="btn-os" onclick="abrirOS()">
 
-    <div class="footer">
+      <div class="icon">
+        <i class="bi bi-tools"></i>
+      </div>
 
-        <div class="footer-content">
+      <h3>Ordem de Serviço</h3>
 
-            <span>
-                SEMEG – Secretaria de Eficiência Governamental
-            </span>
-
-            <span>
-                Prefeitura Municipal de Oriximiná
-            </span>
-
-        </div>
+      <p>Gerenciamento das OS</p>
 
     </div>
 
-    <script type="module">
-import { auth, db } from "./assets/js/firebase.js";
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  </div>
 
-function bloquear(el) {
-  el.classList.add("disabled");
-}
+  <!-- FOOTER -->
 
-window.abrirAgendamento = function () {
-  window.location.href = "home.html";
-};
+  <div class="footer">
 
-window.abrirOS = function () {
-  window.location.href = "dashboard.html";
-};
-onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    window.location.href = "index.html";
-    return;
-  }
+    <div class="footer-content">
 
-  const ref = doc(db, "users", user.uid); // ⚠️ CONFERE ISSO
-  const snap = await getDoc(ref);
+      <span>
+        SEMEG – Secretaria de Eficiência Governamental
+      </span>
 
-  if (!snap.exists()) {
-    alert("Usuário sem cadastro");
-    return;
-  }
+      <span>
+        Prefeitura Municipal de Oriximiná
+      </span>
 
-  const data = snap.data();
+    </div>
 
-  const btnVisita = document.getElementById("btn-visita");
-  const btnOS = document.getElementById("btn-os");
+  </div>
 
-  if (data.role === "os") {
-    bloquear(btnVisita);
+  <script type="module">
+    import { auth, db } from "./assets/js/firebase.js";
+    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-  } else if (data.role === "visita") {
-    bloquear(btnOS);
+    function bloquear(el) {
+      el.classList.add("disabled");
+    }
 
-  } else {
-    bloquear(btnVisita);
-    bloquear(btnOS);
-  }
-});
-</script>
+    window.abrirAgendamento = function () {
+      window.location.href = "home.html";
+    };
+
+    window.abrirOS = function () {
+      window.location.href = "dashboard.html";
+    };
+
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "index.html";
+        return;
+      }
+
+      const ref = doc(db, "users", user.uid);
+      const snap = await getDoc(ref);
+
+      if (!snap.exists()) {
+        alert("Usuário sem cadastro");
+        return;
+      }
+
+      const data = snap.data();
+      const btnVisita = document.getElementById("btn-visita");
+      const btnOS = document.getElementById("btn-os");
+
+      if (data.role === "os") {
+        bloquear(btnVisita);          // só OS liberado
+
+      } else if (data.role === "visita") {
+        bloquear(btnOS);              // só Visita liberado
+
+      } else if (data.role === "master" || data.role === "admin") {
+        // nenhum bloqueio — acessa tudo
+
+      } else {
+        bloquear(btnVisita);          // role desconhecida: bloqueia tudo
+        bloquear(btnOS);
+      }
+    });
+
+
+  </script>
 
 </body>
 

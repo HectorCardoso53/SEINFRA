@@ -1,16 +1,16 @@
-'use strict';
+"use strict";
 
-import { auth, db } from './firebase.js';
+import { auth, db } from "./firebase.js";
 
 import {
   signInWithEmailAndPassword,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 import {
   doc,
-  getDoc
+  getDoc,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 /* =========================
@@ -22,41 +22,41 @@ let authChecked = false;
    LOGIN
 ========================= */
 window.login = async function () {
-  const emailInput = document.getElementById('email');
-  const passwordInput = document.getElementById('password');
+  const emailInput = document.getElementById("email");
+  const passwordInput = document.getElementById("password");
 
-  const emailError = document.getElementById('email-error');
-  const passwordError = document.getElementById('password-error');
-  const loading = document.getElementById('login-loading');
-  const btn = document.getElementById('btn-login');
+  const emailError = document.getElementById("email-error");
+  const passwordError = document.getElementById("password-error");
+  const loading = document.getElementById("login-loading");
+  const btn = document.getElementById("btn-login");
 
   const email = emailInput.value.trim();
   const password = passwordInput.value.trim();
 
   // Reset visual
-  emailError.style.display = 'none';
-  passwordError.style.display = 'none';
-  emailInput.classList.remove('input-error');
-  passwordInput.classList.remove('input-error');
+  emailError.style.display = "none";
+  passwordError.style.display = "none";
+  emailInput.classList.remove("input-error");
+  passwordInput.classList.remove("input-error");
 
   let hasError = false;
 
   if (!email) {
-    emailError.style.display = 'block';
-    emailInput.classList.add('input-error');
+    emailError.style.display = "block";
+    emailInput.classList.add("input-error");
     hasError = true;
   }
 
   if (!password) {
-    passwordError.style.display = 'block';
-    passwordInput.classList.add('input-error');
+    passwordError.style.display = "block";
+    passwordInput.classList.add("input-error");
     hasError = true;
   }
 
   if (hasError) return;
 
   // UI loading
-  loading.style.display = 'block';
+  loading.style.display = "block";
   btn.disabled = true;
 
   try {
@@ -64,7 +64,7 @@ window.login = async function () {
     const cred = await signInWithEmailAndPassword(auth, email, password);
 
     // 🔎 BUSCA DADOS DO USUÁRIO
-    const ref = doc(db, 'users', cred.user.uid); // ⚠️ CONFIRMA SE É 'users'
+    const ref = doc(db, "users", cred.user.uid); // ⚠️ CONFIRMA SE É 'users'
     const snap = await getDoc(ref);
 
     if (!snap.exists()) {
@@ -79,44 +79,39 @@ window.login = async function () {
     }
 
     // 🚀 REDIRECIONAMENTO INTELIGENTE
-    if (data.role === 'visita') {
-      window.location.replace('home.html');
-
-    } else if (data.role === 'os') {
-     window.location.replace('dashboard.html');
-
-    } else if (data.role === 'admin') {
-      window.location.replace('admin.html');
-
+    if (data.role === "visita") {
+      window.location.replace("home.html");
+    } else if (data.role === "os") {
+      window.location.replace("dashboard.html");
+    } else if (data.role === "admin") {
+      window.location.replace("admin.html");
+    } else if (data.role === "master") {
+      window.location.replace("servicos.html");
     } else {
       throw new Error("role-invalido");
     }
-
   } catch (error) {
-    loading.style.display = 'none';
+    loading.style.display = "none";
     btn.disabled = false;
 
-    let msg = 'Erro ao fazer login';
+    let msg = "Erro ao fazer login";
 
-    if (error.code === 'auth/invalid-credential') {
-      msg = '<i class="bi bi-exclamation-triangle"></i> E-mail ou senha inválidos';
-
-    } else if (error.code === 'auth/network-request-failed') {
+    if (error.code === "auth/invalid-credential") {
+      msg =
+        '<i class="bi bi-exclamation-triangle"></i> E-mail ou senha inválidos';
+    } else if (error.code === "auth/network-request-failed") {
       msg = '<i class="bi bi-wifi-off"></i> Sem conexão com a internet';
-
     } else if (error.message === "sem-perfil") {
-      msg = 'Usuário não possui cadastro no sistema';
-
+      msg = "Usuário não possui cadastro no sistema";
     } else if (error.message === "sem-role") {
-      msg = 'Usuário sem permissão definida';
-
+      msg = "Usuário sem permissão definida";
     } else if (error.message === "role-invalido") {
-      msg = 'Permissão inválida no sistema';
+      msg = "Permissão inválida no sistema";
     }
 
     passwordError.innerHTML = msg;
-    passwordError.style.display = 'block';
-    passwordInput.classList.add('input-error');
+    passwordError.style.display = "block";
+    passwordInput.classList.add("input-error");
   }
 };
 /* =========================
@@ -124,7 +119,7 @@ window.login = async function () {
 ========================= */
 window.logout = async function () {
   await signOut(auth);
-  window.location.replace('index.html');
+  window.location.replace("index.html");
 };
 
 /* =========================
@@ -133,11 +128,11 @@ window.logout = async function () {
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
 
-  const ref = doc(db, 'users', user.uid);
+  const ref = doc(db, "users", user.uid);
   const snap = await getDoc(ref);
 
   if (!snap.exists()) {
-    alert('Usuário sem perfil cadastrado.');
+    alert("Usuário sem perfil cadastrado.");
     return;
   }
 
@@ -148,15 +143,15 @@ onAuthStateChanged(auth, async (user) => {
   window.userNome = data.nome; // 👈 GUARDA O NOME
 
   // 👤 PREENCHE AUTOMATICAMENTE NA NOVA OS
-  const inputResponsavel = document.getElementById('responsavel-abertura');
+  const inputResponsavel = document.getElementById("responsavel-abertura");
   if (inputResponsavel) {
     inputResponsavel.value = data.nome;
   }
 
   // 👁️ menu admin
-  if (data.role === 'admin') {
-    document.querySelectorAll('.admin-only')
-      .forEach(el => el.style.display = 'flex');
+  if (data.role === "admin") {
+    document
+      .querySelectorAll(".admin-only")
+      .forEach((el) => (el.style.display = "flex"));
   }
 });
-
