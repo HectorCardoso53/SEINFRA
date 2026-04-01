@@ -1,7 +1,9 @@
 // ============================================================
 // app.js — Orquestrador principal
-// Importa todos os módulos e registra listeners e window.*
 // ============================================================
+
+// 🔒 Inicializa flag global ANTES de qualquer import
+window.modoEdicaoAtivo = false;
 
 import "../auth.js";
 import "../admin-users.js";
@@ -16,6 +18,7 @@ import { inicializarSistema, setDataAtual, carregarSetores,
   excluirOS, editarOS,
   adicionarMaterialEncerramento, removerMaterialEncerramento,
   handleFormOSSubmit, handleFormEncerramentoSubmit,
+  limparFormulario,
 } from "./ordens.js";
 
 import {
@@ -37,7 +40,6 @@ import { ordens } from "./state.js";
    DOMCONTENTLOADED
 ========================= */
 document.addEventListener("DOMContentLoaded", async function () {
-  // Filtro de diretoria
   const filtroDiretoria = document.getElementById("filtro-diretoria");
   if (filtroDiretoria) {
     filtroDiretoria.addEventListener("change", function () {
@@ -45,7 +47,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
   }
 
-  // Tipo OS
   const tipoOS = document.getElementById("tipo-os");
   const campoSetor = document.getElementById("campo-setor-solicitante");
   const inputSetor = document.getElementById("setor-solicitante");
@@ -58,7 +59,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
   }
 
-  // Diretoria → setores
   const selectDiretoria = document.getElementById("setor-responsavel");
   const selectSetor = document.getElementById("setor-solicitante");
   if (selectDiretoria && selectSetor) {
@@ -67,7 +67,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
   }
 
-  // Overlay sidebar
   const overlay = document.querySelector(".overlay");
   if (overlay) {
     overlay.addEventListener("click", () => {
@@ -76,15 +75,12 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
   }
 
-  // Formulário de OS
   const formOS = document.getElementById("form-os");
   if (formOS) formOS.addEventListener("submit", handleFormOSSubmit);
 
-  // Formulário de encerramento
   const formEncerramento = document.getElementById("form-encerramento");
   if (formEncerramento) formEncerramento.addEventListener("submit", handleFormEncerramentoSubmit);
 
-  // Máscara CPF
   const cpfInput = document.getElementById("cpf-solicitante");
   cpfInput?.addEventListener("input", function (e) {
     let v = e.target.value.replace(/\D/g, "");
@@ -94,7 +90,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     e.target.value = v;
   });
 
-  // Máscara telefone
   const telefoneInput = document.getElementById("telefone-solicitante");
   telefoneInput?.addEventListener("input", function (e) {
     let v = e.target.value.replace(/\D/g, "");
@@ -103,7 +98,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     e.target.value = v;
   });
 
-  // Auto-uppercase em inputs de texto
   document.addEventListener("input", function (e) {
     const el = e.target;
     if ((el.tagName === "INPUT" && el.type === "text") || el.tagName === "TEXTAREA") {
@@ -113,10 +107,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
   });
 
-  // Autocomplete de visitas
   inicializarAutoCompleteVisitas();
-
-  // Inicializa o sistema
   inicializarSistema();
   carregarAnoMateriais();
   carregarFiltroAno();
@@ -124,7 +115,6 @@ document.addEventListener("DOMContentLoaded", async function () {
 
 /* =========================
    EXPOSIÇÃO GLOBAL (window.*)
-   Necessário para onclick inline no HTML
 ========================= */
 window.mostrarAlerta = mostrarAlerta;
 window.fecharAlerta = fecharAlerta;
@@ -140,11 +130,16 @@ window.fecharModalDetalhes = fecharModalDetalhes;
 window.alterarStatus = alterarStatus;
 window.mostrarEncerramento = mostrarEncerramento;
 window.fecharModalEncerramento = fecharModalEncerramento;
-window.excluirOS = (id) => excluirOS(id, ordens);
-window.editarOS = (id) => editarOS(id, ordens);
+
+// 🔑 editarOS e excluirOS agora recebem apenas o id
+// Buscam do Firestore diretamente — funcionam com filtros ativos
+window.excluirOS = (id) => excluirOS(id);
+window.editarOS = (id) => editarOS(id);
+
 window.mostrarConfirmacao = mostrarConfirmacao;
 window.adicionarMaterialEncerramento = adicionarMaterialEncerramento;
 window.removerMaterialEncerramento = removerMaterialEncerramento;
+window.limparFormulario = limparFormulario;
 
 window.proximaPagina = proximaPagina;
 window.paginaAnterior = paginaAnterior;

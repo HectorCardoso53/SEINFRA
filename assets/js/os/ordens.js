@@ -21,6 +21,42 @@ import {
 } from "./state.js";
 
 /* =========================
+   CONTROLE DO CAMPO RESPONSAVEL-ABERTURA
+
+   O auth.js chama window._onAuthPronto(nome) quando o Firebase responde.
+   Aqui decidimos o que fazer com esse nome:
+   - Se estiver em modo edição: ignora completamente
+   - Se for nova OS: preenche com o nome do usuário logado
+========================= */
+
+let _valorEdicaoAtual = null;
+
+window._onAuthPronto = function(nomeUsuario) {
+  const campo = document.getElementById("responsavel-abertura");
+  if (!campo) return;
+
+  if (_valorEdicaoAtual !== null) {
+    // Em modo edição — mantém o valor da OS, ignora o auth
+    campo.value = _valorEdicaoAtual;
+  } else {
+    // Nova OS — preenche com o usuário logado
+    campo.value = nomeUsuario;
+  }
+};
+
+function ativarModoEdicao(valorDaOS) {
+  _valorEdicaoAtual = valorDaOS || "";
+  const campo = document.getElementById("responsavel-abertura");
+  if (campo) campo.value = _valorEdicaoAtual;
+}
+
+function desativarModoEdicao() {
+  _valorEdicaoAtual = null;
+  const campo = document.getElementById("responsavel-abertura");
+  if (campo && window.userNome) campo.value = window.userNome;
+}
+
+/* =========================
    INICIALIZAÇÃO
 ========================= */
 export async function inicializarSistema() {
@@ -73,16 +109,12 @@ export async function atualizarDashboardComResumo(resumo) {
 }
 
 export async function atualizarGraficos(resumo) {
-  const abertas = resumo.abertas;
-  const andamento = resumo.andamento;
-  const encerradas = resumo.encerradas;
-
   if (graficoStatus) graficoStatus.destroy();
   const novoGraficoStatus = new Chart(document.getElementById("grafico-status"), {
     type: "doughnut",
     data: {
       labels: ["Abertas", "Em andamento", "Encerradas"],
-      datasets: [{ data: [abertas, andamento, encerradas], backgroundColor: ["#3498db", "#ff9800", "#4caf50"] }],
+      datasets: [{ data: [resumo.abertas, resumo.andamento, resumo.encerradas], backgroundColor: ["#3498db", "#ff9800", "#4caf50"] }],
     },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } },
   });
@@ -123,6 +155,7 @@ export function coletarDadosFormulario(setorFinal, descricao, responsavelExecuca
 }
 
 export async function limparFormulario() {
+  desativarModoEdicao();
   setOsAtual(null);
   document.getElementById("form-os").reset();
   setMateriais([]);
@@ -136,6 +169,7 @@ export async function limparFormulario() {
 }
 
 export function limparFormularioOS(modoEdicao = false) {
+  desativarModoEdicao();
   if (!modoEdicao) document.getElementById("numero-os").value = "";
   document.getElementById("data-abertura").value = "";
   document.getElementById("tipo-os").value = "";
@@ -146,7 +180,7 @@ export function limparFormularioOS(modoEdicao = false) {
   document.getElementById("local-servico").value = "";
   document.getElementById("ponto-referencia").value = "";
   document.getElementById("responsavel-execucao").value = "";
-  document.getElementById("responsavel-abertura").value = "";
+  document.getElementById("responsavel-abertura").value = window.userNome || "";
   setMateriais([]);
   renderizarMateriais([]);
 }
@@ -167,11 +201,9 @@ export function adicionarMaterial() {
 
   const novosMateriais = [...materiais, { nome, quantidade, unidade }];
   setMateriais(novosMateriais);
-
   document.getElementById("material-nome").value = "";
   document.getElementById("material-quantidade").value = "";
   document.getElementById("material-unidade").value = "";
-
   renderizarMateriais(novosMateriais);
 }
 
@@ -258,9 +290,9 @@ ${tipoOS !== "externa" ? `<div><strong>Setor Solicitante:</strong> ${ordem.setor
 
 <h3 style="border-bottom:1px solid #ddd; padding-bottom:8px; margin-top:15px;">Execução</h3>
 <div><strong>Responsável Execução:</strong> ${ordem.responsavelExecucao || "-"}</div>
-<div><strong>Responsável Abertura:</strong> ${ordem.responsavelAbertura}</div>
+<div><strong>Responsável Abertura:</strong> ${ordem.responsavelAbertura || "-"}</div>
 <div><strong>Local do Serviço:</strong> ${ordem.localServico}</div>
-${tipoOS === "externa" ? `<div><strong>Ponto de Referência:</strong> ${ordem.pontoReferencia || "-"}</div>` : ""}
+<div><strong>Ponto de Referência:</strong> ${ordem.pontoReferencia || "-"}</div>
 <div><strong>Local no mapa:</strong> ${ordem.latitude ? `<a href="https://www.google.com/maps?q=${ordem.latitude},${ordem.longitude}" target="_blank">Abrir no Google Maps</a>` : "Não informado"}</div>
 
 <h3 style="border-bottom:1px solid #ddd; padding-bottom:8px; margin-top:15px;">Serviço</h3>
@@ -372,7 +404,6 @@ export async function handleFormEncerramentoSubmit(e) {
   });
 
   await visualizarOS(osAtual.id);
-
   setMateriaisEncerramento([]);
   renderizarMateriaisEncerramento([]);
   fecharModalEncerramento();
@@ -383,10 +414,15 @@ export async function handleFormEncerramentoSubmit(e) {
 
 /* =========================
    EXCLUIR OS
+   🔑 Busca direto do Firestore pelo id — funciona com filtros ativos
 ========================= */
-export function excluirOS(id, ordensLista) {
-  const ordem = ordensLista.find((o) => o.id === id);
-  if (!ordem) return;
+export async function excluirOS(id) {
+  // Busca a ordem direto do Firestore — não depende do array local
+  const ordem = await buscarOrdemPorId(id);
+  if (!ordem) {
+    mostrarAlerta("Ordem não encontrada.", "Erro");
+    return;
+  }
 
   mostrarConfirmacao(
     `Tem certeza que deseja excluir a OS ${ordem.numero}?`,
@@ -406,15 +442,23 @@ export function excluirOS(id, ordensLista) {
 
 /* =========================
    EDITAR OS
+   🔑 Busca direto do Firestore pelo id — funciona com filtros ativos
 ========================= */
-export function editarOS(id, ordensLista) {
-  const ordem = ordensLista.find((o) => o.id === id);
-  if (!ordem) return;
+export async function editarOS(id) {
+  // Busca a ordem direto do Firestore — não depende do array local
+  const ordem = await buscarOrdemPorId(id);
+  if (!ordem) {
+    mostrarAlerta("Ordem não encontrada.", "Erro");
+    return;
+  }
 
   if (ordem.status === "Encerrada") {
     mostrarAlerta("Não é permitido editar uma OS encerrada.", "Atenção");
     return;
   }
+
+  // 🔑 Ativa modo edição com o valor correto da OS
+  ativarModoEdicao(ordem.responsavelAbertura);
 
   setOsAtual(ordem);
   showPage("nova-os");
@@ -425,19 +469,17 @@ export function editarOS(id, ordensLista) {
   document.getElementById("data-abertura").value = ordem.dataAbertura;
   document.getElementById("setor-responsavel").value = ordem.setorResponsavel;
   document.getElementById("nome-solicitante").value = ordem.nomeSolicitante;
+  document.getElementById("descricao-servico").value = ordem.descricaoServico;
+  document.getElementById("ponto-referencia").value = ordem.pontoReferencia || "";
+  document.getElementById("local-servico").value = ordem.localServico;
+  document.getElementById("responsavel-execucao").value = ordem.responsavelExecucao || "";
 
   carregarSetores(ordem.setorResponsavel);
 
   const setorLimpo = ordem.setorSolicitante?.replace(/^SETOR\s+/i, "").trim().toUpperCase();
   setTimeout(() => {
     document.getElementById("setor-solicitante").value = setorLimpo;
-  }, 50);
-
-  document.getElementById("descricao-servico").value = ordem.descricaoServico;
-  document.getElementById("ponto-referencia").value = ordem.pontoReferencia || "";
-  document.getElementById("local-servico").value = ordem.localServico;
-  document.getElementById("responsavel-execucao").value = ordem.responsavelExecucao;
-  document.getElementById("responsavel-abertura").value = ordem.responsavelAbertura;
+  }, 100);
 
   setMateriais(ordem.materiais || []);
   renderizarMateriais(ordem.materiais || []);
@@ -468,27 +510,19 @@ export function adicionarMaterialEncerramento() {
   const unidadeInput = document.getElementById("enc-material-unidade");
   const quantidadeInput = document.getElementById("enc-material-quantidade");
 
-  if (!nomeInput || !unidadeInput || !quantidadeInput) {
-    console.error("Campos de encerramento não encontrados");
-    return;
-  }
+  if (!nomeInput || !unidadeInput || !quantidadeInput) return;
 
   const nome = nomeInput.value.trim();
   const unidade = unidadeInput.value.trim();
   const quantidade = quantidadeInput.value;
 
-  if (!nome || !unidade) {
-    mostrarAlerta("Preencha material e unidade.", "Atenção");
-    return;
-  }
+  if (!nome || !unidade) { mostrarAlerta("Preencha material e unidade.", "Atenção"); return; }
 
   const novos = [...materiaisEncerramento, { nome, unidade, quantidade: quantidade ? parseFloat(quantidade) : null }];
   setMateriaisEncerramento(novos);
-
   nomeInput.value = "";
   unidadeInput.value = "";
   quantidadeInput.value = "";
-
   renderizarMateriaisEncerramento(novos);
 }
 

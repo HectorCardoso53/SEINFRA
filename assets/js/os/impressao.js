@@ -11,25 +11,27 @@ import { mostrarAlerta } from "./ui.js";
    ESTILOS BASE COMPARTILHADOS
 ========================= */
 const cssBase = `
-@page { size: A4 portrait; margin: 12mm; }
-body { font-family: Arial; font-size: 12px; }
-.folha { display:flex; flex-direction:column; gap:15px; }
-.os-bloco { border:1px solid #000; padding:12px; }
-.header { display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:10px; }
-.header img { width:40px; }
-.header-text h1 { font-size:16px; margin:0; }
-.header-text p { font-size:11px; margin:0; }
-.titulo { text-align:center; font-size:14px; font-weight:bold; margin:10px 0; }
-.secao { margin-bottom:10px; }
-.secao h3 { font-size:12px; border-bottom:1px solid #000; margin-bottom:6px; }
-.assinaturas { display:flex; justify-content:space-around; margin-top:25px; gap:30px; }
-.assinatura-box { flex:1; text-align:center; }
-.linha { border-top:1px solid #000; margin-bottom:5px; }
-.linha-corte { border-top:2px dashed #000; margin:5px 0; }
-.footer { margin-top:10px; font-size:10px; text-align:right; }
-table { width:100%; border-collapse:collapse; }
-th, td { border:1px solid #000; padding:4px; font-size:11px; }
-th { background:#f2f2f2; }
+@page { size: A4 portrait; margin: 8mm; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial; font-size: 10px; line-height: 1.4; }
+.folha { display: flex; flex-direction: column; gap: 0; }
+.os-bloco { border: 1px solid #000; padding: 8px 10px; }
+.header { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 6px; }
+.header img { width: 32px; }
+.header-text h1 { font-size: 12px; margin: 0; }
+.header-text p { font-size: 9px; margin: 0; }
+.titulo { text-align: center; font-size: 11px; font-weight: bold; margin: 5px 0 7px 0; }
+.secao { margin-bottom: 6px; }
+.secao h3 { font-size: 9px; font-weight: bold; border-bottom: 1px solid #000; margin-bottom: 4px; padding-bottom: 1px; }
+.secao div { margin-bottom: 2px; word-break: break-word; }
+.assinaturas { display: flex; justify-content: space-around; margin-top: 12px; gap: 16px; }
+.assinatura-box { flex: 1; text-align: center; font-size: 9px; }
+.linha { border-top: 1px solid #000; margin-bottom: 3px; margin-top: 22px; }
+.linha-corte { border-top: 2px dashed #000; margin: 6px 0; }
+.footer { margin-top: 5px; font-size: 8px; text-align: right; color: #555; }
+table { width: 100%; border-collapse: collapse; }
+th, td { border: 1px solid #000; padding: 2px 4px; font-size: 9px; }
+th { background: #f2f2f2; }
 `;
 
 function abrirJanelaPrint(htmlCompleto) {
@@ -59,13 +61,22 @@ function assinaturasHTML(tipoOS) {
     : ["Secretária", "Responsável"];
   return `
 <div class="assinaturas">
-  ${boxes.map((label) => `<div class="assinatura-box"><div class="linha"></div>${label}</div>`).join("")}
+  ${boxes.map((label) => `
+    <div class="assinatura-box">
+      <div class="linha"></div>
+      ${label}
+    </div>`).join("")}
 </div>`;
 }
 
 function conteudoOSHTML(dados) {
-  const { numero, status, dataAbertura, dataEncerramento, tipoOS, nomeSolicitante,
-    cpf, telefone, setorSolicitante, setorResponsavel, execucao, abertura, local, descricao } = dados;
+  const {
+    numero, status, dataAbertura, dataEncerramento, tipoOS,
+    nomeSolicitante, cpf, telefone, setorSolicitante, setorResponsavel,
+    execucao, abertura, local, pontoReferencia, descricao,
+    assinaturaChefia, assinaturaRecebedor,
+  } = dados;
+
   const tipo = (tipoOS || "").toLowerCase();
   const tipoTitulo = tipo === "externa" ? "EXTERNA" : tipo === "interna" ? "INTERNA" : "";
   const dataEmissao = new Date().toLocaleString("pt-BR");
@@ -75,38 +86,42 @@ ${headerPrefeitura()}
 <div class="titulo">ORDEM DE SERVIÇO ${tipoTitulo}</div>
 
 <div class="secao">
-<h3>Informações Gerais</h3>
-<div><strong>Número:</strong> ${numero}</div>
-<div><strong>Status:</strong> ${status || "Aberta"}</div>
-<div><strong>Data de Abertura:</strong> ${formatarDataCompleta(dataAbertura)}</div>
-<div><strong>Data de Encerramento:</strong> ${dataEncerramento ? formatarDataCompleta(dataEncerramento) : "-"}</div>
+  <h3>Informações Gerais</h3>
+  <div><strong>Número:</strong> ${numero || "-"}</div>
+  <div><strong>Status:</strong> ${status || "Aberta"}</div>
+  <div><strong>Data de Abertura:</strong> ${formatarDataCompleta(dataAbertura)}</div>
+  <div><strong>Data de Encerramento:</strong> ${dataEncerramento ? formatarDataCompleta(dataEncerramento) : "-"}</div>
 </div>
 
 <div class="secao">
-<h3>Solicitante</h3>
-<div><strong>Nome:</strong> ${nomeSolicitante}</div>
-<div><strong>CPF:</strong> ${cpf || "-"}</div>
-<div><strong>Telefone:</strong> ${telefone || "-"}</div>
-<div><strong>Setor:</strong> ${setorSolicitante || "-"}</div>
-<div><strong>Setor Responsável:</strong> ${setorResponsavel}</div>
+  <h3>Solicitante</h3>
+  <div><strong>Nome:</strong> ${nomeSolicitante || "-"}</div>
+  <div><strong>CPF:</strong> ${cpf || "-"}</div>
+  <div><strong>Telefone:</strong> ${telefone || "-"}</div>
+  ${tipo !== "externa" ? `<div><strong>Setor:</strong> ${setorSolicitante || "-"}</div>` : ""}
+  <div><strong>Diretoria Responsável:</strong> ${setorResponsavel || "-"}</div>
 </div>
 
 <div class="secao">
-<h3>Execução</h3>
-<div><strong>Responsável Execução:</strong> ${execucao || "-"}</div>
-<div><strong>Responsável Abertura:</strong> ${abertura}</div>
-<div><strong>Local do Serviço:</strong> ${local}</div>
+  <h3>Execução</h3>
+  <div><strong>Responsável pela Execução:</strong> ${execucao || "-"}</div>
+  <div><strong>Responsável pela Abertura:</strong> ${abertura || "-"}</div>
+  <div><strong>Local do Serviço:</strong> ${local || "-"}</div>
+  <div><strong>Ponto de Referência:</strong> ${pontoReferencia || "-"}</div>
 </div>
 
 <div class="secao">
-<h3>Descrição do Serviço</h3>
-<div>${descricao}</div>
+  <h3>Descrição do Serviço</h3>
+  <div style="line-height:1.6;">${descricao || "-"}</div>
 </div>
 
 <div class="secao">
-<h3>Encerramento</h3>
-${assinaturasHTML(tipo)}
+  <h3>Encerramento</h3>
+  ${assinaturaChefia ? `<div><strong>Responsável:</strong> ${assinaturaChefia}</div>` : ""}
+  ${assinaturaRecebedor ? `<div><strong>Recebedor:</strong> ${assinaturaRecebedor}</div>` : ""}
+  ${assinaturasHTML(tipo)}
 </div>
+
 <div class="footer">Documento gerado em: ${dataEmissao}</div>`;
 }
 
@@ -125,10 +140,13 @@ export function previsualizarOS() {
     setorResponsavel: document.getElementById("setor-responsavel").value,
     descricao: document.getElementById("descricao-servico").value,
     local: document.getElementById("local-servico").value,
+    pontoReferencia: document.getElementById("ponto-referencia")?.value || "-",
     execucao: document.getElementById("responsavel-execucao")?.value || "-",
     abertura: document.getElementById("responsavel-abertura").value,
     status: "Aberta",
     dataEncerramento: null,
+    assinaturaChefia: null,
+    assinaturaRecebedor: null,
   };
 
   const bloco = conteudoOSHTML(dados);
@@ -144,7 +162,13 @@ export function imprimirDetalhesOS() {
 
   const temMateriais = osAtual.materiais && osAtual.materiais.length > 0;
   const materiaisHTML = temMateriais
-    ? osAtual.materiais.map((m, i) => `<tr><td>${i + 1}</td><td>${m.nome}</td><td>${m.quantidade || "-"}</td><td>${m.unidade}</td></tr>`).join("")
+    ? osAtual.materiais.map((m, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${m.nome}</td>
+          <td>${m.quantidade || "-"}</td>
+          <td>${m.unidade}</td>
+        </tr>`).join("")
     : "";
 
   const dados = {
@@ -161,20 +185,33 @@ export function imprimirDetalhesOS() {
     execucao: osAtual.responsavelExecucao,
     abertura: osAtual.responsavelAbertura,
     local: osAtual.localServico,
+    pontoReferencia: osAtual.pontoReferencia,
     descricao: osAtual.descricaoServico,
+    assinaturaChefia: osAtual.assinaturaChefia,
+    assinaturaRecebedor: osAtual.assinaturaRecebedor,
   };
 
   let bloco = conteudoOSHTML(dados);
+
   if (temMateriais) {
     bloco += `
-<div class="secao">
-<h3>Materiais Utilizados</h3>
-<table><thead><tr><th>#</th><th>Material</th><th>Quantidade</th><th>Unidade</th></tr></thead>
-<tbody>${materiaisHTML}</tbody></table>
+<div class="secao" style="margin-top:6px;">
+  <h3>Materiais Utilizados</h3>
+  <table>
+    <thead><tr><th>#</th><th>Material</th><th>Quantidade</th><th>Unidade</th></tr></thead>
+    <tbody>${materiaisHTML}</tbody>
+  </table>
 </div>`;
   }
 
-  const body = `<div class="folha"><div class="os-bloco">${bloco}</div><div class="linha-corte"></div><div class="os-bloco">${bloco}</div></div>`;
+  // Duas vias por página — cada bloco ocupa metade do A4
+  const body = `
+<div class="folha">
+  <div class="os-bloco">${bloco}</div>
+  <div class="linha-corte"></div>
+  <div class="os-bloco">${bloco}</div>
+</div>`;
+
   abrirJanelaPrint(wrapHTML(`Ordem de Serviço - ${osAtual.numero}`, body));
 }
 
@@ -188,21 +225,28 @@ export function gerarPDFMateriais() {
   }
 
   const lista = osAtual.materiais
-    .map((m, i) => `<tr><td>${i + 1}</td><td>${m.nome}</td><td>${m.quantidade || "-"}</td><td>${m.unidade}</td></tr>`)
+    .map((m, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${m.nome}</td>
+        <td>${m.quantidade || "-"}</td>
+        <td>${m.unidade}</td>
+      </tr>`)
     .join("");
 
   const dataEmissao = new Date().toLocaleString("pt-BR");
 
   const body = `
-${headerPrefeitura("80px")}
+${headerPrefeitura("50px")}
 <div class="titulo">RELAÇÃO DE MATERIAIS SOLICITADOS</div>
-<div style="margin-bottom:20px;font-size:14px;">
+<div style="margin-bottom:16px;font-size:12px;line-height:1.6;">
   <div><strong>Número da OS:</strong> ${osAtual.numero}</div>
   <div><strong>Data de Abertura:</strong> ${formatarDataCompleta(osAtual.dataAbertura)}</div>
   <div><strong>Solicitante:</strong> ${osAtual.nomeSolicitante}</div>
-  <div><strong>Setor:</strong> ${osAtual.setorSolicitante}</div>
-  <div><strong>Local do Serviço:</strong> ${osAtual.localServico}</div>
-  <div><strong>Responsável Execução:</strong> ${osAtual.responsavelExecucao || ""}</div>
+  <div><strong>Setor:</strong> ${osAtual.setorSolicitante || "-"}</div>
+  <div><strong>Local do Serviço:</strong> ${osAtual.localServico || "-"}</div>
+  <div><strong>Ponto de Referência:</strong> ${osAtual.pontoReferencia || "-"}</div>
+  <div><strong>Responsável Execução:</strong> ${osAtual.responsavelExecucao || "-"}</div>
 </div>
 <table>
   <thead><tr><th>#</th><th>Material</th><th>Quantidade</th><th>Unidade</th></tr></thead>
@@ -241,7 +285,7 @@ export function imprimirMateriaisMes() {
   const dataEmissao = new Date().toLocaleString("pt-BR");
 
   const body = `
-${headerPrefeitura("80px")}
+${headerPrefeitura("50px")}
 <div class="titulo">RELATÓRIO DE MATERIAIS UTILIZADOS</div>
 <table>
   <thead><tr><th>Material</th><th>Quantidade</th><th>Unidade</th></tr></thead>
@@ -295,8 +339,7 @@ export async function imprimirRelatorio() {
   ordensFiltradas.sort((a, b) => (b.numeroSequencial || 0) - (a.numeroSequencial || 0));
 
   const linhas = ordensFiltradas
-    .map(
-      (o) => `
+    .map((o) => `
       <tr>
         <td>${o.numero || "-"}</td>
         <td>${o.dataAbertura ? formatarData(o.dataAbertura) : "-"}</td>
@@ -304,12 +347,11 @@ export async function imprimirRelatorio() {
         <td>${o.nomeSolicitante || "-"}</td>
         <td>${o.setorSolicitante || "-"}</td>
         <td>${(o.descricaoServico || "-").substring(0, 100)}</td>
-      </tr>`
-    )
+      </tr>`)
     .join("");
 
   const body = `
-${headerPrefeitura("80px")}
+${headerPrefeitura("50px")}
 <div class="titulo">RELATÓRIO DE ORDENS DE SERVIÇO</div>
 <table>
   <thead>
