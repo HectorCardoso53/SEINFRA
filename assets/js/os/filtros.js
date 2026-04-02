@@ -52,55 +52,91 @@ export function paginaAnterior() {
 }
 
 /* =========================
+   UTILITÁRIO DE DATA
+   Converte qualquer formato de data para objeto Date corretamente
+========================= */
+function parsearData(dataAbertura) {
+  if (!dataAbertura) return null;
+
+  // Timestamp do Firestore
+  if (dataAbertura?.toDate) return dataAbertura.toDate();
+
+  // String ISO com hora: "2026-03-16T17:36" ou "2026-03-16T17:36:00"
+  if (typeof dataAbertura === "string") {
+    // Garante que a comparação seja feita sem ajuste de fuso
+    // Adiciona 'Z' apenas se não tiver timezone informado
+    const temFuso = dataAbertura.includes("Z") || dataAbertura.includes("+") || dataAbertura.includes("-", 10);
+    if (!temFuso && dataAbertura.includes("T")) {
+      // Trata como horário local (não UTC)
+      return new Date(dataAbertura);
+    }
+    return new Date(dataAbertura);
+  }
+
+  return new Date(dataAbertura);
+}
+
+/* =========================
    FILTROS
 ========================= */
 export async function aplicarFiltros() {
-  const diretoria = document.getElementById("filtro-diretoria")?.value || "";
-  const dataInicio = document.getElementById("filtro-data-inicio")?.value || "";
-  const dataFim = document.getElementById("filtro-data-fim")?.value || "";
-  const servico = document.getElementById("filtro-servico")?.value?.toLowerCase() || "";
-  const mes = document.getElementById("filtro-mes")?.value || "";
-  const ano = document.getElementById("filtro-ano")?.value || "";
-  const status = document.getElementById("filtro-status")?.value || "";
-  const solicitante = document.getElementById("filtro-solicitante")?.value?.trim().toLowerCase() || "";
+  const diretoria   = document.getElementById("filtro-diretoria")?.value || "";
+  const dataInicio  = document.getElementById("filtro-data-inicio")?.value || "";
+  const dataFim     = document.getElementById("filtro-data-fim")?.value || "";
+  const servico     = document.getElementById("filtro-servico")?.value?.trim() || "";
+  const mes         = document.getElementById("filtro-mes")?.value ?? "";
+  const ano         = document.getElementById("filtro-ano")?.value || "";
+  const status      = document.getElementById("filtro-status")?.value || "";
+  const solicitante = document.getElementById("filtro-solicitante")?.value?.trim() || "";
   const setorSolicitante = document.getElementById("filtro-setor-solicitante")?.value?.trim() || "";
 
-  let baseDados = await buscarTodasOrdens();
+  // Monta os limites de data UMA VEZ para não recriar a cada item
+  const dtInicio = dataInicio ? new Date(dataInicio + "T00:00:00") : null;
+  const dtFim    = dataFim    ? new Date(dataFim    + "T23:59:59") : null;
 
-  let ordensFiltradas = baseDados.filter((o) => {
+  // Busca TODAS as ordens sem limite
+  const baseDados = await buscarTodasOrdens();
+
+  const ordensFiltradas = baseDados.filter((o) => {
     if (!o) return false;
 
+    // — Serviço (busca no texto, uppercase dos dois lados)
     if (servico) {
-      const desc = o.descricaoServico?.toLowerCase() || "";
-      if (!desc.includes(servico)) return false;
+      const desc = normalizarTexto(o.descricaoServico || "");
+      if (!desc.includes(normalizarTexto(servico))) return false;
     }
 
-    let data = null;
-    if (o.dataAbertura?.toDate) {
-      data = o.dataAbertura.toDate();
-    } else if (o.dataAbertura) {
-      data = new Date(o.dataAbertura);
-    }
-
+    // — Parse da data da OS
+    const data = parsearData(o.dataAbertura);
     if (!data || isNaN(data)) return false;
 
-    if (dataInicio && data < new Date(dataInicio + "T00:00:00")) return false;
-    if (dataFim && data > new Date(dataFim + "T23:59:59")) return false;
+    // — Intervalo de datas
+    if (dtInicio && data < dtInicio) return false;
+    if (dtFim    && data > dtFim)    return false;
+
+    // — Mês (0-11)
     if (mes !== "" && data.getMonth() !== Number(mes)) return false;
+
+    // — Ano
     if (ano !== "" && data.getFullYear() !== Number(ano)) return false;
+
+    // — Status
     if (status && o.status !== status) return false;
 
+    // — Solicitante (nome parcial, case insensitive)
     if (solicitante) {
-      const nome = o.nomeSolicitante?.toLowerCase() || "";
-      if (!nome.includes(solicitante)) return false;
+      const nome = normalizarTexto(o.nomeSolicitante || "");
+      if (!nome.includes(normalizarTexto(solicitante))) return false;
     }
 
+    // — Setor solicitante
     if (setorSolicitante) {
-      const filtro = normalizarTexto(setorSolicitante);
-      const valor = normalizarTexto(o.setorSolicitante || "");
-      if (!valor.includes(filtro.replace("SETOR ", ""))) return false;
+      const filtro = normalizarTexto(setorSolicitante).replace(/^SETOR\s+/i, "");
+      const valor  = normalizarTexto(o.setorSolicitante || "");
+      if (!valor.includes(filtro)) return false;
     }
 
+    // — Diretoria responsável
     if (diretoria && o.setorResponsavel !== diretoria) return false;
 
     return true;
@@ -108,7 +144,9 @@ export async function aplicarFiltros() {
 
   ordensFiltradas.sort((a, b) => (b.numeroSequencial || 0) - (a.numeroSequencial || 0));
 
-  const temFiltro = dataInicio || dataFim || mes !== "" || ano !== "" || status || diretoria || solicitante || setorSolicitante;
+  // Esconde paginação quando há filtro ativo
+  const temFiltro = dataInicio || dataFim || mes !== "" || ano !== "" ||
+                    status || diretoria || solicitante || setorSolicitante || servico;
   const paginacao = document.querySelector(".paginacao");
   if (paginacao) paginacao.style.display = temFiltro ? "none" : "block";
 
@@ -177,16 +215,14 @@ export function renderTabelaMateriaisMes(lista) {
     return;
   }
   tbody.innerHTML = lista
-    .map(
-      (m) => `
-    <tr>
-      <td>${m.nome}</td>
-      <td>${m.quantidade}</td>
-      <td>${m.unidade}</td>
-      <td>${m.os}</td>
-    </tr>
-  `
-    )
+    .map((m) => `
+      <tr>
+        <td>${m.nome}</td>
+        <td>${m.quantidade}</td>
+        <td>${m.unidade}</td>
+        <td>${m.os}</td>
+      </tr>
+    `)
     .join("");
 }
 
@@ -261,7 +297,8 @@ export function gerarRelatorioMateriais(ordensAtuais) {
 
   ordensAtuais.forEach((ordem) => {
     if (!ordem.dataAbertura) return;
-    const data = new Date(ordem.dataAbertura);
+    const data = parsearData(ordem.dataAbertura);
+    if (!data || isNaN(data)) return;
     if (data.getMonth() === mes && data.getFullYear() === ano) {
       if (!ordem.materiais || ordem.materiais.length === 0) return;
       ordem.materiais.forEach((mat) => {
