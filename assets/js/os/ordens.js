@@ -11,14 +11,46 @@ import {
   buscarOrdemPorId,
 } from "../firestore.js";
 
-import { mostrarAlerta, mostrarConfirmacao, renderizarMateriais, renderizarMateriaisEncerramento, atualizarHeader, showPage } from "./ui.js";
-import { upper, formatarDataCompleta, agruparMateriais, buildOrdem, validarOrdem, setoresPorDiretoria, normalizarTexto } from "./utils.js";
-import { carregarPagina, carregarTabelaRelatorios } from "./filtros.js";
 import {
-  osAtual, materiais, materiaisEncerramento, salvando, sistemaInicializado,
-  setOsAtual, setMateriais, setMateriaisEncerramento, setSalvando, setSistemaInicializado,
-  setGraficoStatus, setGraficoMes, graficoStatus, graficoMes,
+  mostrarAlerta,
+  mostrarConfirmacao,
+  renderizarMateriais,
+  renderizarMateriaisEncerramento,
+  atualizarHeader,
+  showPage,
+} from "./ui.js";
+import {
+  upper,
+  formatarDataCompleta,
+  agruparMateriais,
+  buildOrdem,
+  validarOrdem,
+  setoresPorDiretoria,
+  normalizarTexto,
+} from "./utils.js";
+import {
+  carregarPagina,
+  carregarTabelaRelatorios,
+  invalidarCache,
+} from "./filtros.js";
+import {
+  osAtual,
+  materiais,
+  materiaisEncerramento,
+  salvando,
+  sistemaInicializado,
+  setOsAtual,
+  setMateriais,
+  setMateriaisEncerramento,
+  setSalvando,
+  setSistemaInicializado,
+  setGraficoStatus,
+  setGraficoMes,
+  graficoStatus,
+  graficoMes,
 } from "./state.js";
+
+import { mostrarProgresso, concluirProgresso } from "./ui.js";
 
 /* =========================
    CONTROLE DO CAMPO RESPONSAVEL-ABERTURA
@@ -31,7 +63,7 @@ import {
 
 let _valorEdicaoAtual = null;
 
-window._onAuthPronto = function(nomeUsuario) {
+window._onAuthPronto = function (nomeUsuario) {
   const campo = document.getElementById("responsavel-abertura");
   if (!campo) return;
 
@@ -104,20 +136,33 @@ export async function atualizarDashboardComResumo(resumo) {
   document.getElementById("total-abertas").textContent = resumo.abertas;
   document.getElementById("total-andamento").textContent = resumo.andamento;
   document.getElementById("total-encerradas").textContent = resumo.encerradas;
-  document.getElementById("total-materiais").textContent = resumo.totalMateriais;
+  document.getElementById("total-materiais").textContent =
+    resumo.totalMateriais;
   await atualizarGraficos(resumo);
 }
 
 export async function atualizarGraficos(resumo) {
   if (graficoStatus) graficoStatus.destroy();
-  const novoGraficoStatus = new Chart(document.getElementById("grafico-status"), {
-    type: "doughnut",
-    data: {
-      labels: ["Abertas", "Em andamento", "Encerradas"],
-      datasets: [{ data: [resumo.abertas, resumo.andamento, resumo.encerradas], backgroundColor: ["#3498db", "#ff9800", "#4caf50"] }],
+  const novoGraficoStatus = new Chart(
+    document.getElementById("grafico-status"),
+    {
+      type: "doughnut",
+      data: {
+        labels: ["Abertas", "Em andamento", "Encerradas"],
+        datasets: [
+          {
+            data: [resumo.abertas, resumo.andamento, resumo.encerradas],
+            backgroundColor: ["#3498db", "#ff9800", "#4caf50"],
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: "bottom" } },
+      },
     },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } },
-  });
+  );
   setGraficoStatus(novoGraficoStatus);
 
   const meses = resumo.ordensPorMes || new Array(12).fill(0);
@@ -125,7 +170,20 @@ export async function atualizarGraficos(resumo) {
   const novoGraficoMes = new Chart(document.getElementById("grafico-mes"), {
     type: "bar",
     data: {
-      labels: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"],
+      labels: [
+        "Jan",
+        "Fev",
+        "Mar",
+        "Abr",
+        "Mai",
+        "Jun",
+        "Jul",
+        "Ago",
+        "Set",
+        "Out",
+        "Nov",
+        "Dez",
+      ],
       datasets: [{ label: "Ordens", data: meses, backgroundColor: "#3498db" }],
     },
     options: { responsive: true, plugins: { legend: { display: false } } },
@@ -136,7 +194,11 @@ export async function atualizarGraficos(resumo) {
 /* =========================
    FORMULÁRIO
 ========================= */
-export function coletarDadosFormulario(setorFinal, descricao, responsavelExecucao) {
+export function coletarDadosFormulario(
+  setorFinal,
+  descricao,
+  responsavelExecucao,
+) {
   return {
     tipoOS: document.getElementById("tipo-os")?.value,
     dataAbertura: document.getElementById("data-abertura")?.value,
@@ -174,7 +236,8 @@ export function limparFormularioOS(modoEdicao = false) {
   document.getElementById("data-abertura").value = "";
   document.getElementById("tipo-os").value = "";
   document.getElementById("setor-responsavel").value = "";
-  document.getElementById("setor-solicitante").innerHTML = '<option value="">Selecione</option>';
+  document.getElementById("setor-solicitante").innerHTML =
+    '<option value="">Selecione</option>';
   document.getElementById("nome-solicitante").value = "";
   document.getElementById("descricao-servico").value = "";
   document.getElementById("local-servico").value = "";
@@ -195,7 +258,10 @@ export function adicionarMaterial() {
   const quantidade = quantidadeInput ? parseFloat(quantidadeInput) : null;
 
   if (!nome || !unidade) {
-    mostrarAlerta("Informe pelo menos a descrição e a unidade do material.", "Atenção");
+    mostrarAlerta(
+      "Informe pelo menos a descrição e a unidade do material.",
+      "Atenção",
+    );
     return;
   }
 
@@ -220,18 +286,25 @@ export async function handleFormOSSubmit(e) {
   e.preventDefault();
   if (salvando) return;
   setSalvando(true);
+  mostrarProgresso();
 
   try {
     const descricao = document.getElementById("descricao-servico").value.trim();
-    const responsavelExecucao = document.getElementById("responsavel-execucao").value.trim() || "";
+    const responsavelExecucao =
+      document.getElementById("responsavel-execucao").value.trim() || "";
     const setorSelect = document.getElementById("setor-responsavel").value;
-    const dadosBrutos = coletarDadosFormulario(setorSelect, descricao, responsavelExecucao);
+    const dadosBrutos = coletarDadosFormulario(
+      setorSelect,
+      descricao,
+      responsavelExecucao,
+    );
 
     validarOrdem(dadosBrutos);
     const dadosOrdem = buildOrdem(dadosBrutos);
 
     if (osAtual && osAtual.id) {
       await atualizarStatusComDashboard(osAtual.id, dadosOrdem);
+      window.invalidarCache?.();
       await carregarPagina(1);
       await carregarResumoDashboard_();
       mostrarAlerta("Ordem atualizada com sucesso!", "Sucesso");
@@ -242,6 +315,7 @@ export async function handleFormOSSubmit(e) {
     }
 
     const resultado = await salvarOrdemFirestore(dadosOrdem);
+    window.invalidarCache?.();
     await carregarPagina(1);
     await carregarResumoDashboard_();
     mostrarAlerta(`Ordem ${resultado.numero} criada com sucesso!`, "Sucesso");
@@ -251,6 +325,7 @@ export async function handleFormOSSubmit(e) {
     mostrarAlerta(error.message, "Erro");
   } finally {
     setSalvando(false);
+    concluirProgresso();
   }
 }
 
@@ -266,7 +341,12 @@ export async function visualizarOS(id) {
 
   const materiaisHTML =
     ordem.materiais?.length > 0
-      ? ordem.materiais.map((m) => `<div style="margin-bottom:6px;">• ${m.nome} - ${m.quantidade || ""} ${m.unidade}</div>`).join("")
+      ? ordem.materiais
+          .map(
+            (m) =>
+              `<div style="margin-bottom:6px;">• ${m.nome} - ${m.quantidade || ""} ${m.unidade}</div>`,
+          )
+          .join("")
       : "";
 
   const criadoEmFormatado = ordem.criadoEm?.seconds
@@ -358,7 +438,8 @@ export function mostrarEncerramento() {
     `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
   document.getElementById("assinatura-chefia").value = "Liliana Bentes";
-  if (window.userNome) document.getElementById("assinatura-recebedor").value = window.userNome;
+  if (window.userNome)
+    document.getElementById("assinatura-recebedor").value = window.userNome;
 
   const modal = document.getElementById("modal-encerramento");
   modal.classList.remove("hidden");
@@ -375,41 +456,58 @@ export function fecharModalEncerramento() {
 export async function handleFormEncerramentoSubmit(e) {
   e.preventDefault();
   if (!osAtual) return;
+  mostrarProgresso();
 
-  const assinaturaChefia = document.getElementById("assinatura-chefia").value.trim();
-  const assinaturaRecebedor = document.getElementById("assinatura-recebedor").value.trim();
-  const dataEncerramento = document.getElementById("data-encerramento").value;
+  try {
+    const assinaturaChefia = document.getElementById("assinatura-chefia").value.trim();
+    const assinaturaRecebedor = document.getElementById("assinatura-recebedor").value.trim();
+    const dataEncerramento = document.getElementById("data-encerramento").value;
 
-  if (!assinaturaChefia || !assinaturaRecebedor) {
-    mostrarAlerta("Informe o responsável e o cidadão.", "Atenção");
-    return;
+    if (!assinaturaChefia || !assinaturaRecebedor) {
+      mostrarAlerta("Informe o responsável e o cidadão.", "Atenção");
+      return;
+    }
+
+    let ordemAtualizada = osAtual;
+    if (!ordemAtualizada || ordemAtualizada.materiais === undefined) {
+      ordemAtualizada = await buscarOrdemPorId(osAtual.id);
+    }
+
+    const materiaisExistentes = Array.isArray(ordemAtualizada?.materiais)
+      ? ordemAtualizada.materiais
+      : [];
+    const novosMateriais = Array.isArray(materiaisEncerramento)
+      ? materiaisEncerramento
+      : [];
+    const materiaisFinal = agruparMateriais([
+      ...materiaisExistentes,
+      ...novosMateriais,
+    ]);
+
+    await atualizarStatusComDashboard(osAtual.id, {
+      status: "Encerrada",
+      dataEncerramento,
+      assinaturaChefia,
+      assinaturaRecebedor,
+      observacaoFinal: null,
+      materiais: materiaisFinal,
+    });
+
+    window.invalidarCache?.();
+    await visualizarOS(osAtual.id);
+    setMateriaisEncerramento([]);
+    renderizarMateriaisEncerramento([]);
+    fecharModalEncerramento();
+    await carregarPagina(1);
+    await carregarResumoDashboard_();
+    mostrarAlerta("Ordem encerrada com sucesso!", "Sucesso");
+
+  } catch (error) {
+    console.error(error);
+    mostrarAlerta("Erro ao encerrar a ordem.", "Erro");
+  } finally {
+    concluirProgresso();
   }
-
-  let ordemAtualizada = osAtual;
-  if (!ordemAtualizada || ordemAtualizada.materiais === undefined) {
-    ordemAtualizada = await buscarOrdemPorId(osAtual.id);
-  }
-
-  const materiaisExistentes = Array.isArray(ordemAtualizada?.materiais) ? ordemAtualizada.materiais : [];
-  const novosMateriais = Array.isArray(materiaisEncerramento) ? materiaisEncerramento : [];
-  const materiaisFinal = agruparMateriais([...materiaisExistentes, ...novosMateriais]);
-
-  await atualizarStatusComDashboard(osAtual.id, {
-    status: "Encerrada",
-    dataEncerramento,
-    assinaturaChefia,
-    assinaturaRecebedor,
-    observacaoFinal: null,
-    materiais: materiaisFinal,
-  });
-
-  await visualizarOS(osAtual.id);
-  setMateriaisEncerramento([]);
-  renderizarMateriaisEncerramento([]);
-  fecharModalEncerramento();
-  await carregarPagina(1);
-  await carregarResumoDashboard_();
-  mostrarAlerta("Ordem encerrada com sucesso!", "Sucesso");
 }
 
 /* =========================
@@ -427,16 +525,20 @@ export async function excluirOS(id) {
   mostrarConfirmacao(
     `Tem certeza que deseja excluir a OS ${ordem.numero}?`,
     async function () {
+      mostrarProgresso();
       try {
         await excluirOrdemFirestore(id);
+        window.invalidarCache?.();
         await carregarPagina(1);
         await carregarResumoDashboard_();
         mostrarAlerta("Ordem excluída com sucesso!", "Sucesso");
       } catch (error) {
         console.error(error);
         mostrarAlerta("Erro ao excluir a ordem.", "Erro");
+      } finally {
+        concluirProgresso();
       }
-    }
+    },
   );
 }
 
@@ -470,13 +572,18 @@ export async function editarOS(id) {
   document.getElementById("setor-responsavel").value = ordem.setorResponsavel;
   document.getElementById("nome-solicitante").value = ordem.nomeSolicitante;
   document.getElementById("descricao-servico").value = ordem.descricaoServico;
-  document.getElementById("ponto-referencia").value = ordem.pontoReferencia || "";
+  document.getElementById("ponto-referencia").value =
+    ordem.pontoReferencia || "";
   document.getElementById("local-servico").value = ordem.localServico;
-  document.getElementById("responsavel-execucao").value = ordem.responsavelExecucao || "";
+  document.getElementById("responsavel-execucao").value =
+    ordem.responsavelExecucao || "";
 
   carregarSetores(ordem.setorResponsavel);
 
-  const setorLimpo = ordem.setorSolicitante?.replace(/^SETOR\s+/i, "").trim().toUpperCase();
+  const setorLimpo = ordem.setorSolicitante
+    ?.replace(/^SETOR\s+/i, "")
+    .trim()
+    .toUpperCase();
   setTimeout(() => {
     document.getElementById("setor-solicitante").value = setorLimpo;
   }, 100);
@@ -516,9 +623,15 @@ export function adicionarMaterialEncerramento() {
   const unidade = unidadeInput.value.trim();
   const quantidade = quantidadeInput.value;
 
-  if (!nome || !unidade) { mostrarAlerta("Preencha material e unidade.", "Atenção"); return; }
+  if (!nome || !unidade) {
+    mostrarAlerta("Preencha material e unidade.", "Atenção");
+    return;
+  }
 
-  const novos = [...materiaisEncerramento, { nome, unidade, quantidade: quantidade ? parseFloat(quantidade) : null }];
+  const novos = [
+    ...materiaisEncerramento,
+    { nome, unidade, quantidade: quantidade ? parseFloat(quantidade) : null },
+  ];
   setMateriaisEncerramento(novos);
   nomeInput.value = "";
   unidadeInput.value = "";

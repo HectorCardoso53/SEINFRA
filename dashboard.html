@@ -12,6 +12,9 @@
 </head>
 
 <body>
+    <div id="progressbar-global" class="hidden">
+        <div id="progress-spinner"></div>
+    </div>
     <!-- Topbar Mobile -->
     <div class="topbar">
         <button class="menu-toggle" onclick="toggleMenu()">
@@ -318,8 +321,7 @@
                                 <label>Responsável pela Abertura</label>
                                 <!-- 🔑 readonly REMOVIDO — necessário para o JS conseguir
                                      preencher corretamente tanto em nova OS quanto em edição -->
-                                <input type="text" id="responsavel-abertura"
-                                    placeholder="Carregando usuário...">
+                                <input type="text" id="responsavel-abertura" placeholder="Carregando usuário...">
                             </div>
                         </div>
                     </div>
@@ -342,6 +344,10 @@
             <div id="page-relatorios" class="page hidden">
                 <div class="filter-section">
                     <div class="filter-grid">
+                        <div class="form-group">
+                            <label>Nº da OS</label>
+                            <input type="text" id="filtro-numero-os" placeholder="Ex: 0042">
+                        </div>
                         <div class="form-group">
                             <label>Data Inicial</label>
                             <input type="date" id="filtro-data-inicio">
@@ -385,8 +391,8 @@
                             <input type="text" id="filtro-servico" placeholder="Ex: caçamba, pintura...">
                         </div>
                         <div class="form-group">
-                            <button type="button" class="btn btn-primary" onclick="aplicarFiltros()">
-                                Filtrar
+                            <button type="button" class="btn btn-secondary" onclick="limparFiltros()">
+                                <i class="bi bi-x-circle"></i> Limpar Filtros
                             </button>
                         </div>
                     </div>
@@ -720,7 +726,8 @@
                 </div>
                 <div class="button-group">
                     <button type="submit" class="btn btn-success">Confirmar Encerramento</button>
-                    <button type="button" class="btn btn-secondary" onclick="fecharModalEncerramento()">Cancelar</button>
+                    <button type="button" class="btn btn-secondary"
+                        onclick="fecharModalEncerramento()">Cancelar</button>
                 </div>
             </form>
         </div>
@@ -762,5 +769,6 @@
     </footer>
 
 </body>
+
 
 </html>

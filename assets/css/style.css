@@ -216,6 +216,81 @@
    }
 
 
+   #progressbar-global {
+       position: fixed;
+       inset: 0;
+       background: rgba(0, 0, 0, 0.35);
+       z-index: 99999;
+       display: flex;
+       align-items: center;
+       justify-content: center;
+       pointer-events: all;
+       backdrop-filter: blur(2px);
+   }
+
+   #progressbar-global.hidden {
+       display: none;
+   }
+
+   #progress-spinner {
+       width: 52px;
+       height: 52px;
+       border: 5px solid rgba(255, 255, 255, 0.2);
+       border-top-color: #3498db;
+       border-radius: 50%;
+       animation: spin 0.8s linear infinite;
+       background: transparent;
+   }
+
+   @keyframes spin {
+       to {
+           transform: rotate(360deg);
+       }
+   }
+
+   .paginacao {
+       display: flex;
+       align-items: center;
+       justify-content: center;
+       gap: 12px;
+       margin-top: 24px;
+       padding: 12px 0;
+   }
+
+   .paginacao button {
+       display: inline-flex;
+       align-items: center;
+       gap: 6px;
+       padding: 9px 20px;
+       background: var(--azul-primario);
+       color: white;
+       border: none;
+       border-radius: var(--radius-sm);
+       font-size: 13px;
+       font-weight: 600;
+       cursor: pointer;
+       transition: background 0.2s, transform 0.15s;
+   }
+
+   .paginacao button:hover {
+       background: var(--azul-hover);
+       transform: translateY(-1px);
+   }
+
+   .paginacao button:disabled {
+       background: var(--border);
+       color: var(--text-muted);
+       cursor: not-allowed;
+       transform: none;
+   }
+
+   #pagina-info {
+       font-size: 13px;
+       font-weight: 600;
+       color: var(--text-muted);
+       min-width: 70px;
+       text-align: center;
+   }
 
    .sidebar.oculto .sidebar-header {
        display: flex;
@@ -603,12 +678,30 @@
    }
 
    .btn-primary {
+       display: inline-flex;
+       align-items: center;
+       gap: 6px;
+       padding: 9px 20px;
        background: var(--azul-primario);
-       color: var(--branco);
+       color: white;
+       border: none;
+       border-radius: var(--radius-sm);
+       font-size: 13px;
+       font-weight: 600;
+       cursor: pointer;
+       transition: background 0.2s, transform 0.15s;
    }
 
    .btn-primary:hover {
-       background: var(--azul-primario-hover);
+       background: var(--azul-hover);
+       transform: translateY(-1px);
+   }
+
+   .btn-primary:disabled {
+       background: var(--border);
+       color: var(--text-muted);
+       cursor: not-allowed;
+       transform: none;
    }
 
    .btn-success {
@@ -690,26 +783,28 @@
    }
 
    .form-group {
-    position: relative;
-}
+       position: relative;
+   }
 
-.sugestoes-box {
-    position: absolute;
-    top: calc(100% + 4px); /* 👈 pequeno espaçamento */
-    left: 0;
-    width: 100%;
+   .sugestoes-box {
+       position: absolute;
+       top: calc(100% + 4px);
+       /* 👈 pequeno espaçamento */
+       left: 0;
+       width: 100%;
 
-    background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 8px;
+       background: #fff;
+       border: 1px solid #ddd;
+       border-radius: 8px;
 
-    z-index: 999999;
+       z-index: 999999;
 
-    max-height: 220px;
-    overflow-y: auto;
+       max-height: 220px;
+       overflow-y: auto;
 
-    box-shadow: 0 8px 20px rgba(0,0,0,0.12); /* 🔥 PROFISSIONAL */
-}
+       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+       /* 🔥 PROFISSIONAL */
+   }
 
    @media(max-width:600px) {
 

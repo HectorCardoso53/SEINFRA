@@ -6,6 +6,8 @@ import { buscarTodasOrdens } from "../firestore.js";
 import { formatarData, formatarDataCompleta, normalizarTexto } from "./utils.js";
 import { osAtual } from "./state.js";
 import { mostrarAlerta } from "./ui.js";
+// impressao.js — no topo, adiciona a importação
+import { getOrdensCached } from "./filtros.js"; // só funciona se você exportar a função
 
 /* =========================
    ESTILOS BASE COMPARTILHADOS
@@ -313,7 +315,7 @@ export async function imprimirRelatorio() {
     return;
   }
 
-  let todasOrdens = await buscarTodasOrdens();
+  let todasOrdens = await getOrdensCached();
 
   let ordensFiltradas = todasOrdens.filter((o) => {
     if (!o.dataAbertura) return false;
@@ -338,6 +340,11 @@ export async function imprimirRelatorio() {
 
   ordensFiltradas.sort((a, b) => (b.numeroSequencial || 0) - (a.numeroSequencial || 0));
 
+  // Contadores por status
+  const totalAbertas     = ordensFiltradas.filter((o) => o.status === "Aberta").length;
+  const totalAndamento   = ordensFiltradas.filter((o) => o.status === "Em andamento").length;
+  const totalEncerradas  = ordensFiltradas.filter((o) => o.status === "Encerrada").length;
+
   const linhas = ordensFiltradas
     .map((o) => `
       <tr>
@@ -350,14 +357,44 @@ export async function imprimirRelatorio() {
       </tr>`)
     .join("");
 
+  const periodo = dataInicio && dataFim
+    ? `Período: ${new Date(dataInicio + "T00:00:00").toLocaleDateString("pt-BR")} a ${new Date(dataFim + "T00:00:00").toLocaleDateString("pt-BR")}`
+    : dataInicio
+      ? `A partir de: ${new Date(dataInicio + "T00:00:00").toLocaleDateString("pt-BR")}`
+      : `Até: ${new Date(dataFim + "T00:00:00").toLocaleDateString("pt-BR")}`;
+
   const body = `
 ${headerPrefeitura("50px")}
 <div class="titulo">RELATÓRIO DE ORDENS DE SERVIÇO</div>
+<div style="text-align:center;font-size:9px;margin-bottom:8px;color:#555;">${periodo}</div>
+
+<!-- Resumo de totais -->
+<table style="margin-bottom:10px;border:1px solid #ccc;">
+  <thead>
+    <tr>
+      <th style="text-align:center;">Total Geral</th>
+      <th style="text-align:center;">Abertas</th>
+      <th style="text-align:center;">Em Andamento</th>
+      <th style="text-align:center;">Encerradas</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align:center;font-weight:bold;">${ordensFiltradas.length}</td>
+      <td style="text-align:center;color:#1565c0;font-weight:bold;">${totalAbertas}</td>
+      <td style="text-align:center;color:#e65100;font-weight:bold;">${totalAndamento}</td>
+      <td style="text-align:center;color:#2e7d32;font-weight:bold;">${totalEncerradas}</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- Tabela principal -->
 <table>
   <thead>
     <tr><th>Nº OS</th><th>Data</th><th>Status</th><th>Solicitante</th><th>Setor</th><th>Descrição</th></tr>
   </thead>
   <tbody>${linhas || `<tr><td colspan="6">Nenhuma ordem encontrada</td></tr>`}</tbody>
+ 
 </table>
 <div class="footer">Documento gerado em: ${dataEmissao}</div>`;
 

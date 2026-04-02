@@ -39,11 +39,26 @@ export function atualizarHeader(pageId) {
   const title = document.getElementById("page-title");
   const subtitle = document.getElementById("page-subtitle");
   const map = {
-    dashboard: { title: "Dashboard", subtitle: "Visão geral do sistema de ordens de serviço" },
-    "nova-os": { title: "Nova Ordem de Serviço", subtitle: "Criação de uma nova OS" },
-    relatorios: { title: "Relatórios", subtitle: "Consulta e análise das ordens" },
-    "materiais-mes": { title: "Materiais por Mês", subtitle: "Relatório de materiais utilizados nas ordens" },
-    usuarios: { title: "Cadastro de Usuários", subtitle: "Gerenciamento de acessos do sistema" },
+    dashboard: {
+      title: "Dashboard",
+      subtitle: "Visão geral do sistema de ordens de serviço",
+    },
+    "nova-os": {
+      title: "Nova Ordem de Serviço",
+      subtitle: "Criação de uma nova OS",
+    },
+    relatorios: {
+      title: "Relatórios",
+      subtitle: "Consulta e análise das ordens",
+    },
+    "materiais-mes": {
+      title: "Materiais por Mês",
+      subtitle: "Relatório de materiais utilizados nas ordens",
+    },
+    usuarios: {
+      title: "Cadastro de Usuários",
+      subtitle: "Gerenciamento de acessos do sistema",
+    },
   };
   if (map[pageId]) {
     title.textContent = map[pageId].title;
@@ -57,7 +72,9 @@ export function atualizarHeader(pageId) {
 export function showPage(pageId, element) {
   document.querySelectorAll(".page").forEach((p) => p.classList.add("hidden"));
   document.getElementById("page-" + pageId).classList.remove("hidden");
-  document.querySelectorAll(".menu-item").forEach((m) => m.classList.remove("active"));
+  document
+    .querySelectorAll(".menu-item")
+    .forEach((m) => m.classList.remove("active"));
   if (element) element.classList.add("active");
   const sidebar = document.getElementById("sidebar");
   const overlay = document.querySelector(".overlay");
@@ -110,7 +127,7 @@ export function renderizarMateriais(materiaisLista) {
         Remover
       </button>
     </div>
-  `
+  `,
     )
     .join("");
 }
@@ -129,9 +146,19 @@ export function renderizarMateriaisEncerramento(lista) {
         <strong>${m.nome}</strong> - ${m.quantidade || ""} ${m.unidade}
         <button onclick="removerMaterialEncerramento(${i})">Remover</button>
       </div>
-    `
+    `,
     )
     .join("");
+}
+
+export function mostrarProgresso() {
+  const overlay = document.getElementById("progressbar-global");
+  if (overlay) overlay.classList.remove("hidden");
+}
+
+export function concluirProgresso() {
+  const overlay = document.getElementById("progressbar-global");
+  if (overlay) overlay.classList.add("hidden");
 }
 
 /* =========================

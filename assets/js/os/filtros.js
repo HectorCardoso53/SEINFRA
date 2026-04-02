@@ -16,6 +16,100 @@ import {
   setHistoricoDocs,
 } from "./state.js";
 
+let cacheOrdens = null;
+let cacheTimestamp = null;
+const CACHE_TTL = 5 * 60 * 1000;
+
+export async function getOrdensCached() {
+  const agora = Date.now();
+  const cacheValido =
+    cacheOrdens && cacheTimestamp && agora - cacheTimestamp < CACHE_TTL;
+  if (cacheValido) return cacheOrdens;
+  cacheOrdens = await buscarTodasOrdens();
+  cacheTimestamp = agora;
+  return cacheOrdens;
+}
+
+// 👇 adiciona aqui, logo abaixo
+export function invalidarCache() {
+  cacheOrdens = null;
+  cacheTimestamp = null;
+}
+
+/* =========================
+   DEBOUNCE
+========================= */
+function debounce(fn, delay = 400) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
+}
+
+/* =========================
+   FILTROS DINÂMICOS
+========================= */
+export function inicializarFiltrosDinamicos() {
+  const camposTexto = [
+    "filtro-numero-os",
+    "filtro-solicitante",
+    "filtro-servico",
+    "filtro-data-inicio",
+    "filtro-data-fim",
+  ];
+
+  const camposSelect = [
+    "filtro-status",
+    "filtro-diretoria",
+    "filtro-setor-solicitante",
+    "filtro-mes",
+    "filtro-ano",
+  ];
+
+  // Texto: dispara após parar de digitar
+  camposTexto.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener(
+      "input",
+      debounce(() => aplicarFiltros(), 400),
+    );
+  });
+
+  // Select: dispara imediatamente ao mudar
+  camposSelect.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("change", () => aplicarFiltros());
+  });
+}
+
+export function limparFiltros() {
+  const ids = [
+    "filtro-numero-os",
+    "filtro-solicitante",
+    "filtro-servico",
+    "filtro-data-inicio",
+    "filtro-data-fim",
+    "filtro-status",
+    "filtro-diretoria",
+    "filtro-setor-solicitante",
+    "filtro-mes",
+    "filtro-ano",
+  ];
+  ids.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+
+  // 👇 Reexibe a paginação antes de recarregar
+  const paginacao = document.querySelector(".paginacao");
+  if (paginacao) paginacao.style.display = "flex";
+
+  carregarPagina(1);
+}
+
 /* =========================
    PAGINAÇÃO
 ========================= */
@@ -65,7 +159,10 @@ function parsearData(dataAbertura) {
   if (typeof dataAbertura === "string") {
     // Garante que a comparação seja feita sem ajuste de fuso
     // Adiciona 'Z' apenas se não tiver timezone informado
-    const temFuso = dataAbertura.includes("Z") || dataAbertura.includes("+") || dataAbertura.includes("-", 10);
+    const temFuso =
+      dataAbertura.includes("Z") ||
+      dataAbertura.includes("+") ||
+      dataAbertura.includes("-", 10);
     if (!temFuso && dataAbertura.includes("T")) {
       // Trata como horário local (não UTC)
       return new Date(dataAbertura);
@@ -80,25 +177,36 @@ function parsearData(dataAbertura) {
    FILTROS
 ========================= */
 export async function aplicarFiltros() {
-  const diretoria   = document.getElementById("filtro-diretoria")?.value || "";
-  const dataInicio  = document.getElementById("filtro-data-inicio")?.value || "";
-  const dataFim     = document.getElementById("filtro-data-fim")?.value || "";
-  const servico     = document.getElementById("filtro-servico")?.value?.trim() || "";
-  const mes         = document.getElementById("filtro-mes")?.value ?? "";
-  const ano         = document.getElementById("filtro-ano")?.value || "";
-  const status      = document.getElementById("filtro-status")?.value || "";
-  const solicitante = document.getElementById("filtro-solicitante")?.value?.trim() || "";
-  const setorSolicitante = document.getElementById("filtro-setor-solicitante")?.value?.trim() || "";
+  const numeroOS =
+    document.getElementById("filtro-numero-os")?.value?.trim() || "";
+  const diretoria = document.getElementById("filtro-diretoria")?.value || "";
+  const dataInicio = document.getElementById("filtro-data-inicio")?.value || "";
+  const dataFim = document.getElementById("filtro-data-fim")?.value || "";
+  const servico =
+    document.getElementById("filtro-servico")?.value?.trim() || "";
+  const mes = document.getElementById("filtro-mes")?.value ?? "";
+  const ano = document.getElementById("filtro-ano")?.value || "";
+  const status = document.getElementById("filtro-status")?.value || "";
+  const solicitante =
+    document.getElementById("filtro-solicitante")?.value?.trim() || "";
+  const setorSolicitante =
+    document.getElementById("filtro-setor-solicitante")?.value?.trim() || "";
 
   // Monta os limites de data UMA VEZ para não recriar a cada item
   const dtInicio = dataInicio ? new Date(dataInicio + "T00:00:00") : null;
-  const dtFim    = dataFim    ? new Date(dataFim    + "T23:59:59") : null;
+  const dtFim = dataFim ? new Date(dataFim + "T23:59:59") : null;
 
   // Busca TODAS as ordens sem limite
-  const baseDados = await buscarTodasOrdens();
+  const baseDados = await getOrdensCached();
 
   const ordensFiltradas = baseDados.filter((o) => {
     if (!o) return false;
+
+    // — Número da OS (busca parcial, ex: "42" encontra "OS-0042")
+    if (numeroOS) {
+      const num = normalizarTexto(o.numero || "");
+      if (!num.includes(normalizarTexto(numeroOS))) return false;
+    }
 
     // — Serviço (busca no texto, uppercase dos dois lados)
     if (servico) {
@@ -112,7 +220,7 @@ export async function aplicarFiltros() {
 
     // — Intervalo de datas
     if (dtInicio && data < dtInicio) return false;
-    if (dtFim    && data > dtFim)    return false;
+    if (dtFim && data > dtFim) return false;
 
     // — Mês (0-11)
     if (mes !== "" && data.getMonth() !== Number(mes)) return false;
@@ -131,8 +239,11 @@ export async function aplicarFiltros() {
 
     // — Setor solicitante
     if (setorSolicitante) {
-      const filtro = normalizarTexto(setorSolicitante).replace(/^SETOR\s+/i, "");
-      const valor  = normalizarTexto(o.setorSolicitante || "");
+      const filtro = normalizarTexto(setorSolicitante).replace(
+        /^SETOR\s+/i,
+        "",
+      );
+      const valor = normalizarTexto(o.setorSolicitante || "");
       if (!valor.includes(filtro)) return false;
     }
 
@@ -142,12 +253,24 @@ export async function aplicarFiltros() {
     return true;
   });
 
-  ordensFiltradas.sort((a, b) => (b.numeroSequencial || 0) - (a.numeroSequencial || 0));
+  ordensFiltradas.sort(
+    (a, b) => (b.numeroSequencial || 0) - (a.numeroSequencial || 0),
+  );
 
   // Esconde paginação quando há filtro ativo
-  const temFiltro = dataInicio || dataFim || mes !== "" || ano !== "" ||
-                    status || diretoria || solicitante || setorSolicitante || servico;
+  const temFiltro =
+    dataInicio ||
+    dataFim ||
+    mes !== "" ||
+    ano !== "" ||
+    status ||
+    diretoria ||
+    solicitante ||
+    setorSolicitante ||
+    servico ||
+    numeroOS;
   const paginacao = document.querySelector(".paginacao");
+
   if (paginacao) paginacao.style.display = temFiltro ? "none" : "block";
 
   carregarTabelaRelatorios(ordensFiltradas);
@@ -215,14 +338,16 @@ export function renderTabelaMateriaisMes(lista) {
     return;
   }
   tbody.innerHTML = lista
-    .map((m) => `
+    .map(
+      (m) => `
       <tr>
         <td>${m.nome}</td>
         <td>${m.quantidade}</td>
         <td>${m.unidade}</td>
         <td>${m.os}</td>
       </tr>
-    `)
+    `,
+    )
     .join("");
 }
 
@@ -304,7 +429,12 @@ export function gerarRelatorioMateriais(ordensAtuais) {
       ordem.materiais.forEach((mat) => {
         const chave = mat.nome + "_" + mat.unidade;
         if (!materiaisSomados[chave]) {
-          materiaisSomados[chave] = { nome: mat.nome, unidade: mat.unidade, quantidade: 0, os: 0 };
+          materiaisSomados[chave] = {
+            nome: mat.nome,
+            unidade: mat.unidade,
+            quantidade: 0,
+            os: 0,
+          };
         }
         const qtd = Number(mat.quantidade || 0);
         materiaisSomados[chave].quantidade += qtd;

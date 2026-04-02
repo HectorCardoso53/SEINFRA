@@ -9,7 +9,7 @@ import "../auth.js";
 import "../admin-users.js";
 
 import { reconstruirDashboard, buscarVisitasPorNome, contarOrdensFirestore } from "../firestore.js";
-
+import { inicializarFiltrosDinamicos,limparFiltros } from "../os/filtros.js";
 import { mostrarAlerta, fecharAlerta, fecharConfirm, mostrarConfirmacao, showPage, toggleSidebar, toggleMenu } from "./ui.js";
 import { inicializarSistema, setDataAtual, carregarSetores,
   adicionarMaterial, removerMaterial,
@@ -24,7 +24,7 @@ import { inicializarSistema, setDataAtual, carregarSetores,
 import {
   carregarPagina, proximaPagina, paginaAnterior,
   aplicarFiltros, carregarFiltroAno, carregarAnoMateriais,
-  carregarSetoresFiltro, gerarRelatorioMateriais,
+  carregarSetoresFiltro, gerarRelatorioMateriais,invalidarCache
 } from "./filtros.js";
 
 import { inicializarAutoCompleteVisitas, selecionarVisita } from "./visitas.js";
@@ -110,6 +110,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   inicializarAutoCompleteVisitas();
   inicializarSistema();
   carregarAnoMateriais();
+  inicializarFiltrosDinamicos(); 
   carregarFiltroAno();
 });
 
@@ -154,6 +155,9 @@ window.imprimirMateriaisMes = imprimirMateriaisMes;
 window.imprimirRelatorio = imprimirRelatorio;
 
 window.selecionarVisita = selecionarVisita;
+window.limparFiltros = limparFiltros;
+// No bloco de exposições globais do app.js
+window.invalidarCache = invalidarCache;
 
 window.reconstruirDashboard = reconstruirDashboard;
 window.buscarVisitasPorNome = buscarVisitasPorNome;
