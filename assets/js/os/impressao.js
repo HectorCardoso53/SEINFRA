@@ -3,7 +3,11 @@
 // ============================================================
 
 import { buscarTodasOrdens } from "../firestore.js";
-import { formatarData, formatarDataCompleta, normalizarTexto } from "./utils.js";
+import {
+  formatarData,
+  formatarDataCompleta,
+  normalizarTexto,
+} from "./utils.js";
 import { osAtual } from "./state.js";
 import { mostrarAlerta } from "./ui.js";
 // impressao.js — no topo, adiciona a importação
@@ -58,29 +62,48 @@ function headerPrefeitura(imgWidth = "40px") {
 }
 
 function assinaturasHTML(tipoOS) {
-  const boxes = tipoOS === "externa"
-    ? ["Secretária", "Responsável", "Requerente"]
-    : ["Secretária", "Responsável"];
+  const boxes =
+    tipoOS === "externa"
+      ? ["Secretária", "Responsável", "Requerente"]
+      : ["Secretária", "Responsável"];
   return `
 <div class="assinaturas">
-  ${boxes.map((label) => `
+  ${boxes
+    .map(
+      (label) => `
     <div class="assinatura-box">
       <div class="linha"></div>
       ${label}
-    </div>`).join("")}
+    </div>`,
+    )
+    .join("")}
 </div>`;
 }
 
 function conteudoOSHTML(dados) {
   const {
-    numero, status, dataAbertura, dataEncerramento, tipoOS,
-    nomeSolicitante, cpf, telefone, setorSolicitante, setorResponsavel,
-    execucao, abertura, local, pontoReferencia, descricao,
-    assinaturaChefia, assinaturaRecebedor,
+    numero,
+    status,
+    dataAbertura,
+    dataEncerramento,
+    tipoOS,
+    nomeSolicitante,
+    cpf,
+    telefone,
+    setorSolicitante,
+    setorResponsavel,
+    execucao,
+    abertura,
+    local,
+    pontoReferencia,
+    descricao,
+    assinaturaChefia,
+    assinaturaRecebedor,
   } = dados;
 
   const tipo = (tipoOS || "").toLowerCase();
-  const tipoTitulo = tipo === "externa" ? "EXTERNA" : tipo === "interna" ? "INTERNA" : "";
+  const tipoTitulo =
+    tipo === "externa" ? "EXTERNA" : tipo === "interna" ? "INTERNA" : "";
   const dataEmissao = new Date().toLocaleString("pt-BR");
 
   return `
@@ -164,13 +187,17 @@ export function imprimirDetalhesOS() {
 
   const temMateriais = osAtual.materiais && osAtual.materiais.length > 0;
   const materiaisHTML = temMateriais
-    ? osAtual.materiais.map((m, i) => `
+    ? osAtual.materiais
+        .map(
+          (m, i) => `
         <tr>
           <td>${i + 1}</td>
           <td>${m.nome}</td>
           <td>${m.quantidade || "-"}</td>
           <td>${m.unidade}</td>
-        </tr>`).join("")
+        </tr>`,
+        )
+        .join("")
     : "";
 
   const dados = {
@@ -217,9 +244,6 @@ export function imprimirDetalhesOS() {
   abrirJanelaPrint(wrapHTML(`Ordem de Serviço - ${osAtual.numero}`, body));
 }
 
-/* =========================
-   GERAR PDF DE MATERIAIS
-========================= */
 export function gerarPDFMateriais() {
   if (!osAtual || !osAtual.materiais || osAtual.materiais.length === 0) {
     alert("Esta ordem não possui materiais.");
@@ -227,13 +251,15 @@ export function gerarPDFMateriais() {
   }
 
   const lista = osAtual.materiais
-    .map((m, i) => `
+    .map(
+      (m, i) => `
       <tr>
         <td>${i + 1}</td>
         <td>${m.nome}</td>
         <td>${m.quantidade || "-"}</td>
         <td>${m.unidade}</td>
-      </tr>`)
+      </tr>`,
+    )
     .join("");
 
   const dataEmissao = new Date().toLocaleString("pt-BR");
@@ -241,19 +267,77 @@ export function gerarPDFMateriais() {
   const body = `
 ${headerPrefeitura("50px")}
 <div class="titulo">RELAÇÃO DE MATERIAIS SOLICITADOS</div>
-<div style="margin-bottom:16px;font-size:12px;line-height:1.6;">
-  <div><strong>Número da OS:</strong> ${osAtual.numero}</div>
+
+<div style="margin-bottom:12px; font-size:11px; line-height:1.8; border:1px solid #ccc; padding:8px 10px; border-radius:4px;">
+  <div style="font-weight:bold; font-size:12px; border-bottom:1px solid #ccc; margin-bottom:6px; padding-bottom:4px;">
+    Informações da Ordem de Serviço
+  </div>
+  <div><strong>Número da OS:</strong> ${osAtual.numero || "-"}</div>
+  <div><strong>Status:</strong> ${osAtual.status || "-"}</div>
+  <div><strong>Tipo:</strong> ${osAtual.tipoOS ? osAtual.tipoOS.toUpperCase() : "-"}</div>
   <div><strong>Data de Abertura:</strong> ${formatarDataCompleta(osAtual.dataAbertura)}</div>
-  <div><strong>Solicitante:</strong> ${osAtual.nomeSolicitante}</div>
+  <div><strong>Data de Encerramento:</strong> ${osAtual.dataEncerramento ? formatarDataCompleta(osAtual.dataEncerramento) : "Não encerrada"}</div>
+</div>
+
+<div style="margin-bottom:12px; font-size:11px; line-height:1.8; border:1px solid #ccc; padding:8px 10px; border-radius:4px;">
+  <div style="font-weight:bold; font-size:12px; border-bottom:1px solid #ccc; margin-bottom:6px; padding-bottom:4px;">
+    Solicitante
+  </div>
+  <div><strong>Nome:</strong> ${osAtual.nomeSolicitante || "-"}</div>
+  <div><strong>CPF:</strong> ${osAtual.cpfSolicitante || "-"}</div>
+  <div><strong>Telefone:</strong> ${osAtual.telefoneSolicitante || "-"}</div>
   <div><strong>Setor:</strong> ${osAtual.setorSolicitante || "-"}</div>
+  <div><strong>Diretoria Responsável:</strong> ${osAtual.setorResponsavel || "-"}</div>
+</div>
+
+<div style="margin-bottom:12px; font-size:11px; line-height:1.8; border:1px solid #ccc; padding:8px 10px; border-radius:4px;">
+  <div style="font-weight:bold; font-size:12px; border-bottom:1px solid #ccc; margin-bottom:6px; padding-bottom:4px;">
+    Execução
+  </div>
+  <div><strong>Responsável pela Execução:</strong> ${osAtual.responsavelExecucao || "-"}</div>
+  <div><strong>Responsável pela Abertura:</strong> ${osAtual.responsavelAbertura || "-"}</div>
   <div><strong>Local do Serviço:</strong> ${osAtual.localServico || "-"}</div>
   <div><strong>Ponto de Referência:</strong> ${osAtual.pontoReferencia || "-"}</div>
-  <div><strong>Responsável Execução:</strong> ${osAtual.responsavelExecucao || "-"}</div>
+  <div><strong>Descrição do Serviço:</strong> ${osAtual.descricaoServico || "-"}</div>
 </div>
-<table>
-  <thead><tr><th>#</th><th>Material</th><th>Quantidade</th><th>Unidade</th></tr></thead>
-  <tbody>${lista}</tbody>
-</table>
+
+<div style="margin-bottom:12px; font-size:11px; line-height:1.8; border:1px solid #ccc; padding:8px 10px; border-radius:4px;">
+  <div style="font-weight:bold; font-size:12px; border-bottom:1px solid #ccc; margin-bottom:6px; padding-bottom:4px;">
+    Materiais Utilizados
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Material</th>
+        <th>Quantidade</th>
+        <th>Unidade</th>
+      </tr>
+    </thead>
+    <tbody>${lista}</tbody>
+    <tfoot>
+      <tr>
+        <td colspan="4" style="text-align:right; font-weight:bold; background:#f2f2f2; padding:4px 6px;">
+          Total de itens: ${osAtual.materiais.length}
+        </td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+${
+  osAtual.assinaturaChefia || osAtual.assinaturaRecebedor
+    ? `
+<div style="margin-bottom:12px; font-size:11px; line-height:1.8; border:1px solid #ccc; padding:8px 10px; border-radius:4px;">
+  <div style="font-weight:bold; font-size:12px; border-bottom:1px solid #ccc; margin-bottom:6px; padding-bottom:4px;">
+    Encerramento
+  </div>
+  ${osAtual.assinaturaChefia ? `<div><strong>Responsável:</strong> ${osAtual.assinaturaChefia}</div>` : ""}
+  ${osAtual.assinaturaRecebedor ? `<div><strong>Recebedor:</strong> ${osAtual.assinaturaRecebedor}</div>` : ""}
+</div>`
+    : ""
+}
+
 <div class="footer">Documento gerado em: ${dataEmissao}</div>`;
 
   abrirJanelaPrint(wrapHTML(`Materiais - ${osAtual.numero}`, body));
@@ -276,26 +360,86 @@ export function imprimirMateriaisMes() {
     return;
   }
 
+  // Pega o mês e ano selecionados para exibir no cabeçalho
+  const mesSelect = document.getElementById("materiais-mes");
+  const anoSelect = document.getElementById("materiais-ano");
+  const nomeMes = mesSelect?.options[mesSelect.selectedIndex]?.text || "";
+  const ano = anoSelect?.value || "";
+
+  // Lê os dados diretamente da tabela renderizada (inclui coluna OS)
   let conteudoTabela = "";
+  let totalItens = 0;
+  let totalQuantidade = 0;
+
   linhas.forEach((linha) => {
     const colunas = linha.querySelectorAll("td");
-    if (colunas.length >= 3) {
-      conteudoTabela += `<tr><td>${colunas[0].innerText}</td><td>${colunas[1].innerText}</td><td>${colunas[2].innerText}</td></tr>`;
+    if (colunas.length >= 4) {
+      const qtd = parseFloat(colunas[1].innerText) || 0;
+      totalQuantidade += qtd;
+      totalItens++;
+      conteudoTabela += `
+        <tr>
+          <td>${colunas[0].innerText}</td>
+          <td style="text-align:center;">${colunas[1].innerText}</td>
+          <td style="text-align:center;">${colunas[2].innerText}</td>
+          <td style="font-size:8px; line-height:1.6;">${colunas[3].innerText}</td>
+        </tr>`;
     }
   });
+
+  if (!conteudoTabela) {
+    mostrarAlerta("Nenhum material para imprimir.", "Atenção");
+    return;
+  }
 
   const dataEmissao = new Date().toLocaleString("pt-BR");
 
   const body = `
 ${headerPrefeitura("50px")}
 <div class="titulo">RELATÓRIO DE MATERIAIS UTILIZADOS</div>
-<table>
-  <thead><tr><th>Material</th><th>Quantidade</th><th>Unidade</th></tr></thead>
-  <tbody>${conteudoTabela}</tbody>
+<div style="text-align:center; font-size:9px; margin-bottom:8px; color:#555;">
+  Período: ${nomeMes} / ${ano}
+</div>
+
+<!-- Resumo -->
+<table style="margin-bottom:10px; border:1px solid #ccc;">
+  <thead>
+    <tr>
+      <th style="text-align:center;">Tipos de Materiais</th>
+      <th style="text-align:center;">Quantidade Total Utilizada</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align:center; font-weight:bold;">${totalItens}</td>
+      <td style="text-align:center; font-weight:bold;">${totalQuantidade}</td>
+    </tr>
+  </tbody>
 </table>
+
+<!-- Tabela principal -->
+<table>
+  <thead>
+    <tr>
+      <th>Material</th>
+      <th style="text-align:center;">Quantidade</th>
+      <th style="text-align:center;">Unidade</th>
+      <th>Ordens de Serviço</th>
+    </tr>
+  </thead>
+  <tbody>${conteudoTabela}</tbody>
+  <tfoot>
+    <tr>
+      <td colspan="4" style="text-align:right; font-weight:bold; background:#f2f2f2; padding:4px 6px;">
+        Total de tipos: ${totalItens} &nbsp;|&nbsp; Quantidade total: ${totalQuantidade}
+      </td>
+    </tr>
+  </tfoot>
+</table>
+
 <div class="footer">Documento gerado em: ${dataEmissao}</div>`;
 
-  abrirJanelaPrint(wrapHTML("Relatório de Materiais", body));
+  abrirJanelaPrint(wrapHTML(`Materiais - ${nomeMes}/${ano}`, body));
 }
 
 /* =========================
@@ -303,12 +447,19 @@ ${headerPrefeitura("50px")}
 ========================= */
 export async function imprimirRelatorio() {
   const dataEmissao = new Date().toLocaleString("pt-BR");
+  const nomeUsuario = window._userName || "Não identificado";
   const dataInicio = document.getElementById("filtro-data-inicio").value;
   const dataFim = document.getElementById("filtro-data-fim").value;
   const status = document.getElementById("filtro-status").value;
   const diretoria = document.getElementById("filtro-diretoria")?.value || "";
-  const solicitante = document.getElementById("filtro-solicitante").value.trim().toLowerCase();
-  const setorSolicitante = document.getElementById("filtro-setor-solicitante")?.value.trim();
+  const tipoOS = document.getElementById("filtro-tipo-os")?.value || "";
+  const solicitante = document
+    .getElementById("filtro-solicitante")
+    .value.trim()
+    .toLowerCase();
+  const setorSolicitante = document
+    .getElementById("filtro-setor-solicitante")
+    ?.value.trim();
 
   if (!dataInicio && !dataFim) {
     alert("Selecione um período.");
@@ -323,7 +474,9 @@ export async function imprimirRelatorio() {
     if (dataInicio && data < new Date(dataInicio + "T00:00:00")) return false;
     if (dataFim && data > new Date(dataFim + "T23:59:59")) return false;
     if (status && o.status !== status) return false;
-    if (solicitante && !o.nomeSolicitante?.toLowerCase().includes(solicitante)) return false;
+    if (tipoOS && (o.tipoOS || "").toLowerCase() !== tipoOS) return false;
+    if (solicitante && !o.nomeSolicitante?.toLowerCase().includes(solicitante))
+      return false;
     if (setorSolicitante) {
       const filtro = normalizarTexto(setorSolicitante);
       const valor = normalizarTexto(o.setorSolicitante || "");
@@ -338,49 +491,59 @@ export async function imprimirRelatorio() {
     return;
   }
 
-  ordensFiltradas.sort((a, b) => (b.numeroSequencial || 0) - (a.numeroSequencial || 0));
+  ordensFiltradas.sort(
+    (a, b) => (b.numeroSequencial || 0) - (a.numeroSequencial || 0),
+  );
 
-  // Contadores por status
-  const totalAbertas     = ordensFiltradas.filter((o) => o.status === "Aberta").length;
-  const totalAndamento   = ordensFiltradas.filter((o) => o.status === "Em andamento").length;
-  const totalEncerradas  = ordensFiltradas.filter((o) => o.status === "Encerrada").length;
+  const totalAbertas = ordensFiltradas.filter((o) => o.status === "Aberta").length;
+  const totalAndamento = ordensFiltradas.filter((o) => o.status === "Em andamento").length;
+  const totalEncerradas = ordensFiltradas.filter((o) => o.status === "Encerrada").length;
+  const totalInternas = ordensFiltradas.filter((o) => (o.tipoOS || "").toLowerCase() === "interna").length;
+  const totalExternas = ordensFiltradas.filter((o) => (o.tipoOS || "").toLowerCase() === "externa").length;
 
   const linhas = ordensFiltradas
-    .map((o) => `
+    .map(
+      (o) => `
       <tr>
         <td>${o.numero || "-"}</td>
+        <td>${(o.tipoOS || "-").toUpperCase()}</td>
         <td>${o.dataAbertura ? formatarData(o.dataAbertura) : "-"}</td>
         <td>${o.status || "-"}</td>
         <td>${o.nomeSolicitante || "-"}</td>
         <td>${o.setorSolicitante || "-"}</td>
         <td>${(o.descricaoServico || "-").substring(0, 100)}</td>
-      </tr>`)
+      </tr>`,
+    )
     .join("");
 
-  const periodo = dataInicio && dataFim
-    ? `Período: ${new Date(dataInicio + "T00:00:00").toLocaleDateString("pt-BR")} a ${new Date(dataFim + "T00:00:00").toLocaleDateString("pt-BR")}`
-    : dataInicio
-      ? `A partir de: ${new Date(dataInicio + "T00:00:00").toLocaleDateString("pt-BR")}`
-      : `Até: ${new Date(dataFim + "T00:00:00").toLocaleDateString("pt-BR")}`;
+  const periodo =
+    dataInicio && dataFim
+      ? `Período: ${new Date(dataInicio + "T00:00:00").toLocaleDateString("pt-BR")} a ${new Date(dataFim + "T00:00:00").toLocaleDateString("pt-BR")}`
+      : dataInicio
+        ? `A partir de: ${new Date(dataInicio + "T00:00:00").toLocaleDateString("pt-BR")}`
+        : `Até: ${new Date(dataFim + "T00:00:00").toLocaleDateString("pt-BR")}`;
 
   const body = `
 ${headerPrefeitura("50px")}
 <div class="titulo">RELATÓRIO DE ORDENS DE SERVIÇO</div>
 <div style="text-align:center;font-size:9px;margin-bottom:8px;color:#555;">${periodo}</div>
 
-<!-- Resumo de totais -->
 <table style="margin-bottom:10px;border:1px solid #ccc;">
   <thead>
     <tr>
       <th style="text-align:center;">Total Geral</th>
-      <th style="text-align:center;">Abertas</th>
-      <th style="text-align:center;">Em Andamento</th>
-      <th style="text-align:center;">Encerradas</th>
+      <th style="text-align:center;color:#6a1b9a;">Internas</th>
+      <th style="text-align:center;color:#00838f;">Externas</th>
+      <th style="text-align:center;color:#1565c0;">Abertas</th>
+      <th style="text-align:center;color:#e65100;">Em Andamento</th>
+      <th style="text-align:center;color:#2e7d32;">Encerradas</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <td style="text-align:center;font-weight:bold;">${ordensFiltradas.length}</td>
+      <td style="text-align:center;color:#6a1b9a;font-weight:bold;">${totalInternas}</td>
+      <td style="text-align:center;color:#00838f;font-weight:bold;">${totalExternas}</td>
       <td style="text-align:center;color:#1565c0;font-weight:bold;">${totalAbertas}</td>
       <td style="text-align:center;color:#e65100;font-weight:bold;">${totalAndamento}</td>
       <td style="text-align:center;color:#2e7d32;font-weight:bold;">${totalEncerradas}</td>
@@ -388,15 +551,21 @@ ${headerPrefeitura("50px")}
   </tbody>
 </table>
 
-<!-- Tabela principal -->
 <table>
   <thead>
-    <tr><th>Nº OS</th><th>Data</th><th>Status</th><th>Solicitante</th><th>Setor</th><th>Descrição</th></tr>
+    <tr>
+      <th>Nº OS</th>
+      <th>Tipo</th>
+      <th>Data</th>
+      <th>Status</th>
+      <th>Solicitante</th>
+      <th>Setor</th>
+      <th>Descrição</th>
+    </tr>
   </thead>
-  <tbody>${linhas || `<tr><td colspan="6">Nenhuma ordem encontrada</td></tr>`}</tbody>
- 
+  <tbody>${linhas || `<tr><td colspan="7">Nenhuma ordem encontrada</td></tr>`}</tbody>
 </table>
-<div class="footer">Documento gerado em: ${dataEmissao}</div>`;
+<div class="footer">Documento gerado em: ${dataEmissao} &nbsp;|&nbsp; Gerado por: <strong>${nomeUsuario}</strong></div>`;
 
   abrirJanelaPrint(wrapHTML("Relatório de Ordens", body));
 }

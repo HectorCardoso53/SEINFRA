@@ -3,7 +3,6 @@
 // ============================================================
 
 import { materiais, materiaisEncerramento } from "./state.js";
-
 /* =========================
    ALERTAS E CONFIRMAÇÕES
 ========================= */

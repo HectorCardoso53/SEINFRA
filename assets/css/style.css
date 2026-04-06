@@ -248,6 +248,11 @@
        }
    }
 
+   .admin-only,
+   .master-only {
+       display: none;
+   }
+
    .paginacao {
        display: flex;
        align-items: center;

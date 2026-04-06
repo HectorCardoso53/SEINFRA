@@ -44,11 +44,6 @@ function validateForm(data) {
     return false;
   }
 
-  if (!data.phone) {
-    showToast("Informe o telefone.", "error");
-    return false;
-  }
-
   return true;
 }
 

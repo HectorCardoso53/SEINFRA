@@ -1,36 +1,68 @@
 // ============================================================
-// script.js — Orquestrador principal (coração do sistema)
-// Importa todos os módulos, registra listeners e inicia o app
+// script.js — Orquestrador principal
 // ============================================================
 
 import { auth } from "../firebase.js";
 import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+import {
+  verificarTermos,
+  aceitarTermos,
+  recusarTermos,
+  reabrirTermos,
+  inicializarEventosTermos,
+} from "./termos.js";
 
 import { loadVisits, loadPersons, deleteVisit } from "./db.js";
 import { visits, setCurrentPage } from "./state.js";
 
 import {
-  showToast, toggleSidebar, closeSidebar, atualizarHeader,
-  initDiretoriaSetor, initPhoneMask, initCpfMask,
-  forceUppercaseInputs, updateSidebarCounter, openConfirmModal, closeConfirm,
+  showToast,
+  toggleSidebar,
+  closeSidebar,
+  atualizarHeader,
+  initDiretoriaSetor,
+  initPhoneMask,
+  initCpfMask,
+  forceUppercaseInputs,
+  updateSidebarCounter,
+  openConfirmModal,
+  closeConfirm,
 } from "./ui.js";
 
 import {
-  handleFormSubmit, cancelEdit, clearForm,
-  editVisit, initPersonAutocomplete,
+  handleFormSubmit,
+  cancelEdit,
+  clearForm,
+  editVisit,
+  initPersonAutocomplete,
 } from "./form.js";
 
-import { renderTable, renderTodayVisits, renderHistory, initFilters, changePage } from "./tabela.js";
+import {
+  renderTable,
+  renderTodayVisits,
+  renderHistory,
+  initFilters,
+  changePage,
+} from "./tabela.js";
+
 import { renderDashboard } from "./dashboard.js";
 
 /* =========================
    NAVEGAÇÃO
 ========================= */
 function navigate(page) {
-  document.querySelectorAll(".page").forEach((p) => p.classList.remove("active"));
-  document.querySelectorAll(".nav-item").forEach((n) => n.classList.remove("active"));
+  document
+    .querySelectorAll(".page")
+    .forEach((p) => p.classList.remove("active"));
+  document
+    .querySelectorAll(".nav-item")
+    .forEach((n) => n.classList.remove("active"));
   document.getElementById(`page-${page}`)?.classList.add("active");
-  document.querySelectorAll(`[data-nav="${page}"]`).forEach((n) => n.classList.add("active"));
+  document
+    .querySelectorAll(`[data-nav="${page}"]`)
+    .forEach((n) => n.classList.add("active"));
   atualizarHeader(page);
   if (page === "lista") renderTable();
   if (page === "dashboard") renderDashboard();
@@ -88,10 +120,18 @@ function initTabelaDelegation() {
 }
 
 /* =========================
+   AUTH — TERMOS DE USO
+========================= */
+onAuthStateChanged(auth, async (user) => {
+  if (!user) return;
+  window._userId = user.uid;
+  await verificarTermos(user.uid);
+});
+
+/* =========================
    DOMCONTENTLOADED
 ========================= */
 document.addEventListener("DOMContentLoaded", async () => {
-
   // ── Carregar dados
   await loadVisits();
   await loadPersons();
@@ -104,25 +144,28 @@ document.addEventListener("DOMContentLoaded", async () => {
   initPersonAutocomplete();
   initFilters();
   initTabelaDelegation();
+  inicializarEventosTermos();
 
   // ── Formulário de visita
-  document.getElementById("visit-form")
+  document
+    .getElementById("visit-form")
     ?.addEventListener("submit", handleFormSubmit);
-  document.getElementById("btn-cancel-edit")
+  document
+    .getElementById("btn-cancel-edit")
     ?.addEventListener("click", cancelEdit);
-  document.getElementById("btn-clear")
-    ?.addEventListener("click", clearForm);
-
+  document.getElementById("btn-clear")?.addEventListener("click", clearForm);
 
   // ── Data automática
   const dateInput = document.getElementById("f-date");
   if (dateInput) dateInput.value = new Date().toISOString().split("T")[0];
 
   // ── Histórico
-  document.getElementById("btn-search-history")?.addEventListener("click", () => {
-    const name = document.getElementById("history-search").value;
-    renderHistory(name);
-  });
+  document
+    .getElementById("btn-search-history")
+    ?.addEventListener("click", () => {
+      const name = document.getElementById("history-search").value;
+      renderHistory(name);
+    });
 
   // ── Navegação pelo menu
   document.querySelectorAll("[data-nav]").forEach((el) => {
@@ -133,16 +176,24 @@ document.addEventListener("DOMContentLoaded", async () => {
   const todayBadge = document.getElementById("today-badge");
   if (todayBadge) {
     todayBadge.textContent = new Date().toLocaleDateString("pt-BR", {
-      weekday: "long", day: "2-digit", month: "long",
+      weekday: "long",
+      day: "2-digit",
+      month: "long",
     });
   }
 
   // ── Sidebar
-  document.getElementById("hamburger")?.addEventListener("click", toggleSidebar);
-  document.getElementById("sidebar-overlay")?.addEventListener("click", closeSidebar);
+  document
+    .getElementById("hamburger")
+    ?.addEventListener("click", toggleSidebar);
+  document
+    .getElementById("sidebar-overlay")
+    ?.addEventListener("click", closeSidebar);
 
   // ── Modal de exclusão
-  document.getElementById("btn-cancel-delete")?.addEventListener("click", closeConfirm);
+  document
+    .getElementById("btn-cancel-delete")
+    ?.addEventListener("click", closeConfirm);
 
   // ── Fechar autocomplete clicando fora
   document.addEventListener("click", (e) => {
@@ -160,3 +211,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   renderTodayVisits();
   updateSidebarCounter(visits.length);
 });
+
+
+// Expõe para o HTML
+window.aceitarTermos = aceitarTermos;
+window.recusarTermos = recusarTermos;
+window.reabrirTermos = reabrirTermos;
+

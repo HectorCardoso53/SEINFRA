@@ -104,7 +104,6 @@ window.salvarEdicao = async function () {
   }
 };
 
-
 window.fecharModal = function () {
   document.getElementById("modal-editar").classList.add("hidden");
 };
@@ -117,6 +116,10 @@ if (formUser) {
   formUser.addEventListener("submit", async (e) => {
     e.preventDefault();
 
+    if (window.userRole !== "master") {
+      alert("Acesso negado: apenas usuários master podem cadastrar.");
+      return;
+    }
     const nome = document.getElementById("user-nome").value.trim();
     const cpf = document.getElementById("user-cpf").value.trim();
     const email = document.getElementById("user-email").value.trim();

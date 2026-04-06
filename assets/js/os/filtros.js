@@ -65,6 +65,7 @@ export function inicializarFiltrosDinamicos() {
     "filtro-setor-solicitante",
     "filtro-mes",
     "filtro-ano",
+    "filtro-tipo-os",
   ];
 
   // Texto: dispara após parar de digitar
@@ -97,6 +98,7 @@ export function limparFiltros() {
     "filtro-setor-solicitante",
     "filtro-mes",
     "filtro-ano",
+    "filtro-tipo-os",
   ];
   ids.forEach((id) => {
     const el = document.getElementById(id);
@@ -192,6 +194,8 @@ export async function aplicarFiltros() {
   const setorSolicitante =
     document.getElementById("filtro-setor-solicitante")?.value?.trim() || "";
 
+  const tipoOS = document.getElementById("filtro-tipo-os")?.value || "";
+
   // Monta os limites de data UMA VEZ para não recriar a cada item
   const dtInicio = dataInicio ? new Date(dataInicio + "T00:00:00") : null;
   const dtFim = dataFim ? new Date(dataFim + "T23:59:59") : null;
@@ -201,6 +205,9 @@ export async function aplicarFiltros() {
 
   const ordensFiltradas = baseDados.filter((o) => {
     if (!o) return false;
+
+    // — Tipo de Ordem (interna/externa)
+    if (tipoOS && (o.tipoOS || "").toLowerCase() !== tipoOS) return false;
 
     // — Número da OS (busca parcial, ex: "42" encontra "OS-0042")
     if (numeroOS) {
@@ -268,7 +275,8 @@ export async function aplicarFiltros() {
     solicitante ||
     setorSolicitante ||
     servico ||
-    numeroOS;
+    numeroOS ||
+    tipoOS;
   const paginacao = document.querySelector(".paginacao");
 
   if (paginacao) paginacao.style.display = temFiltro ? "none" : "block";
@@ -299,9 +307,32 @@ export function carregarTabelaRelatorios(ordensParaExibir) {
       const statusClasse = ordem.status
         ? ordem.status.toLowerCase().replace(/\s/g, "-")
         : "aberta";
+
+      const tipo = (ordem.tipoOS || "").toLowerCase();
+      const tipoBg =
+        tipo === "interna"
+          ? "#ede7f6"
+          : tipo === "externa"
+            ? "#e0f7fa"
+            : "#f5f5f5";
+      const tipoColor =
+        tipo === "interna"
+          ? "#6a1b9a"
+          : tipo === "externa"
+            ? "#00838f"
+            : "#999";
+      const tipoLabel = tipo ? tipo.toUpperCase() : "N/I";
+
       return `
         <tr>
-          <td>${upper(ordem.numero)}</td>
+          <td>
+            ${upper(ordem.numero)}
+            <br>
+            <span style="font-size:11px; font-weight:600; padding:2px 7px; border-radius:10px;
+              background:${tipoBg}; color:${tipoColor};">
+              ${tipoLabel}
+            </span>
+          </td>
           <td>${ordem.dataAbertura ? formatarData(ordem.dataAbertura) : "-"}</td>
           <td>
             <span class="status-badge status-${statusClasse}">
@@ -344,7 +375,9 @@ export function renderTabelaMateriaisMes(lista) {
         <td>${m.nome}</td>
         <td>${m.quantidade}</td>
         <td>${m.unidade}</td>
-        <td>${m.os}</td>
+        <td style="font-size: 12px; line-height: 1.8;">
+          ${m.numeroOS.join("<br>")}
+        </td>
       </tr>
     `,
     )
@@ -379,6 +412,12 @@ export function carregarAnoMateriais() {
     if (i === anoAtual) opt.selected = true;
     select.appendChild(opt);
   }
+
+  // 👇 Seleciona o mês atual automaticamente
+  const mesSelect = document.getElementById("materiais-mes");
+  if (mesSelect) {
+    mesSelect.value = new Date().getMonth(); // 0=Jan, 2=Mar, 3=Abr...
+  }
 }
 
 export function carregarSetoresFiltro(diretoriaSelecionada) {
@@ -400,22 +439,21 @@ export function carregarSetoresFiltro(diretoriaSelecionada) {
 /* =========================
    RELATÓRIO DE MATERIAIS
 ========================= */
-export function gerarRelatorioMateriais(ordensAtuais) {
+export async function gerarRelatorioMateriais() {
   const mesSelect = document.getElementById("materiais-mes");
   const anoSelect = document.getElementById("materiais-ano");
 
-  if (!mesSelect || !anoSelect) {
-    console.error("Campos de mês ou ano não encontrados.");
-    return;
-  }
+  if (!mesSelect || !anoSelect) return;
 
   const mes = Number(mesSelect.value);
   const ano = Number(anoSelect.value);
 
   if (isNaN(mes) || isNaN(ano)) {
-    mostrarAlerta("Selecione o mês e o ano para gerar o relatório.", "Atenção");
+    mostrarAlerta("Selecione o mês e o ano.", "Atenção");
     return;
   }
+
+  const ordensAtuais = await getOrdensCached();
 
   let materiaisSomados = {};
   let quantidadeTotal = 0;
@@ -433,12 +471,18 @@ export function gerarRelatorioMateriais(ordensAtuais) {
             nome: mat.nome,
             unidade: mat.unidade,
             quantidade: 0,
-            os: 0,
+            numeroOS: [], // 👈 agora guarda os números
           };
         }
         const qtd = Number(mat.quantidade || 0);
         materiaisSomados[chave].quantidade += qtd;
-        materiaisSomados[chave].os += 1;
+
+        // 👇 Adiciona o número da OS se ainda não estiver na lista
+        const numOS = ordem.numero || ordem.id;
+        if (!materiaisSomados[chave].numeroOS.includes(numOS)) {
+          materiaisSomados[chave].numeroOS.push(numOS);
+        }
+
         quantidadeTotal += qtd;
       });
     }

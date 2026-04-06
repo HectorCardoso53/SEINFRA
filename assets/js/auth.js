@@ -13,6 +13,8 @@ import {
   getDoc,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+import { verificarAceiteTermos } from "./firestore.js";
+
 /* =========================
    LOGIN
 ========================= */
@@ -33,8 +35,16 @@ window.login = async function () {
   passwordInput.classList.remove("input-error");
 
   let hasError = false;
-  if (!email) { emailError.style.display = "block"; emailInput.classList.add("input-error"); hasError = true; }
-  if (!password) { passwordError.style.display = "block"; passwordInput.classList.add("input-error"); hasError = true; }
+  if (!email) {
+    emailError.style.display = "block";
+    emailInput.classList.add("input-error");
+    hasError = true;
+  }
+  if (!password) {
+    passwordError.style.display = "block";
+    passwordInput.classList.add("input-error");
+    hasError = true;
+  }
   if (hasError) return;
 
   loading.style.display = "block";
@@ -53,16 +63,21 @@ window.login = async function () {
     else if (data.role === "admin") window.location.replace("admin.html");
     else if (data.role === "master") window.location.replace("servicos.html");
     else throw new Error("role-invalido");
-
   } catch (error) {
     loading.style.display = "none";
     btn.disabled = false;
     let msg = "Erro ao fazer login";
-    if (error.code === "auth/invalid-credential") msg = '<i class="bi bi-exclamation-triangle"></i> E-mail ou senha inválidos';
-    else if (error.code === "auth/network-request-failed") msg = '<i class="bi bi-wifi-off"></i> Sem conexão com a internet';
-    else if (error.message === "sem-perfil") msg = "Usuário não possui cadastro no sistema";
-    else if (error.message === "sem-role") msg = "Usuário sem permissão definida";
-    else if (error.message === "role-invalido") msg = "Permissão inválida no sistema";
+    if (error.code === "auth/invalid-credential")
+      msg =
+        '<i class="bi bi-exclamation-triangle"></i> E-mail ou senha inválidos';
+    else if (error.code === "auth/network-request-failed")
+      msg = '<i class="bi bi-wifi-off"></i> Sem conexão com a internet';
+    else if (error.message === "sem-perfil")
+      msg = "Usuário não possui cadastro no sistema";
+    else if (error.message === "sem-role")
+      msg = "Usuário sem permissão definida";
+    else if (error.message === "role-invalido")
+      msg = "Permissão inválida no sistema";
     passwordError.innerHTML = msg;
     passwordError.style.display = "block";
     passwordInput.classList.add("input-error");
@@ -77,6 +92,7 @@ window.logout = async function () {
   window.location.replace("index.html");
 };
 
+
 /* =========================
    PROTEÇÃO DE ROTAS
 ========================= */
@@ -85,22 +101,51 @@ onAuthStateChanged(auth, async (user) => {
 
   const ref = doc(db, "users", user.uid);
   const snap = await getDoc(ref);
-  if (!snap.exists()) { alert("Usuário sem perfil cadastrado."); return; }
+
+  if (!snap.exists()) {
+    alert("Usuário sem perfil cadastrado.");
+    return;
+  }
 
   const data = snap.data();
 
-  // 🔐 Salva globalmente — usado por ordens.js para preencher manualmente
+  // 🔐 Dados globais
   window.userRole = data.role;
   window.userNome = data.nome;
+  window._userId = user.uid;
+  window._userName = user.displayName || user.email || "Usuário";
 
-  // ✅ CHAMA a função de preenchimento registrada pelo ordens.js
-  // Isso garante que o ordens.js controla QUANDO e O QUÊ preencher
+  // ✅ Preenche campo automático
   if (typeof window._onAuthPronto === "function") {
     window._onAuthPronto(data.nome);
   }
 
-  // 👁️ menu admin
-  if (data.role === "admin") {
-    document.querySelectorAll(".admin-only").forEach((el) => (el.style.display = "flex"));
+  const role = data.role;
+
+  // 🔥 PASSO 1 — ESCONDE TUDO PRIMEIRO (OBRIGATÓRIO)
+  document.querySelectorAll(".master-only").forEach((el) => {
+    el.style.display = "none";
+  });
+
+  // 🔥 PASSO 2 — LIBERA APENAS MASTER
+  if (role === "master") {
+    document.querySelectorAll(".master-only").forEach((el) => {
+      el.style.display = "flex";
+    });
+  }
+
+  // 📋 Termos
+  try {
+    const jaAceitou = await verificarAceiteTermos(user.uid);
+
+    if (!jaAceitou) {
+      const modal = document.getElementById("modal-termos");
+      if (modal) {
+        modal.classList.remove("hidden");
+        modal.classList.add("show");
+      }
+    }
+  } catch (e) {
+    console.error("Erro ao verificar termos:", e);
   }
 });

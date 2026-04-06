@@ -7,6 +7,7 @@
     <link rel="icon" type="image/png" href="assets/img/prefeitura.png">
     <title>Secretaria — Agendamento de Visitas</title>
     <link rel="stylesheet" href="/assets/css/cadastro.css">
+    <link rel="stylesheet" href="/assets/css/style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 </head>
@@ -294,19 +295,19 @@
 
                             <!-- CPF -->
                             <div class="form-group">
-                                <label>CPF <span class="required">*</span></label>
+                                <label>CPF</label>
                                 <input type="text" id="f-cpf" placeholder="000.000.000-00">
                             </div>
 
                             <!-- TELEFONE -->
                             <div class="form-group">
-                                <label>Telefone <span class="required">*</span></label>
+                                <label>Telefone</label>
                                 <input type="tel" id="f-phone" placeholder="(00) 00000-0000">
                             </div>
 
                             <!-- ENDEREÇO -->
                             <div class="form-group full">
-                                <label>Endereço <span class="required">*</span></label>
+                                <label>Endereço</label>
                                 <input type="text" id="f-address" placeholder="Rua, número, bairro">
                             </div>
 
@@ -443,8 +444,6 @@
 
             </section>
 
-
-
             <section class="page" id="page-tutorial">
 
                 <div class="card">
@@ -462,20 +461,20 @@
             </section>
 
 
+            <footer class="app-footer">
+                <span>Desenvolvido pela Secretaria de Eficiência Governamental - SEMEG</span>
+                <span>
+                    <a href="#" onclick="reabrirTermos()" style="color:#3498db; text-decoration:none; font-size:12px;">
+                        Termos de Uso e Privacidade
+                    </a>
+                    &nbsp;|&nbsp;
+                    Prefeitura Municipal de Oriximiná
+                </span>
+            </footer>
 
 
         </div><!-- /content -->
-        <footer class="app-footer">
 
-            <span>
-                Desenvolvido pela Secretaria de Eficiência Governamental - SEMEG
-            </span>
-
-            <span>
-                Prefeitura Municipal de Oriximiná - A transformação não vai parar
-            </span>
-
-        </footer>
     </main>
 
     <!-- ─── CONFIRM MODAL ──────────────────────────────────── -->
@@ -508,11 +507,94 @@
     </div>
 
 
+    <!-- Modal Termos de Uso -->
+    <div id="modal-termos" class="modal hidden">
+        <div class="modal-box" style="max-width: 620px;">
+
+            <!-- Cabeçalho com logo -->
+            <div
+                style="display: flex; align-items: center; gap: 14px; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 2px solid #e0e4ea;">
+                <img src="assets/img/prefeitura.png" alt="Prefeitura de Oriximiná"
+                    style="width: 54px; height: auto; object-fit: contain;">
+                <div>
+                    <h3 style="margin: 0; color: #2c3e50; font-size: 15px;">Termos de Uso e Política de Privacidade</h3>
+                    <p style="margin: 2px 0 0; font-size: 12px; color: #7f8c8d;">Prefeitura Municipal de Oriximiná</p>
+                </div>
+            </div>
+
+            <!-- Conteúdo -->
+            <div
+                style="max-height: 380px; overflow-y: auto; font-size: 13px; line-height: 1.8; color: #444; padding-right: 8px;">
+
+                <h4 style="margin-bottom: 6px;">1. Sobre o Sistema</h4>
+                <p>Este sistema de Ordens de Serviço é de uso exclusivo da <strong>Prefeitura Municipal de
+                        Oriximiná</strong>, operado pela Secretaria de Infraestrutura – SEINFRA.</p>
+
+                <h4 style="margin: 14px 0 6px;">2. Coleta de Dados</h4>
+                <p>Os dados inseridos — como nome, CPF, telefone e setor do solicitante — são coletados exclusivamente
+                    para fins administrativos de controle e execução de serviços públicos municipais.</p>
+
+                <h4 style="margin: 14px 0 6px;">3. Armazenamento</h4>
+                <p>Os dados são armazenados em dois ambientes:</p>
+                <ul style="margin-left: 16px; margin-top: 6px;">
+                    <li><strong>Firebase (Google Cloud)</strong> — plataforma com certificação internacional de proteção
+                        de dados.</li>
+                    <li><strong>Servidores locais da Secretaria de Eficiência Governamental</strong> — sob
+                        responsabilidade da Prefeitura Municipal de Oriximiná.</li>
+                </ul>
+
+                <h4 style="margin: 14px 0 6px;">4. Uso dos Dados</h4>
+                <p>As informações não serão compartilhadas com terceiros e serão usadas somente para gestão pública
+                    municipal, em conformidade com a <strong>LGPD — Lei nº 13.709/2018</strong>.</p>
+
+                <h4 style="margin: 14px 0 6px;">5. Acesso e Responsabilidade</h4>
+                <p>O acesso é restrito a servidores autorizados. Cada usuário é responsável pelo uso de suas credenciais
+                    e pelas informações inseridas.</p>
+
+                <h4 style="margin: 14px 0 6px;">6. Contato</h4>
+                <p>Dúvidas sobre o tratamento de dados ou sobre o funcionamento do sistema devem ser encaminhadas à
+                    <strong>Secretaria de Eficiência Governamental – SEMEG</strong> através da plataforma oficial:
+                </p>
+                <a href="https://oriximina.1doc.com.br/b.php?pg=o/login&n=3" target="_blank"
+                    style="display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; color: #3498db; font-weight: 600; text-decoration: none; font-size: 13px;">
+                    <i class="bi bi-box-arrow-up-right"></i>
+                    Acessar o 1Doc — Plataforma Oficial
+                </a>
+                <p style="margin-top: 10px; font-size: 12px; color: #7f8c8d;">
+                    <i class="bi bi-info-circle"></i>
+                    Acesse com seu login institucional e abra um chamado direcionado à SEMEG.
+                </p>
+            </div>
+
+            <!-- Mensagem de já aceito — oculta por padrão -->
+            <div id="msg-termos-aceito" style="display: none; align-items: center; gap: 8px; margin-top: 16px;
+                   background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px;
+                   padding: 10px 14px; font-size: 13px; color: #2e7d32;">
+                <i class="bi bi-check-circle-fill"></i>
+                <span>Você já aceitou os Termos de Uso. Os botões estão desabilitados.</span>
+            </div>
+
+            <!-- Botões -->
+            <div style="margin-top: 16px; display: flex; justify-content: space-between; gap: 12px;">
+                <button id="btn-recusar-termos" class="btn btn-danger" onclick="recusarTermos()">
+                    <i class="bi bi-x-circle"></i> Recusar e Sair
+                </button>
+                <button id="btn-aceitar-termos" class="btn btn-primary" onclick="aceitarTermos()">
+                    <i class="bi bi-check-circle"></i> Li e Aceito os Termos
+                </button>
+            </div>
+
+        </div>
+    </div>
+
 
     <!-- ─── TOAST CONTAINER ────────────────────────────────── -->
     <div class="toast-container" id="toast-container"></div>
 
+
     <script type="module" src="assets/js/visitas/script.js"></script>
 </body>
+
+
 
 </html>

@@ -61,18 +61,18 @@
                         d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z"
                         clip-rule="evenodd" />
                 </svg>
-                <span>Relátorios</span>
+                <span>Relatórios</span>
             </div>
 
-            <div class="menu-item" onclick="showPage('materiais-mes', this)">
+            <div class="menu-item" onclick="showPage('materiais-mes', this); gerarRelatorioMateriais();">
                 <svg fill="currentColor" viewBox="0 0 20 20">
                     <path d="M3 3h14v2H3zM3 7h14v2H3zM3 11h14v2H3zM3 15h14v2H3z" />
                 </svg>
                 <span>Materiais por Mês</span>
             </div>
 
-            <!-- 🔐 ABA ADMIN -->
-            <div class="menu-item admin-only" onclick="showPage('usuarios', this)">
+            <!-- 🔐 ABA MASTER — visível apenas para master e admin -->
+            <div class="menu-item master-only" onclick="showPage('usuarios', this)">
                 <svg fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 2a4 4 0 100 8 4 4 0 000-8zm-6 14a6 6 0 1112 0H4z"
                         clip-rule="evenodd" />
@@ -89,10 +89,8 @@
 
             <div class="menu-footer">
                 <a href="https://oriximina.1doc.com.br/b.php?pg=o/login&n=3" target="_blank" class="menu-item">
-                    <a href="https://oriximina.1doc.com.br/b.php?pg=o/login&n=3" target="_blank" class="menu-item">
-                        <img src="assets/img/1doc.png" alt="1Doc" class="menu-icon-img">
-                        <span>Acessar 1Doc</span>
-                    </a>
+                    <img src="assets/img/1doc.png" alt="1Doc" class="menu-icon-img">
+                    <span>Acessar 1Doc</span>
                 </a>
             </div>
         </div>
@@ -345,10 +343,6 @@
                 <div class="filter-section">
                     <div class="filter-grid">
                         <div class="form-group">
-                            <label>Nº da OS</label>
-                            <input type="text" id="filtro-numero-os" placeholder="Ex: 0042">
-                        </div>
-                        <div class="form-group">
                             <label>Data Inicial</label>
                             <input type="date" id="filtro-data-inicio">
                         </div>
@@ -356,6 +350,19 @@
                             <label>Data Final</label>
                             <input type="date" id="filtro-data-fim">
                         </div>
+                        <div class="form-group">
+                            <label>Tipo de Ordem</label>
+                            <select id="filtro-tipo-os">
+                                <option value="">Todos</option>
+                                <option value="interna">Interna</option>
+                                <option value="externa">Externa</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Nº da OS</label>
+                            <input type="text" id="filtro-numero-os" placeholder="Ex: 0042">
+                        </div>
+
                         <div class="form-group">
                             <label>Status</label>
                             <select id="filtro-status">
@@ -431,13 +438,14 @@
                 </div>
             </div>
 
+
             <!-- Materiais por Mês -->
             <div id="page-materiais-mes" class="page hidden">
                 <div class="filter-section">
                     <div class="filter-grid">
                         <div class="form-group">
                             <label>Mês</label>
-                            <select id="materiais-mes">
+                            <select id="materiais-mes" onchange="gerarRelatorioMateriais()">
                                 <option value="0">Janeiro</option>
                                 <option value="1">Fevereiro</option>
                                 <option value="2">Março</option>
@@ -454,17 +462,12 @@
                         </div>
                         <div class="form-group">
                             <label>Ano</label>
-                            <select id="materiais-ano"></select>
-                        </div>
-                        <div class="form-group">
-                            <button class="btn btn-primary" onclick="gerarRelatorioMateriais()">
-                                Gerar Relatório
-                            </button>
+                            <select id="materiais-ano" onchange="gerarRelatorioMateriais()"></select>
                         </div>
                     </div>
                 </div>
 
-                <div class="cards-grid" style="margin-bottom:20px;">
+                <div class="cards-grid" style="margin-bottom: 20px;">
                     <div class="card card-blue">
                         <div class="card-header">
                             <div class="card-title">Tipos de Materiais</div>
@@ -495,16 +498,16 @@
                         <tbody id="tabela-materiais-mes">
                             <tr>
                                 <td colspan="4" class="empty-state">
-                                    Selecione um mês e clique em "Gerar Relatório"
+                                    Selecione um mês para visualizar os materiais
                                 </td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
 
-                <div class="button-group" style="margin-top:20px;">
-                    <button class="btn btn-success" onclick="imprimirMateriaisMes()">
-                        🖨 Imprimir Relatório de Materiais
+                <div class="button-group" style="margin-top: 20px;">
+                    <button class="btn btn-primary" onclick="imprimirMateriaisMes()">
+                        <i class="bi bi-printer"></i> Imprimir Relatório de Materiais
                     </button>
                 </div>
             </div>
@@ -756,6 +759,86 @@
         </div>
     </div>
 
+    <!-- Modal Termos de Uso -->
+    <div id="modal-termos" class="modal hidden">
+        <div class="modal-box" style="max-width: 620px;">
+
+            <!-- Cabeçalho com logo -->
+            <div
+                style="display: flex; align-items: center; gap: 14px; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 2px solid #e0e4ea;">
+                <img src="assets/img/prefeitura.png" alt="Prefeitura de Oriximiná"
+                    style="width: 54px; height: auto; object-fit: contain;">
+                <div>
+                    <h3 style="margin: 0; color: #2c3e50; font-size: 15px;">Termos de Uso e Política de Privacidade</h3>
+                    <p style="margin: 2px 0 0; font-size: 12px; color: #7f8c8d;">Prefeitura Municipal de Oriximiná</p>
+                </div>
+            </div>
+
+            <!-- Conteúdo -->
+            <div
+                style="max-height: 380px; overflow-y: auto; font-size: 13px; line-height: 1.8; color: #444; padding-right: 8px;">
+
+                <h4 style="margin-bottom: 6px;">1. Sobre o Sistema</h4>
+                <p>Este sistema de Ordens de Serviço é de uso exclusivo da <strong>Prefeitura Municipal de
+                        Oriximiná</strong>, operado pela Secretaria Municipal de Infraestrutura – SEINFRA.</p>
+
+                <h4 style="margin: 14px 0 6px;">2. Coleta de Dados</h4>
+                <p>Os dados inseridos — como nome, CPF, telefone e setor do solicitante — são coletados exclusivamente
+                    para fins administrativos de controle e execução de serviços públicos municipais.</p>
+
+                <h4 style="margin: 14px 0 6px;">3. Armazenamento</h4>
+                <p>Os dados são armazenados em dois ambientes:</p>
+                <ul style="margin-left: 16px; margin-top: 6px;">
+                    <li><strong>Firebase (Google Cloud)</strong> — plataforma com certificação internacional de proteção
+                        de dados.</li>
+                    <li><strong>Servidores locais da Secretaria de Eficiência Governamental</strong> — sob
+                        responsabilidade da Prefeitura Municipal de Oriximiná.</li>
+                </ul>
+
+                <h4 style="margin: 14px 0 6px;">4. Uso dos Dados</h4>
+                <p>As informações não serão compartilhadas com terceiros e serão usadas somente para gestão pública
+                    municipal, em conformidade com a <strong>LGPD — Lei nº 13.709/2018</strong>.</p>
+
+                <h4 style="margin: 14px 0 6px;">5. Acesso e Responsabilidade</h4>
+                <p>O acesso é restrito a servidores autorizados. Cada usuário é responsável pelo uso de suas credenciais
+                    e pelas informações inseridas.</p>
+
+                <h4 style="margin: 14px 0 6px;">6. Contato</h4>
+                <p>Dúvidas sobre o tratamento de dados ou sobre o funcionamento do sistema devem ser encaminhadas à
+                    <strong>Secretaria de Eficiência Governamental – SEMEG</strong> através da plataforma oficial:
+                </p>
+                <a href="https://oriximina.1doc.com.br/b.php?pg=o/login&n=3" target="_blank"
+                    style="display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; color: #3498db; font-weight: 600; text-decoration: none; font-size: 13px;">
+                    <i class="bi bi-box-arrow-up-right"></i>
+                    Acessar o 1Doc — Plataforma Oficial
+                </a>
+                <p style="margin-top: 10px; font-size: 12px; color: #7f8c8d;">
+                    <i class="bi bi-info-circle"></i>
+                    Acesse com seu login institucional e abra um chamado direcionado à SEMEG.
+                </p>
+            </div>
+
+            <!-- Mensagem de já aceito — oculta por padrão -->
+            <div id="msg-termos-aceito" style="display: none; align-items: center; gap: 8px; margin-top: 16px;
+                   background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px;
+                   padding: 10px 14px; font-size: 13px; color: #2e7d32;">
+                <i class="bi bi-check-circle-fill"></i>
+                <span>Você já aceitou os Termos de Uso. Os botões estão desabilitados.</span>
+            </div>
+
+            <!-- Botões -->
+            <div style="margin-top: 16px; display: flex; justify-content: space-between; gap: 12px;">
+                <button id="btn-recusar-termos" class="btn btn-danger" onclick="recusarTermos()">
+                    <i class="bi bi-x-circle"></i> Recusar e Sair
+                </button>
+                <button id="btn-aceitar-termos" class="btn btn-primary" onclick="aceitarTermos()">
+                    <i class="bi bi-check-circle"></i> Li e Aceito os Termos
+                </button>
+            </div>
+
+        </div>
+    </div>
+
     <div class="overlay"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -764,8 +847,14 @@
     <script type="module" src="assets/js/os/app.js"></script>
 
     <footer class="app-footer">
-        <span>Desenvolvido pela Secretaria de Eficiência Governamental - SEMEG </span>
-        <span>Prefeitura Municipal de Oriximiná - A transformação não vai parar</span>
+        <span>Desenvolvido pela Secretaria de Eficiência Governamental - SEMEG</span>
+        <span>
+            <a href="#" onclick="reabrirTermos()" style="color:#3498db; text-decoration:none; font-size:12px;">
+                Termos de Uso e Privacidade
+            </a>
+            &nbsp;|&nbsp;
+            Prefeitura Municipal de Oriximiná
+        </span>
     </footer>
 
 </body>
