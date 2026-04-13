@@ -9,6 +9,8 @@ export let currentPage = 1;
 export let filterDate = "";
 export let filterService = "";
 export let searchTerm = "";
+export let filterDateStart = "";
+export let filterDateEnd = "";
 export let chartService = null;
 export let chartMonth = null;
 
@@ -23,3 +25,5 @@ export function setFilterService(v) { filterService = v; }
 export function setSearchTerm(v)    { searchTerm = v; }
 export function setChartService(v)  { chartService = v; }
 export function setChartMonth(v)    { chartMonth = v; }
+export function setFilterDateStart(v) { filterDateStart = v; }
+export function setFilterDateEnd(v) { filterDateEnd = v; }

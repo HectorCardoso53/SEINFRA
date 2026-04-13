@@ -54,24 +54,15 @@ import { mostrarProgresso, concluirProgresso } from "./ui.js";
 
 /* =========================
    CONTROLE DO CAMPO RESPONSAVEL-ABERTURA
-
-   O auth.js chama window._onAuthPronto(nome) quando o Firebase responde.
-   Aqui decidimos o que fazer com esse nome:
-   - Se estiver em modo edição: ignora completamente
-   - Se for nova OS: preenche com o nome do usuário logado
 ========================= */
-
 let _valorEdicaoAtual = null;
 
 window._onAuthPronto = function (nomeUsuario) {
   const campo = document.getElementById("responsavel-abertura");
   if (!campo) return;
-
   if (_valorEdicaoAtual !== null) {
-    // Em modo edição — mantém o valor da OS, ignora o auth
     campo.value = _valorEdicaoAtual;
   } else {
-    // Nova OS — preenche com o usuário logado
     campo.value = nomeUsuario;
   }
 };
@@ -206,6 +197,8 @@ export function coletarDadosFormulario(
     nomeSolicitante: document.getElementById("nome-solicitante")?.value.trim(),
     cpf: document.getElementById("cpf-solicitante")?.value.trim(),
     telefone: document.getElementById("telefone-solicitante")?.value.trim(),
+    telefone2:
+      document.getElementById("telefone-solicitante2")?.value.trim() || "",
     setorSolicitante: document.getElementById("setor-solicitante")?.value,
     descricao,
     local: document.getElementById("local-servico")?.value.trim(),
@@ -228,6 +221,9 @@ export async function limparFormulario() {
   if (window.userNome) {
     document.getElementById("responsavel-abertura").value = window.userNome;
   }
+  // limpa telefone2
+  const tel2 = document.getElementById("telefone-solicitante2");
+  if (tel2) tel2.value = "";
 }
 
 export function limparFormularioOS(modoEdicao = false) {
@@ -244,6 +240,11 @@ export function limparFormularioOS(modoEdicao = false) {
   document.getElementById("ponto-referencia").value = "";
   document.getElementById("responsavel-execucao").value = "";
   document.getElementById("responsavel-abertura").value = window.userNome || "";
+
+  // limpa telefone2
+  const tel2 = document.getElementById("telefone-solicitante2");
+  if (tel2) tel2.value = "";
+
   setMateriais([]);
   renderizarMateriais([]);
 }
@@ -364,7 +365,8 @@ export async function visualizarOS(id) {
 <h3 style="border-bottom:1px solid #ddd; padding-bottom:8px; margin-top:15px;">Solicitante</h3>
 <div><strong>Nome:</strong> ${ordem.nomeSolicitante}</div>
 <div><strong>CPF:</strong> ${ordem.cpfSolicitante || "-"}</div>
-<div><strong>Telefone:</strong> ${ordem.telefoneSolicitante || "-"}</div>
+<div><strong>Telefone 1:</strong> ${ordem.telefoneSolicitante || "-"}</div>
+${ordem.telefone2 ? `<div><strong>Telefone 2:</strong> ${ordem.telefone2}</div>` : ""}
 ${tipoOS !== "externa" ? `<div><strong>Setor Solicitante:</strong> ${ordem.setorSolicitante || "-"}</div>` : ""}
 <div><strong>Setor Responsável:</strong> ${ordem.setorResponsavel}</div>
 
@@ -459,8 +461,12 @@ export async function handleFormEncerramentoSubmit(e) {
   mostrarProgresso();
 
   try {
-    const assinaturaChefia = document.getElementById("assinatura-chefia").value.trim();
-    const assinaturaRecebedor = document.getElementById("assinatura-recebedor").value.trim();
+    const assinaturaChefia = document
+      .getElementById("assinatura-chefia")
+      .value.trim();
+    const assinaturaRecebedor = document
+      .getElementById("assinatura-recebedor")
+      .value.trim();
     const dataEncerramento = document.getElementById("data-encerramento").value;
 
     if (!assinaturaChefia || !assinaturaRecebedor) {
@@ -501,7 +507,6 @@ export async function handleFormEncerramentoSubmit(e) {
     await carregarPagina(1);
     await carregarResumoDashboard_();
     mostrarAlerta("Ordem encerrada com sucesso!", "Sucesso");
-
   } catch (error) {
     console.error(error);
     mostrarAlerta("Erro ao encerrar a ordem.", "Erro");
@@ -512,10 +517,8 @@ export async function handleFormEncerramentoSubmit(e) {
 
 /* =========================
    EXCLUIR OS
-   🔑 Busca direto do Firestore pelo id — funciona com filtros ativos
 ========================= */
 export async function excluirOS(id) {
-  // Busca a ordem direto do Firestore — não depende do array local
   const ordem = await buscarOrdemPorId(id);
   if (!ordem) {
     mostrarAlerta("Ordem não encontrada.", "Erro");
@@ -544,10 +547,8 @@ export async function excluirOS(id) {
 
 /* =========================
    EDITAR OS
-   🔑 Busca direto do Firestore pelo id — funciona com filtros ativos
 ========================= */
 export async function editarOS(id) {
-  // Busca a ordem direto do Firestore — não depende do array local
   const ordem = await buscarOrdemPorId(id);
   if (!ordem) {
     mostrarAlerta("Ordem não encontrada.", "Erro");
@@ -559,7 +560,6 @@ export async function editarOS(id) {
     return;
   }
 
-  // 🔑 Ativa modo edição com o valor correto da OS
   ativarModoEdicao(ordem.responsavelAbertura);
 
   setOsAtual(ordem);
@@ -571,12 +571,19 @@ export async function editarOS(id) {
   document.getElementById("data-abertura").value = ordem.dataAbertura;
   document.getElementById("setor-responsavel").value = ordem.setorResponsavel;
   document.getElementById("nome-solicitante").value = ordem.nomeSolicitante;
+  document.getElementById("cpf-solicitante").value = ordem.cpfSolicitante || ""; // 👈
+  document.getElementById("telefone-solicitante").value =
+    ordem.telefoneSolicitante || ""; // 👈
   document.getElementById("descricao-servico").value = ordem.descricaoServico;
   document.getElementById("ponto-referencia").value =
     ordem.pontoReferencia || "";
   document.getElementById("local-servico").value = ordem.localServico;
   document.getElementById("responsavel-execucao").value =
     ordem.responsavelExecucao || "";
+
+  // preenche telefone2 se existir
+  const tel2 = document.getElementById("telefone-solicitante2");
+  if (tel2) tel2.value = ordem.telefone2 || "";
 
   carregarSetores(ordem.setorResponsavel);
 

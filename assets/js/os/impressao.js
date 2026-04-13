@@ -90,6 +90,7 @@ function conteudoOSHTML(dados) {
     nomeSolicitante,
     cpf,
     telefone,
+    telefone2,
     setorSolicitante,
     setorResponsavel,
     execucao,
@@ -122,7 +123,7 @@ ${headerPrefeitura()}
   <h3>Solicitante</h3>
   <div><strong>Nome:</strong> ${nomeSolicitante || "-"}</div>
   <div><strong>CPF:</strong> ${cpf || "-"}</div>
-  <div><strong>Telefone:</strong> ${telefone || "-"}</div>
+  <div><strong>Telefone 1:</strong> ${telefone || "-"} &nbsp;&nbsp; ${telefone2 ? `<strong>Telefone 2:</strong> ${telefone2}` : ""}</div>
   ${tipo !== "externa" ? `<div><strong>Setor:</strong> ${setorSolicitante || "-"}</div>` : ""}
   <div><strong>Diretoria Responsável:</strong> ${setorResponsavel || "-"}</div>
 </div>
@@ -161,6 +162,7 @@ export function previsualizarOS() {
     nomeSolicitante: document.getElementById("nome-solicitante").value,
     cpf: document.getElementById("cpf-solicitante")?.value || "-",
     telefone: document.getElementById("telefone-solicitante")?.value || "-",
+    telefone2: document.getElementById("telefone-solicitante2")?.value || "",
     setorSolicitante: document.getElementById("setor-solicitante").value,
     setorResponsavel: document.getElementById("setor-responsavel").value,
     descricao: document.getElementById("descricao-servico").value,
@@ -175,7 +177,8 @@ export function previsualizarOS() {
   };
 
   const bloco = conteudoOSHTML(dados);
-  const body = `<div class="folha"><div class="os-bloco">${bloco}</div><div class="linha-corte"></div><div class="os-bloco">${bloco}</div></div>`;
+  const body = `<div class="folha"><div class="os-bloco">${bloco}<div class="linha"><span class="label">Telefone 1:</span> ${dados.telefone || "-"}</div>
+${dados.telefone2 ? `<div class="linha"><span class="label">Telefone 2:</span> ${dados.telefone2}</div>` : ""}`;
   abrirJanelaPrint(wrapHTML("Pré-visualização OS", body));
 }
 
@@ -209,6 +212,7 @@ export function imprimirDetalhesOS() {
     nomeSolicitante: osAtual.nomeSolicitante,
     cpf: osAtual.cpfSolicitante,
     telefone: osAtual.telefoneSolicitante,
+    telefone2: osAtual.telefone2 || "",
     setorSolicitante: osAtual.setorSolicitante,
     setorResponsavel: osAtual.setorResponsavel,
     execucao: osAtual.responsavelExecucao,
@@ -424,7 +428,7 @@ ${headerPrefeitura("50px")}
       <th>Material</th>
       <th style="text-align:center;">Quantidade</th>
       <th style="text-align:center;">Unidade</th>
-      <th>Ordens de Serviço</th>
+      <th>Ordens de Serviço / Data</th>
     </tr>
   </thead>
   <tbody>${conteudoTabela}</tbody>
@@ -478,9 +482,20 @@ export async function imprimirRelatorio() {
     if (solicitante && !o.nomeSolicitante?.toLowerCase().includes(solicitante))
       return false;
     if (setorSolicitante) {
-      const filtro = normalizarTexto(setorSolicitante);
-      const valor = normalizarTexto(o.setorSolicitante || "");
-      if (!valor.includes(filtro)) return false;
+      if (setorSolicitante === "__nao_informado__") {
+        const valor = normalizarTexto(o.setorSolicitante || "")
+          .replace(/^setor\s+/i, "")
+          .trim();
+        if (valor !== "") return false;
+      } else {
+        const filtro = normalizarTexto(setorSolicitante)
+          .replace(/^setor\s+/i, "")
+          .trim();
+        const valor = normalizarTexto(o.setorSolicitante || "")
+          .replace(/^setor\s+/i, "")
+          .trim();
+        if (!valor.includes(filtro)) return false;
+      }
     }
     if (diretoria && o.setorResponsavel !== diretoria) return false;
     return true;
@@ -495,11 +510,21 @@ export async function imprimirRelatorio() {
     (a, b) => (b.numeroSequencial || 0) - (a.numeroSequencial || 0),
   );
 
-  const totalAbertas = ordensFiltradas.filter((o) => o.status === "Aberta").length;
-  const totalAndamento = ordensFiltradas.filter((o) => o.status === "Em andamento").length;
-  const totalEncerradas = ordensFiltradas.filter((o) => o.status === "Encerrada").length;
-  const totalInternas = ordensFiltradas.filter((o) => (o.tipoOS || "").toLowerCase() === "interna").length;
-  const totalExternas = ordensFiltradas.filter((o) => (o.tipoOS || "").toLowerCase() === "externa").length;
+  const totalAbertas = ordensFiltradas.filter(
+    (o) => o.status === "Aberta",
+  ).length;
+  const totalAndamento = ordensFiltradas.filter(
+    (o) => o.status === "Em andamento",
+  ).length;
+  const totalEncerradas = ordensFiltradas.filter(
+    (o) => o.status === "Encerrada",
+  ).length;
+  const totalInternas = ordensFiltradas.filter(
+    (o) => (o.tipoOS || "").toLowerCase() === "interna",
+  ).length;
+  const totalExternas = ordensFiltradas.filter(
+    (o) => (o.tipoOS || "").toLowerCase() === "externa",
+  ).length;
 
   const linhas = ordensFiltradas
     .map(
@@ -510,8 +535,13 @@ export async function imprimirRelatorio() {
         <td>${o.dataAbertura ? formatarData(o.dataAbertura) : "-"}</td>
         <td>${o.status || "-"}</td>
         <td>${o.nomeSolicitante || "-"}</td>
-        <td>${o.setorSolicitante || "-"}</td>
-        <td>${(o.descricaoServico || "-").substring(0, 100)}</td>
+        <td>${
+          (o.setorSolicitante || "")
+            .trim()
+            .replace(/^setor\s+/i, "")
+            .toUpperCase() || "NÃO INFORMADO"
+        }</td>
+        <td style="white-space:pre-wrap; word-break:break-word;">${(o.descricaoServico || "-")}</td>
       </tr>`,
     )
     .join("");

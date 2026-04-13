@@ -18,7 +18,7 @@ import {
   salvarAceiteTermos,
   verificarAceiteTermos,
 } from "../firestore.js";
-import { inicializarFiltrosDinamicos, limparFiltros } from "../os/filtros.js";
+import { inicializarFiltrosDinamicos, limparFiltros, filtrarTabelaMateriais } from "../os/filtros.js";
 
 import {
   mostrarAlerta,
@@ -292,6 +292,8 @@ window.gerarPDFMateriais = gerarPDFMateriais;
 window.exportarMateriaisOS = exportarMateriaisOS;
 window.imprimirMateriaisMes = imprimirMateriaisMes;
 window.imprimirRelatorio = imprimirRelatorio;
+
+window.filtrarTabelaMateriais = filtrarTabelaMateriais;
 
 window.selecionarVisita = selecionarVisita;
 window.limparFiltros = limparFiltros;

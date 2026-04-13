@@ -20,6 +20,122 @@ let cacheOrdens = null;
 let cacheTimestamp = null;
 const CACHE_TTL = 5 * 60 * 1000;
 
+// variável para guardar lista completa sem filtro
+let _listaMateriais = [];
+
+/* =========================
+   RELATÓRIO DE MATERIAIS
+========================= */
+export async function gerarRelatorioMateriais() {
+  const mesSelect = document.getElementById("materiais-mes");
+  const anoSelect = document.getElementById("materiais-ano");
+
+  if (!mesSelect || !anoSelect) return;
+
+  const mes = Number(mesSelect.value);
+  const ano = Number(anoSelect.value);
+
+  if (isNaN(mes) || isNaN(ano)) {
+    mostrarAlerta("Selecione o mês e o ano.", "Atenção");
+    return;
+  }
+
+  const ordensAtuais = await getOrdensCached();
+
+  let materiaisSomados = {};
+  let quantidadeTotal = 0;
+
+  ordensAtuais.forEach((ordem) => {
+    if (!ordem.dataAbertura) return;
+    const data = parsearData(ordem.dataAbertura);
+    if (!data || isNaN(data)) return;
+    if (data.getMonth() === mes && data.getFullYear() === ano) {
+      if (!ordem.materiais || ordem.materiais.length === 0) return;
+      ordem.materiais.forEach((mat) => {
+        const chave = mat.nome + "_" + mat.unidade;
+        if (!materiaisSomados[chave]) {
+          materiaisSomados[chave] = {
+            nome: mat.nome,
+            unidade: mat.unidade,
+            quantidade: 0,
+            numeroOS: [],
+            tiposOS: [],
+            detalhesOS: [], // 👈 guarda número + data + hora
+          };
+        }
+        const qtd = Number(mat.quantidade || 0);
+        materiaisSomados[chave].quantidade += qtd;
+
+        const numOS = ordem.numero || ordem.id;
+        const dataHora = ordem.dataAbertura
+          ? new Date(ordem.dataAbertura).toLocaleString("pt-BR", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "-";
+
+        // guarda detalhes únicos por OS
+        const jaExiste = materiaisSomados[chave].detalhesOS.some(
+          (d) => d.numero === numOS,
+        );
+        if (!jaExiste) {
+          materiaisSomados[chave].detalhesOS.push({
+            numero: numOS,
+            dataHora,
+          });
+        }
+
+        if (!materiaisSomados[chave].numeroOS.includes(numOS)) {
+          materiaisSomados[chave].numeroOS.push(numOS);
+        }
+
+        const tipoOS = (ordem.tipoOS || "").toLowerCase();
+        if (tipoOS && !materiaisSomados[chave].tiposOS.includes(tipoOS)) {
+          materiaisSomados[chave].tiposOS.push(tipoOS);
+        }
+
+        quantidadeTotal += qtd;
+      });
+    }
+  });
+
+  _listaMateriais = Object.values(materiaisSomados);
+
+  // limpa filtros ao trocar mês/ano
+  const filtroNome = document.getElementById("filtro-material-nome");
+  const filtroTipo = document.getElementById("filtro-material-tipo");
+  if (filtroNome) filtroNome.value = "";
+  if (filtroTipo) filtroTipo.value = "";
+
+  document.getElementById("total-materiais-mes").textContent =
+    _listaMateriais.length;
+  document.getElementById("total-quantidade-mes").textContent = quantidadeTotal;
+  renderTabelaMateriaisMes(_listaMateriais);
+}
+
+export function filtrarTabelaMateriais() {
+  const busca = (document.getElementById("filtro-material-nome")?.value || "")
+    .toLowerCase()
+    .trim();
+  const tipo = document.getElementById("filtro-material-tipo")?.value || "";
+
+  const listaFiltrada = _listaMateriais.filter((m) => {
+    const matchNome = !busca || m.nome.toLowerCase().includes(busca);
+    const matchTipo = !tipo || m.tiposOS.includes(tipo);
+    return matchNome && matchTipo;
+  });
+
+  const totalQtd = listaFiltrada.reduce((acc, m) => acc + m.quantidade, 0);
+  document.getElementById("total-materiais-mes").textContent =
+    listaFiltrada.length;
+  document.getElementById("total-quantidade-mes").textContent = totalQtd;
+
+  renderTabelaMateriaisMes(listaFiltrada);
+}
+
 export async function getOrdensCached() {
   const agora = Date.now();
   const cacheValido =
@@ -30,7 +146,6 @@ export async function getOrdensCached() {
   return cacheOrdens;
 }
 
-// 👇 adiciona aqui, logo abaixo
 export function invalidarCache() {
   cacheOrdens = null;
   cacheTimestamp = null;
@@ -68,7 +183,6 @@ export function inicializarFiltrosDinamicos() {
     "filtro-tipo-os",
   ];
 
-  // Texto: dispara após parar de digitar
   camposTexto.forEach((id) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -78,7 +192,6 @@ export function inicializarFiltrosDinamicos() {
     );
   });
 
-  // Select: dispara imediatamente ao mudar
   camposSelect.forEach((id) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -105,7 +218,6 @@ export function limparFiltros() {
     if (el) el.value = "";
   });
 
-  // 👇 Reexibe a paginação antes de recarregar
   const paginacao = document.querySelector(".paginacao");
   if (paginacao) paginacao.style.display = "flex";
 
@@ -149,24 +261,18 @@ export function paginaAnterior() {
 
 /* =========================
    UTILITÁRIO DE DATA
-   Converte qualquer formato de data para objeto Date corretamente
 ========================= */
 function parsearData(dataAbertura) {
   if (!dataAbertura) return null;
 
-  // Timestamp do Firestore
   if (dataAbertura?.toDate) return dataAbertura.toDate();
 
-  // String ISO com hora: "2026-03-16T17:36" ou "2026-03-16T17:36:00"
   if (typeof dataAbertura === "string") {
-    // Garante que a comparação seja feita sem ajuste de fuso
-    // Adiciona 'Z' apenas se não tiver timezone informado
     const temFuso =
       dataAbertura.includes("Z") ||
       dataAbertura.includes("+") ||
       dataAbertura.includes("-", 10);
     if (!temFuso && dataAbertura.includes("T")) {
-      // Trata como horário local (não UTC)
       return new Date(dataAbertura);
     }
     return new Date(dataAbertura);
@@ -193,14 +299,11 @@ export async function aplicarFiltros() {
     document.getElementById("filtro-solicitante")?.value?.trim() || "";
   const setorSolicitante =
     document.getElementById("filtro-setor-solicitante")?.value?.trim() || "";
-
   const tipoOS = document.getElementById("filtro-tipo-os")?.value || "";
 
-  // Monta os limites de data UMA VEZ para não recriar a cada item
   const dtInicio = dataInicio ? new Date(dataInicio + "T00:00:00") : null;
   const dtFim = dataFim ? new Date(dataFim + "T23:59:59") : null;
 
-  // Busca TODAS as ordens sem limite
   const baseDados = await getOrdensCached();
 
   const ordensFiltradas = baseDados.filter((o) => {
@@ -209,13 +312,13 @@ export async function aplicarFiltros() {
     // — Tipo de Ordem (interna/externa)
     if (tipoOS && (o.tipoOS || "").toLowerCase() !== tipoOS) return false;
 
-    // — Número da OS (busca parcial, ex: "42" encontra "OS-0042")
+    // — Número da OS (busca parcial)
     if (numeroOS) {
       const num = normalizarTexto(o.numero || "");
       if (!num.includes(normalizarTexto(numeroOS))) return false;
     }
 
-    // — Serviço (busca no texto, uppercase dos dois lados)
+    // — Serviço
     if (servico) {
       const desc = normalizarTexto(o.descricaoServico || "");
       if (!desc.includes(normalizarTexto(servico))) return false;
@@ -238,7 +341,7 @@ export async function aplicarFiltros() {
     // — Status
     if (status && o.status !== status) return false;
 
-    // — Solicitante (nome parcial, case insensitive)
+    // — Solicitante
     if (solicitante) {
       const nome = normalizarTexto(o.nomeSolicitante || "");
       if (!nome.includes(normalizarTexto(solicitante))) return false;
@@ -246,12 +349,22 @@ export async function aplicarFiltros() {
 
     // — Setor solicitante
     if (setorSolicitante) {
-      const filtro = normalizarTexto(setorSolicitante).replace(
-        /^SETOR\s+/i,
-        "",
-      );
-      const valor = normalizarTexto(o.setorSolicitante || "");
-      if (!valor.includes(filtro)) return false;
+      if (setorSolicitante === "__nao_informado__") {
+        // Filtra apenas OS sem setor (antigas sem preenchimento)
+        const valor = normalizarTexto(o.setorSolicitante || "")
+          .replace(/^setor\s+/i, "")
+          .trim();
+        if (valor !== "") return false;
+      } else {
+        // Remove prefixo "SETOR " dos dois lados antes de comparar
+        const filtro = normalizarTexto(setorSolicitante)
+          .replace(/^setor\s+/i, "")
+          .trim();
+        const valor = normalizarTexto(o.setorSolicitante || "")
+          .replace(/^setor\s+/i, "")
+          .trim();
+        if (!valor.includes(filtro)) return false;
+      }
     }
 
     // — Diretoria responsável
@@ -264,7 +377,6 @@ export async function aplicarFiltros() {
     (a, b) => (b.numeroSequencial || 0) - (a.numeroSequencial || 0),
   );
 
-  // Esconde paginação quando há filtro ativo
   const temFiltro =
     dataInicio ||
     dataFim ||
@@ -277,8 +389,8 @@ export async function aplicarFiltros() {
     servico ||
     numeroOS ||
     tipoOS;
-  const paginacao = document.querySelector(".paginacao");
 
+  const paginacao = document.querySelector(".paginacao");
   if (paginacao) paginacao.style.display = temFiltro ? "none" : "block";
 
   carregarTabelaRelatorios(ordensFiltradas);
@@ -323,6 +435,13 @@ export function carregarTabelaRelatorios(ordensParaExibir) {
             : "#999";
       const tipoLabel = tipo ? tipo.toUpperCase() : "N/I";
 
+      // Setor: OS antigas sem setor mostram "NÃO INFORMADO"
+      const setor = (ordem.setorSolicitante || "").trim();
+      const setorLabel = setor ? upper(setor) : "NÃO INFORMADO";
+      const setorStyle = setor
+        ? ""
+        : "color:#999; font-style:italic; font-size:11px;";
+
       return `
         <tr>
           <td>
@@ -340,7 +459,7 @@ export function carregarTabelaRelatorios(ordensParaExibir) {
             </span>
           </td>
           <td>${upper(ordem.nomeSolicitante)}</td>
-          <td>${upper(ordem.setorSolicitante)}</td>
+          <td style="${setorStyle}">${setorLabel}</td>
           <td>${upper(ordem.descricaoServico).substring(0, 40)}...</td>
           <td class="acoes">
             <button class="btn btn-primary btn-icon" onclick="visualizarOS('${ordem.id}')" title="Visualizar">
@@ -369,18 +488,21 @@ export function renderTabelaMateriaisMes(lista) {
     return;
   }
   tbody.innerHTML = lista
-    .map(
-      (m) => `
+    .map((m) => `
       <tr>
         <td>${m.nome}</td>
         <td>${m.quantidade}</td>
         <td>${m.unidade}</td>
-        <td style="font-size: 12px; line-height: 1.8;">
-          ${m.numeroOS.join("<br>")}
+        <td style="font-size: 11px; line-height: 1.9;">
+          ${(m.detalhesOS || m.numeroOS.map(n => ({ numero: n, dataHora: "-" })))
+            .map(d => `<span style="display:block;">
+              <strong>${d.numero}</strong>
+              <span style="color:#7f8c8d; font-size:10px;"> — ${d.dataHora}</span>
+            </span>`)
+            .join("")}
         </td>
       </tr>
-    `,
-    )
+    `)
     .join("");
 }
 
@@ -413,10 +535,9 @@ export function carregarAnoMateriais() {
     select.appendChild(opt);
   }
 
-  // 👇 Seleciona o mês atual automaticamente
   const mesSelect = document.getElementById("materiais-mes");
   if (mesSelect) {
-    mesSelect.value = new Date().getMonth(); // 0=Jan, 2=Mar, 3=Abr...
+    mesSelect.value = new Date().getMonth();
   }
 }
 
@@ -427,6 +548,15 @@ export function carregarSetoresFiltro(diretoriaSelecionada) {
     const diretoria = normalizarTexto(diretoriaSelecionada);
     const setores = setoresPorDiretoria[diretoria] || [];
     select.innerHTML = '<option value="">Todos</option>';
+
+    // Opção para OS antigas sem setor definido
+    const optNI = document.createElement("option");
+    optNI.value = "__nao_informado__";
+    optNI.textContent = "NÃO INFORMADO";
+    optNI.style.color = "#999";
+    optNI.style.fontStyle = "italic";
+    select.appendChild(optNI);
+
     setores.forEach((setor) => {
       const opt = document.createElement("option");
       opt.value = setor;
@@ -434,62 +564,4 @@ export function carregarSetoresFiltro(diretoriaSelecionada) {
       select.appendChild(opt);
     });
   });
-}
-
-/* =========================
-   RELATÓRIO DE MATERIAIS
-========================= */
-export async function gerarRelatorioMateriais() {
-  const mesSelect = document.getElementById("materiais-mes");
-  const anoSelect = document.getElementById("materiais-ano");
-
-  if (!mesSelect || !anoSelect) return;
-
-  const mes = Number(mesSelect.value);
-  const ano = Number(anoSelect.value);
-
-  if (isNaN(mes) || isNaN(ano)) {
-    mostrarAlerta("Selecione o mês e o ano.", "Atenção");
-    return;
-  }
-
-  const ordensAtuais = await getOrdensCached();
-
-  let materiaisSomados = {};
-  let quantidadeTotal = 0;
-
-  ordensAtuais.forEach((ordem) => {
-    if (!ordem.dataAbertura) return;
-    const data = parsearData(ordem.dataAbertura);
-    if (!data || isNaN(data)) return;
-    if (data.getMonth() === mes && data.getFullYear() === ano) {
-      if (!ordem.materiais || ordem.materiais.length === 0) return;
-      ordem.materiais.forEach((mat) => {
-        const chave = mat.nome + "_" + mat.unidade;
-        if (!materiaisSomados[chave]) {
-          materiaisSomados[chave] = {
-            nome: mat.nome,
-            unidade: mat.unidade,
-            quantidade: 0,
-            numeroOS: [], // 👈 agora guarda os números
-          };
-        }
-        const qtd = Number(mat.quantidade || 0);
-        materiaisSomados[chave].quantidade += qtd;
-
-        // 👇 Adiciona o número da OS se ainda não estiver na lista
-        const numOS = ordem.numero || ordem.id;
-        if (!materiaisSomados[chave].numeroOS.includes(numOS)) {
-          materiaisSomados[chave].numeroOS.push(numOS);
-        }
-
-        quantidadeTotal += qtd;
-      });
-    }
-  });
-
-  const lista = Object.values(materiaisSomados);
-  document.getElementById("total-materiais-mes").textContent = lista.length;
-  document.getElementById("total-quantidade-mes").textContent = quantidadeTotal;
-  renderTabelaMateriaisMes(lista);
 }

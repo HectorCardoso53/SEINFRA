@@ -121,6 +121,7 @@ export function buildOrdem(dados) {
     nomeSolicitante: upper(dados.nomeSolicitante),
     cpfSolicitante: dados.cpf || null,
     telefoneSolicitante: dados.telefone || null,
+    telefone2: dados.telefone2 || "",
     setorSolicitante: upper(dados.setorSolicitante),
     descricaoServico: upper(dados.descricao),
     localServico: upper(dados.local),

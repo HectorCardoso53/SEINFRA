@@ -380,40 +380,42 @@
                         <div class="filter-group">
 
                             <div class="search-box">
-
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                                     stroke="currentColor" stroke-width="2">
                                     <circle cx="11" cy="11" r="8" />
                                     <line x1="21" y1="21" x2="16.65" y2="16.65" />
                                 </svg>
-
-                                <input type="text" id="filter-search" placeholder="Buscar por nome ou telefone…"
+                                <input type="text" id="filter-search" placeholder="Buscar por nome, telefone ou CPF…"
                                     style="width:220px">
-
                             </div>
 
-                            <input type="date" id="filter-date" title="Filtrar por data">
+                            <input type="date" id="filter-date-start" title="Data inicial">
+                            <input type="date" id="filter-date-end" title="Data final">
 
                             <button class="btn btn-secondary" id="btn-clear-filters">
-
                                 Limpar filtros
-
                             </button>
+
+                            <span id="filter-total-badge" style="display:none; align-items:center;
+                    background:#e3f2fd; color:#1565c0; font-size:12px; font-weight:600;
+                    padding:4px 12px; border-radius:20px;">
+                            </span>
 
                         </div>
 
-                        <button class="btn btn-primary" data-nav="cadastro">
-
-                            Nova Visita
-
-                        </button>
+                        <div style="display:flex; gap:10px;">
+                            <button class="btn btn-secondary" id="btn-print-lista">
+                                <i class="bi bi-printer"></i> Imprimir
+                            </button>
+                            <button class="btn btn-primary" data-nav="cadastro">
+                                Nova Visita
+                            </button>
+                        </div>
 
                     </div>
 
                     <div class="table-wrapper">
-
                         <table>
-
                             <thead>
                                 <tr>
                                     <th>Nome</th>
@@ -425,19 +427,13 @@
                                     <th>Ações</th>
                                 </tr>
                             </thead>
-
                             <tbody id="visits-tbody"></tbody>
-
                         </table>
-
                     </div>
 
                     <div class="pagination">
-
                         <span id="page-info"></span>
-
                         <div class="pagination-controls" id="page-btns"></div>
-
                     </div>
 
                 </div>

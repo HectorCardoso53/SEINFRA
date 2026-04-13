@@ -257,8 +257,13 @@
                                 <input type="text" id="cpf-solicitante" placeholder="000.000.000-00" maxlength="14">
                             </div>
                             <div class="form-group">
-                                <label>Telefone</label>
+                                <label>Telefone1</label>
                                 <input type="text" id="telefone-solicitante" placeholder="(93) 99999-9999"
+                                    maxlength="15">
+                            </div>
+                            <div class="form-group">
+                                <label>Telefone2</label>
+                                <input type="text" id="telefone-solicitante2" placeholder="(93) 99999-9999"
                                     maxlength="15">
                             </div>
                         </div>
@@ -463,6 +468,19 @@
                         <div class="form-group">
                             <label>Ano</label>
                             <select id="materiais-ano" onchange="gerarRelatorioMateriais()"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Filtrar por Material</label>
+                            <input type="text" id="filtro-material-nome" placeholder="Ex: cimento, areia..."
+                                oninput="filtrarTabelaMateriais()">
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo de OS</label>
+                            <select id="filtro-material-tipo" onchange="filtrarTabelaMateriais()">
+                                <option value="">Todos</option>
+                                <option value="interna">Interna</option>
+                                <option value="externa">Externa</option>
+                            </select>
                         </div>
                     </div>
                 </div>
