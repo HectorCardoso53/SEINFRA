@@ -23,6 +23,8 @@ export const setoresPorDiretoria = {
   "DIRETORIA DE LIMPEZA URBANA": [
     "ADMINISTRATIVO",
     "CAPINA E VARRIÇÃO",
+    "CAMINHÃO PAPA-LIXO",
+    "CAÇAMBA BASCULHANTE",
     "DESOBSTRUÇÃO DE BUEIROS",
     "RESÍDUOS SÓLIDOS - DOMÉSTICO, VEGETAL, SERVIÇOS DE SAÚDE",
     "CAÇAMBA ESTACIONÁRIA",
@@ -38,6 +40,7 @@ export const setoresPorDiretoria = {
     "ELÉTRICA",
     "CEMITÉRIO",
     "REFRIGERAÇÃO",
+    "BORRACHARIA",
     "ASFALTO",
     "PAVIMENTAÇÃO",
     "BLOCO E BLOQUETE",
