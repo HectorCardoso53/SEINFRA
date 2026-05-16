@@ -27,7 +27,7 @@ window.login = async function () {
   const btn = document.getElementById("btn-login");
 
   const email = emailInput.value.trim();
-  const password = passwordInput.value.trim();
+  const password = passwordInput.value;
 
   emailError.style.display = "none";
   passwordError.style.display = "none";
@@ -96,48 +96,72 @@ window.logout = async function () {
 /* =========================
    PROTEÇÃO DE ROTAS
 ========================= */
+
+const PAGINA_POR_ROLE = {
+  visita: "home.html",
+  os: "dashboard.html",
+  admin: "dashboard.html",
+  master: "servicos.html",
+};
+
+const PAGINAS_PERMITIDAS = {
+  visita: ["home.html"],
+  os:     ["dashboard.html"],
+  admin:  ["dashboard.html", "admin.html"],
+  master: ["servicos.html", "dashboard.html", "admin.html", "home.html"],
+};
+
 onAuthStateChanged(auth, async (user) => {
-  if (!user) return;
+  const pagina = window.location.pathname.split("/").pop() || "index.html";
+
+  if (!user) {
+    if (pagina !== "index.html" && pagina !== "") {
+      window.location.replace("index.html");
+    }
+    return;
+  }
 
   const ref = doc(db, "users", user.uid);
   const snap = await getDoc(ref);
 
   if (!snap.exists()) {
-    alert("Usuário sem perfil cadastrado.");
+    await signOut(auth);
+    window.location.replace("index.html");
     return;
   }
 
   const data = snap.data();
+  const role = data.role;
 
-  // 🔐 Dados globais
-  window.userRole = data.role;
+  // Redireciona se a página não pertence ao role
+  const permitidas = PAGINAS_PERMITIDAS[role] || [];
+  if (pagina !== "index.html" && pagina !== "" && !permitidas.includes(pagina)) {
+    window.location.replace(PAGINA_POR_ROLE[role] || "index.html");
+    return;
+  }
+
+  // Dados globais
+  window.userRole = role;
   window.userNome = data.nome;
   window._userId = user.uid;
   window._userName = user.displayName || user.email || "Usuário";
 
-  // ✅ Preenche campo automático
   if (typeof window._onAuthPronto === "function") {
     window._onAuthPronto(data.nome);
   }
 
-  const role = data.role;
-
-  // 🔥 PASSO 1 — ESCONDE TUDO PRIMEIRO (OBRIGATÓRIO)
   document.querySelectorAll(".master-only").forEach((el) => {
     el.style.display = "none";
   });
 
-  // 🔥 PASSO 2 — LIBERA APENAS MASTER
   if (role === "master") {
     document.querySelectorAll(".master-only").forEach((el) => {
       el.style.display = "flex";
     });
   }
 
-  // 📋 Termos
   try {
     const jaAceitou = await verificarAceiteTermos(user.uid);
-
     if (!jaAceitou) {
       const modal = document.getElementById("modal-termos");
       if (modal) {

@@ -27,6 +27,9 @@
 
        --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 
+       --branco: #ffffff;
+       --cinza-texto: #7f8c8d;
+
    }
 
    * {

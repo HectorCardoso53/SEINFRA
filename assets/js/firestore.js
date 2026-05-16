@@ -15,6 +15,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 import { auth, db } from "./firebase.js";
+import { registrar } from "./auditoria.js";
 
 export async function buscarVisitasPorNome(nome) {
   const nomeUpper = nome.toUpperCase();
@@ -134,16 +135,6 @@ export async function gerarNumeroOS() {
   return `OS ${numeroFormatado}/${ano} - SEINFRA`;
 }
 
-export async function buscarUltimasOrdensFirestore(qtd = 100) {
-  const q = query(
-    collection(db, "ordens"),
-    orderBy("dataAbertura", "desc"),
-    limit(qtd),
-  );
-  await getDocs(q);
-  return [];
-}
-
 async function descontarEstoque(materiais) {
   const operacoes = materiais.map(async (mat) => {
     if (!mat.quantidade) return;
@@ -171,13 +162,6 @@ export async function consultarProximoNumeroOS() {
   return `OS ${numeroFormatado}/${ano} - SEINFRA`;
 }
 
-export async function sincronizarContadorOS() {
-  const snapshot = await getDocs(collection(db, "ordens"));
-  let maior = 0;
-  const ano = new Date().getFullYear();
-  await setDoc(doc(db, "contadores", "os_" + ano), { ultimoNumero: maior });
-  console.log("contador sincronizado:", maior);
-}
 
 export async function salvarOrdemFirestore(ordem) {
   return await runTransaction(db, async (transaction) => {
@@ -234,11 +218,19 @@ export async function salvarOrdemFirestore(ordem) {
     }
     return { id: ordemRef.id, numero: numeroOS };
   });
+  await registrar("criar_os", "ordens", result.id, {
+    numero: result.numero,
+    tipo: ordem.tipoOS || null,
+    solicitante: ordem.nomeSolicitante || null,
+    setor: ordem.setorResponsavel || null,
+  });
+  return result;
 }
 
 export async function atualizarStatusComDashboard(id, dadosAtualizacao) {
   const ordemRef = doc(db, "ordens", id);
   const statsRef = doc(db, "estatisticas", "dashboard");
+  let infoAudit = {};
   await runTransaction(db, async (transaction) => {
     const ordemSnap = await transaction.get(ordemRef);
     const statsSnap = await transaction.get(statsRef);
@@ -246,6 +238,7 @@ export async function atualizarStatusComDashboard(id, dadosAtualizacao) {
     const ordem = ordemSnap.data();
     const statusAntigo = ordem.status;
     const novoStatus = dadosAtualizacao.status;
+    infoAudit = { numero: ordem.numero, de: statusAntigo, para: novoStatus };
     if (!novoStatus) return;
     if (statusAntigo === novoStatus) {
       transaction.update(ordemRef, dadosAtualizacao);
@@ -271,6 +264,7 @@ export async function atualizarStatusComDashboard(id, dadosAtualizacao) {
     transaction.update(ordemRef, dadosAtualizacao);
     transaction.update(statsRef, novasStats);
   });
+  await registrar("alterar_status_os", "ordens", id, infoAudit);
 }
 
 export async function buscarOrdensFirestore() {
@@ -280,11 +274,16 @@ export async function buscarOrdensFirestore() {
 export async function atualizarOrdemComDashboard(id, novosDados) {
   const ordemRef = doc(db, "ordens", id);
   const statsRef = doc(db, "estatisticas", "dashboard");
+  let infoAudit = {};
   await runTransaction(db, async (transaction) => {
     const ordemSnap = await transaction.get(ordemRef);
     const statsSnap = await transaction.get(statsRef);
     if (!ordemSnap.exists() || !statsSnap.exists()) return;
     const ordemAntiga = ordemSnap.data();
+    infoAudit = {
+      numero: ordemAntiga.numero,
+      campos: Object.keys(novosDados),
+    };
     const stats = statsSnap.data();
     let novosStats = {
       total: stats.total || 0,
@@ -328,6 +327,7 @@ export async function atualizarOrdemComDashboard(id, novosDados) {
     transaction.update(ordemRef, novosDados);
     transaction.update(statsRef, novosStats);
   });
+  await registrar("editar_os", "ordens", id, infoAudit);
 }
 
 // Salva aceite dos termos no Firestore
@@ -347,11 +347,13 @@ export async function verificarAceiteTermos(userId) {
 export async function excluirOrdemFirestore(id) {
   const ref = doc(db, "ordens", id);
   const refStats = doc(db, "estatisticas", "dashboard");
+  let infoAudit = {};
   await runTransaction(db, async (transaction) => {
     const snap = await transaction.get(ref);
     const statsSnap = await transaction.get(refStats);
     if (!snap.exists() || !statsSnap.exists()) return;
     const ordem = snap.data();
+    infoAudit = { numero: ordem.numero, status: ordem.status, solicitante: ordem.nomeSolicitante || null };
     const dados = statsSnap.data();
     transaction.delete(ref);
     dados.total = Math.max(0, (dados.total || 0) - 1);
@@ -376,6 +378,7 @@ export async function excluirOrdemFirestore(id) {
     }
     transaction.update(refStats, dados);
   });
+  await registrar("excluir_os", "ordens", id, infoAudit);
 }
 
 export async function reconstruirDashboard() {

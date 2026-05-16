@@ -1,6 +1,7 @@
 "use strict";
 
 import { auth, db } from "./firebase.js";
+import { registrar } from "./auditoria.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 
 import {
@@ -37,19 +38,25 @@ window.excluirUsuario = async function (id) {
 
   if (!result.isConfirmed) return;
 
+  const snapAntes = await getDoc(doc(db, "users", id));
+  const dadosAntes = snapAntes.exists() ? snapAntes.data() : {};
+
   await deleteDoc(doc(db, "users", id));
+  await registrar("excluir_usuario", "users", id, {
+    nome: dadosAntes.nome || null,
+    email: dadosAntes.email || null,
+    role: dadosAntes.role || null,
+    setor: dadosAntes.setor || null,
+  });
 
   Swal.fire("Excluído!", "Usuário removido.", "success");
-
   carregarUsuarios();
 };
 
 window.toggleStatus = async function (id, statusAtual) {
   try {
-    await updateDoc(doc(db, "users", id), {
-      ativo: !statusAtual,
-    });
-
+    await updateDoc(doc(db, "users", id), { ativo: !statusAtual });
+    await registrar("toggle_status_usuario", "users", id, { ativo: !statusAtual });
     carregarUsuarios();
   } catch (error) {
     console.error(error);
@@ -87,12 +94,8 @@ window.salvarEdicao = async function () {
   }
 
   try {
-    await updateDoc(doc(db, "users", id), {
-      nome,
-      setor,
-      telefone,
-      role,
-    });
+    await updateDoc(doc(db, "users", id), { nome, setor, telefone, role });
+    await registrar("editar_usuario", "users", id, { nome, setor, role });
 
     alert("Usuário atualizado com sucesso!");
 
@@ -160,6 +163,7 @@ if (formUser) {
         criadoEm: serverTimestamp(),
       });
 
+      await registrar("criar_usuario", "users", uid, { nome, email, role, setor });
       alert("Usuário cadastrado com sucesso!");
       formUser.reset();
       carregarUsuarios();

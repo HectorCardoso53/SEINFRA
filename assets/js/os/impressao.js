@@ -2,7 +2,6 @@
 // impressao.js — Geração de PDF e visualização para impressão
 // ============================================================
 
-import { buscarTodasOrdens } from "../firestore.js";
 import {
   formatarData,
   formatarDataCompleta,

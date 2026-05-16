@@ -73,7 +73,7 @@ function navigate(page) {
 ========================= */
 window.logout = async function () {
   await signOut(auth);
-  window.location.replace("/index.html");
+  window.location.replace("index.html");
 };
 
 /* =========================
@@ -123,7 +123,10 @@ function initTabelaDelegation() {
    AUTH — TERMOS DE USO
 ========================= */
 onAuthStateChanged(auth, async (user) => {
-  if (!user) return;
+  if (!user) {
+    window.location.replace("index.html");
+    return;
+  }
   window._userId = user.uid;
   await verificarTermos(user.uid);
 });

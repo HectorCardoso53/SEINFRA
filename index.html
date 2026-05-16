@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/png" href="assets/img/prefeitura.png">
     <title>Login – Sistema OS</title>
     <link rel="stylesheet" href="assets/css/style.css">
@@ -48,9 +49,10 @@
 
         <!-- Rodapé -->
         <footer class="login-footer">
-            <p>© 2026 – SEMEG</p>
+            <p>© <span id="ano-footer"></span> – SEMEG</p>
             <p>Secretaria de Eficiência Governamental</p>
         </footer>
+        <script>document.getElementById('ano-footer').textContent = new Date().getFullYear();</script>
 
     </div>
 
