@@ -29,7 +29,7 @@ export const setoresPorDiretoria = {
     "RESÍDUOS SÓLIDOS",
     "LIXO DOMÉSTICO",
     "LIXO VEGETAL",
-    "SERVIÇO DE SAÚDE",
+    "LIXO HOSPITALAR",
     "CAÇAMBA ESTACIONÁRIA",
     "LIMPEZA DE FONTES LUMINOSAS",
   ],
