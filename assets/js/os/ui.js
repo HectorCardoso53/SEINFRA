@@ -58,6 +58,10 @@ export function atualizarHeader(pageId) {
       title: "Cadastro de Usuários",
       subtitle: "Gerenciamento de acessos do sistema",
     },
+    pendencias: {
+      title: "Pendências",
+      subtitle: "OS aguardando assinatura e resumo geral do sistema",
+    },
   };
   if (map[pageId]) {
     title.textContent = map[pageId].title;

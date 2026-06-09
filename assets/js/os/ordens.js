@@ -8,6 +8,7 @@ import {
   consultarProximoNumeroOS,
   buscarResumoDashboard,
   atualizarStatusComDashboard,
+  atualizarOrdemComDashboard,
   buscarOrdemPorId,
 } from "../firestore.js";
 
@@ -51,6 +52,7 @@ import {
 } from "./state.js";
 
 import { mostrarProgresso, concluirProgresso } from "./ui.js";
+import { gerarHTMLDocumentoAssinatura } from "./impressao.js";
 
 /* =========================
    CONTROLE DO CAMPO RESPONSAVEL-ABERTURA
@@ -333,7 +335,7 @@ export async function handleFormOSSubmit(e) {
 /* =========================
    VISUALIZAR OS
 ========================= */
-export async function visualizarOS(id) {
+export async function visualizarOS(id, modoAssinar = false) {
   let ordem = await buscarOrdemPorId(id);
   if (!ordem) return;
 
@@ -394,14 +396,37 @@ ${ordem.observacaoFinal ? `<div><strong>Observação Final:</strong> ${ordem.obs
 
   document.getElementById("detalhes-content").innerHTML = detalhesHTML;
 
-  const btnEncerrar = document.getElementById("btn-encerrar");
-  const btnAlterar = document.getElementById("btn-alterar-status");
-  if (ordem.status === "Encerrada") {
-    btnEncerrar.style.display = "none";
-    btnAlterar.style.display = "none";
+  const btnEncerrar  = document.getElementById("btn-encerrar");
+  const btnAlterar   = document.getElementById("btn-alterar-status");
+  const btnImprimir  = document.querySelector('[onclick="imprimirDetalhesOS()"]');
+  const btnPDFMat    = document.querySelector('[onclick="gerarPDFMateriais()"]');
+
+  if (modoAssinar) {
+    // Modo pendências: só Assinar e Fechar
+    if (btnEncerrar) btnEncerrar.style.display = "none";
+    if (btnAlterar)  btnAlterar.style.display  = "none";
+    if (btnImprimir) btnImprimir.style.display  = "none";
+    if (btnPDFMat)   btnPDFMat.style.display    = "none";
   } else {
-    btnEncerrar.style.display = "inline-flex";
-    btnAlterar.style.display = "inline-flex";
+    if (ordem.status === "Encerrada") {
+      if (btnEncerrar) btnEncerrar.style.display = "none";
+      if (btnAlterar)  btnAlterar.style.display  = "none";
+    } else {
+      if (btnEncerrar) btnEncerrar.style.display = "inline-flex";
+      if (btnAlterar)  btnAlterar.style.display  = "inline-flex";
+    }
+    if (btnImprimir) btnImprimir.style.display = "inline-flex";
+    if (btnPDFMat)   btnPDFMat.style.display   = "inline-flex";
+  }
+
+  const btnAssinar = document.getElementById("btn-assinar-os");
+  if (btnAssinar) {
+    const statusAtivo = ["aberta", "em andamento"].includes((ordem.status || "").toLowerCase());
+    btnAssinar.style.display =
+      (window.userRole === "master" || window.userRole === "admin") && statusAtivo ? "inline-flex" : "none";
+    btnAssinar.innerHTML = ordem.assinaturaEletronica
+      ? '<i class="bi bi-pen-fill"></i> Reasinar OS'
+      : '<i class="bi bi-pen"></i> Assinar OS';
   }
 
   const modal = document.getElementById("modal-detalhes");
@@ -650,4 +675,96 @@ export function removerMaterialEncerramento(index) {
   const novos = materiaisEncerramento.filter((_, i) => i !== index);
   setMateriaisEncerramento(novos);
   renderizarMateriaisEncerramento(novos);
+}
+
+/* =========================
+   ASSINATURA ELETRÔNICA
+========================= */
+function gerarCodigoAssinatura(osId) {
+  const str = osId + Date.now();
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  }
+  const hex = Math.abs(hash).toString(16).toUpperCase().padStart(8, "0");
+  return `${hex.slice(0,4)}-${hex.slice(4,8)}`;
+}
+
+export function abrirModalAssinatura() {
+  if (!osAtual) return;
+
+  const nome = (window.userNome || "").toUpperCase();
+  const setor = window.userSetor || "SECRETARIA";
+  const agora = new Date().toLocaleString("pt-BR");
+  const codigoPreview = gerarCodigoAssinatura(osAtual.id);
+
+  // Assinatura proposta (ainda não salva) para mostrar no preview
+  const assinaturaPreview = {
+    nome,
+    setor,
+    email: window.userEmail || "",
+    userId: window._userId || "",
+    data: new Date().toISOString(),
+    codigo: codigoPreview,
+  };
+
+  // Gera o HTML do documento real com a assinatura aplicada
+  const htmlDoc = gerarHTMLDocumentoAssinatura(osAtual, assinaturaPreview);
+
+  // Injeta no iframe
+  const iframe = document.getElementById("iframe-preview-assinatura");
+  iframe.srcdoc = htmlDoc;
+
+  // Preenche identidade
+  document.getElementById("assinatura-identidade").textContent = nome;
+  document.getElementById("assinatura-cargo").textContent = setor;
+  document.getElementById("assinatura-timestamp").textContent = `${agora}  ·  Cód: ${codigoPreview}`;
+  document.getElementById("check-confirma-assinatura").checked = false;
+
+  // Guarda o código para usar ao confirmar
+  window._assinaturaCodigoPendente = codigoPreview;
+
+  const modal = document.getElementById("modal-assinatura");
+  modal.classList.remove("hidden");
+  modal.classList.add("show");
+}
+
+export function fecharModalAssinatura() {
+  document.getElementById("modal-assinatura").classList.remove("show");
+  document.getElementById("modal-assinatura").classList.add("hidden");
+}
+
+export function limparCanvas() { /* não usado nesta versão */ }
+
+export async function confirmarAssinatura() {
+  if (!osAtual) return;
+
+  if (!document.getElementById("check-confirma-assinatura").checked) {
+    mostrarAlerta("Marque a caixa de confirmação para assinar.", "Atenção");
+    return;
+  }
+
+  const assinatura = {
+    nome: (window.userNome || "").toUpperCase(),
+    setor: window.userSetor || "SECRETARIA",
+    email: window.userEmail || "",
+    userId: window._userId || "",
+    data: new Date().toISOString(),
+    codigo: window._assinaturaCodigoPendente || gerarCodigoAssinatura(osAtual.id),
+  };
+
+  try {
+    mostrarProgresso();
+    await atualizarOrdemComDashboard(osAtual.id, { assinaturaEletronica: assinatura });
+    osAtual.assinaturaEletronica = assinatura;
+    fecharModalAssinatura();
+    const btnAssinar = document.getElementById("btn-assinar-os");
+    if (btnAssinar) btnAssinar.innerHTML = '<i class="bi bi-pen-fill"></i> Reasinar OS';
+    mostrarAlerta("Assinatura eletrônica registrada!", "Sucesso");
+  } catch (err) {
+    console.error(err);
+    mostrarAlerta("Erro ao salvar assinatura.", "Erro");
+  } finally {
+    concluirProgresso();
+  }
 }

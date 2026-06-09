@@ -72,6 +72,13 @@
             </div>
 
             <!-- 🔐 ABA MASTER — visível apenas para master e admin -->
+            <div class="menu-item master-only" onclick="showPage('pendencias', this); carregarPendencias();">
+                <svg fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/>
+                </svg>
+                <span>Pendências</span>
+            </div>
+
             <div class="menu-item master-only" onclick="showPage('usuarios', this)">
                 <svg fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 2a4 4 0 100 8 4 4 0 000-8zm-6 14a6 6 0 1112 0H4z"
@@ -531,6 +538,80 @@
             </div>
 
             <!-- Cadastro de Usuários (ADMIN) -->
+            <!-- ==================== PENDÊNCIAS ==================== -->
+            <div id="page-pendencias" class="page hidden">
+
+                <!-- Cards resumo -->
+                <div class="cards-grid" style="margin-bottom:24px;">
+                    <div class="card" style="background:#fff8e1;border-left:4px solid #f57f17;">
+                        <div class="card-header">
+                            <div class="card-title" style="color:#f57f17;">Pend. Assinatura</div>
+                            <i class="bi bi-pen" style="font-size:22px;color:#f57f17;"></i>
+                        </div>
+                        <div class="card-value" id="pend-count-assinatura" style="color:#f57f17;">-</div>
+                    </div>
+                    <div class="card" style="background:#e3f2fd;border-left:4px solid #1565c0;">
+                        <div class="card-header">
+                            <div class="card-title" style="color:#1565c0;">Abertas</div>
+                            <i class="bi bi-folder2-open" style="font-size:22px;color:#1565c0;"></i>
+                        </div>
+                        <div class="card-value" id="pend-count-abertas" style="color:#1565c0;">-</div>
+                    </div>
+                    <div class="card" style="background:#fff3e0;border-left:4px solid #e65100;">
+                        <div class="card-header">
+                            <div class="card-title" style="color:#e65100;">Em Andamento</div>
+                            <i class="bi bi-gear" style="font-size:22px;color:#e65100;"></i>
+                        </div>
+                        <div class="card-value" id="pend-count-andamento" style="color:#e65100;">-</div>
+                    </div>
+                    <div class="card" style="background:#e8f5e9;border-left:4px solid #2e7d32;">
+                        <div class="card-header">
+                            <div class="card-title" style="color:#2e7d32;">Encerradas</div>
+                            <i class="bi bi-check-circle" style="font-size:22px;color:#2e7d32;"></i>
+                        </div>
+                        <div class="card-value" id="pend-count-encerradas" style="color:#2e7d32;">-</div>
+                    </div>
+                </div>
+
+                <!-- Cabeçalho fora do card -->
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                    <h3 style="margin:0;font-size:15px;color:#333;">
+                        <i class="bi bi-pen"></i> OS Pendentes de Assinatura
+                    </h3>
+                    <div style="display:flex;gap:6px;">
+                        <button class="btn btn-danger" onclick="imprimirPendencias()" style="font-size:12px;padding:4px 10px;" title="Gerar PDF">
+                            <i class="bi bi-file-earmark-pdf"></i> PDF
+                        </button>
+                        <button class="btn btn-secondary" onclick="carregarPendencias()" style="font-size:12px;padding:4px 10px;" title="Atualizar">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                    </div>
+                </div>
+                <input id="pend-busca" type="text" placeholder="Buscar por número ou solicitante..."
+                    oninput="filtroPendencias()"
+                    style="width:100%;padding:6px 10px;border:1px solid #ccc;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:12px;">
+
+                <!-- Tabela pendentes de assinatura -->
+                <div class="table-container">
+                    <table class="tabela-os">
+                        <thead>
+                            <tr>
+                                <th>Número / Tipo</th>
+                                <th>Data</th>
+                                <th>Status</th>
+                                <th>Solicitante</th>
+                                <th>Descrição</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-pendencias">
+                            <tr><td colspan="6" style="text-align:center;color:#999;padding:20px;">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                    <div id="pend-paginacao" style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:16px;padding:10px 0;border-top:1px solid #eee;"></div>
+                </div>
+            </div>
+
             <div id="page-usuarios" class="page hidden">
                 <form id="form-user">
                     <div class="form-section">
@@ -698,8 +779,51 @@
                 <button type="button" class="btn btn-info" onclick="gerarPDFMateriais()">
                     <i class="bi bi-file-earmark-pdf"></i> PDF Materiais
                 </button>
+                <button type="button" class="btn btn-warning" id="btn-assinar-os" onclick="abrirModalAssinatura()" style="display:none;">
+                    <i class="bi bi-pen"></i> Assinar OS
+                </button>
                 <button type="button" class="btn btn-secondary" onclick="fecharModalDetalhes()">
                     <i class="bi bi-x-circle"></i> Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Assinatura Eletrônica -->
+    <div id="modal-assinatura" class="modal hidden">
+        <div class="modal-content" style="max-width:680px;max-height:90vh;display:flex;flex-direction:column;">
+            <div class="modal-header" style="flex-shrink:0;">
+                <h2><i class="bi bi-pen"></i> Assinar Ordem de Serviço</h2>
+            </div>
+
+            <p style="font-size:12px;color:#555;margin:0 0 10px 0;flex-shrink:0;">
+                Confira abaixo como ficará o documento com a sua assinatura eletrônica.
+            </p>
+
+            <!-- Prévia real do documento (duas vias) -->
+            <div style="flex:1;overflow-y:auto;border:2px solid #333;border-radius:4px;background:#f4f4f4;margin-bottom:12px;">
+                <iframe id="iframe-preview-assinatura"
+                    style="width:100%;height:800px;border:none;display:block;"
+                    sandbox="allow-same-origin">
+                </iframe>
+            </div>
+
+            <!-- Identidade do assinante -->
+            <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:6px;padding:10px 14px;margin-bottom:12px;font-size:13px;flex-shrink:0;">
+                <span style="font-weight:600;color:#2e7d32;"><i class="bi bi-person-check"></i> Assinando como:</span>
+                <strong id="assinatura-identidade"></strong>
+                <span id="assinatura-cargo" style="color:#555;font-size:12px;margin-left:6px;"></span>
+                <span style="color:#777;font-size:11px;margin-left:6px;" id="assinatura-timestamp"></span>
+            </div>
+
+            <input type="checkbox" id="check-confirma-assinatura" checked style="display:none;">
+
+            <div class="button-group" style="flex-shrink:0;">
+                <button type="button" class="btn btn-success" onclick="confirmarAssinatura()">
+                    <i class="bi bi-pen"></i> Assinar Documento
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="fecharModalAssinatura()">
+                    <i class="bi bi-x-circle"></i> Cancelar
                 </button>
             </div>
         </div>

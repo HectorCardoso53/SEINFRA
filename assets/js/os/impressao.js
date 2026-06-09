@@ -29,7 +29,7 @@ body { font-family: Arial; font-size: 10px; line-height: 1.4; }
 .secao { margin-bottom: 6px; }
 .secao h3 { font-size: 9px; font-weight: bold; border-bottom: 1px solid #000; margin-bottom: 4px; padding-bottom: 1px; }
 .secao div { margin-bottom: 2px; word-break: break-word; }
-.assinaturas { display: flex; justify-content: space-around; margin-top: 12px; gap: 16px; }
+.assinaturas { display: flex; justify-content: space-around; align-items: flex-end; margin-top: 12px; gap: 16px; }
 .assinatura-box { flex: 1; text-align: center; font-size: 9px; }
 .linha { border-top: 1px solid #000; margin-bottom: 3px; margin-top: 22px; }
 .linha-corte { border-top: 2px dashed #000; margin: 6px 0; }
@@ -60,23 +60,47 @@ function headerPrefeitura(imgWidth = "40px") {
 </div>`;
 }
 
-function assinaturasHTML(tipoOS) {
-  const boxes =
-    tipoOS === "externa"
-      ? ["Secretária", "Responsável", "Requerente"]
-      : ["Secretária", "Responsável"];
-  return `
-<div class="assinaturas">
-  ${boxes
-    .map(
-      (label) => `
-    <div class="assinatura-box">
-      <div class="linha"></div>
-      ${label}
-    </div>`,
-    )
-    .join("")}
-</div>`;
+function assinaturasHTML(tipoOS, assinaturaEletronica) {
+  const outros =
+    tipoOS === "externa" ? ["Responsável pela Execução", "Requerente"] : ["Responsável pela Execução"];
+
+  const outrasBoxes = outros
+    .map((l) => `
+      <div class="assinatura-box">
+        <div class="linha"></div>
+        <div style="text-align:center;font-size:8.5px;font-weight:bold;">${l}</div>
+      </div>`)
+    .join("");
+
+  const temNome = assinaturaEletronica && assinaturaEletronica.nome;
+
+  const boxSecretaria = temNome
+    ? `<div class="assinatura-box">
+        <div style="text-align:center;font-size:8.5px;margin-bottom:1px;">${assinaturaEletronica.nome}</div>
+        <div style="border-top:1px solid #000;margin-bottom:3px;"></div>
+        <div style="text-align:center;font-size:8.5px;font-weight:bold;">Secretaria / SEINFRA</div>
+       </div>`
+    : `<div class="assinatura-box">
+        <div class="linha"></div>
+        <div style="text-align:center;font-size:8.5px;font-weight:bold;">Secretaria / SEINFRA</div>
+       </div>`;
+
+  const linhasAssinaturas = `<div class="assinaturas">${boxSecretaria}${outrasBoxes}</div>`;
+
+  if (assinaturaEletronica && assinaturaEletronica.nome) {
+    const dataFmt = new Date(assinaturaEletronica.data).toLocaleString("pt-BR");
+    const emailPart = assinaturaEletronica.email ? ` &lt;${assinaturaEletronica.email}&gt;` : "";
+    const rodapeEletronico = `
+      <div style="margin-top:6px;padding-top:5px;border-top:1px dashed #999;font-size:7.5px;color:#333;line-height:1.8;">
+        <span style="font-weight:bold;">Assinado eletronicamente por:</span>
+        ${assinaturaEletronica.nome}${emailPart}${assinaturaEletronica.setor ? " — " + assinaturaEletronica.setor : ""}
+        &nbsp;|&nbsp; ${dataFmt}
+        &nbsp;|&nbsp; Cód: <span style="font-family:monospace;font-weight:bold;">${assinaturaEletronica.codigo || ""}</span>
+      </div>`;
+    return linhasAssinaturas + rodapeEletronico;
+  }
+
+  return linhasAssinaturas;
 }
 
 function conteudoOSHTML(dados) {
@@ -99,6 +123,7 @@ function conteudoOSHTML(dados) {
     descricao,
     assinaturaChefia,
     assinaturaRecebedor,
+    assinaturaEletronica,
   } = dados;
 
   const tipo = (tipoOS || "").toLowerCase();
@@ -140,14 +165,73 @@ ${headerPrefeitura()}
   <div style="line-height:1.6;">${descricao || "-"}</div>
 </div>
 
+${(assinaturaChefia || assinaturaRecebedor) ? `
 <div class="secao">
   <h3>Encerramento</h3>
   ${assinaturaChefia ? `<div><strong>Responsável:</strong> ${assinaturaChefia}</div>` : ""}
   ${assinaturaRecebedor ? `<div><strong>Recebedor:</strong> ${assinaturaRecebedor}</div>` : ""}
-  ${assinaturasHTML(tipo)}
+</div>` : ""}
+
+<div style="border-top:1px solid #000;margin-top:10px;padding-top:8px;">
+  ${assinaturasHTML(tipo, assinaturaEletronica)}
 </div>
 
 <div class="footer">Documento gerado em: ${dataEmissao}</div>`;
+}
+
+/* =========================
+   GERAR HTML PARA PREVIEW DE ASSINATURA
+========================= */
+export function gerarHTMLDocumentoAssinatura(ordem, assinaturaEletronica) {
+  const temMateriais = ordem.materiais && ordem.materiais.length > 0;
+  const materiaisHTML = temMateriais
+    ? ordem.materiais.map((m, i) => `<tr><td>${i+1}</td><td>${m.nome}</td><td>${m.quantidade||"-"}</td><td>${m.unidade}</td></tr>`).join("")
+    : "";
+
+  const dados = {
+    tipoOS: ordem.tipoOS,
+    numero: ordem.numero,
+    status: ordem.status,
+    dataAbertura: ordem.dataAbertura,
+    dataEncerramento: ordem.dataEncerramento,
+    nomeSolicitante: ordem.nomeSolicitante,
+    cpf: ordem.cpfSolicitante,
+    telefone: ordem.telefoneSolicitante,
+    telefone2: ordem.telefone2 || "",
+    setorSolicitante: ordem.setorSolicitante,
+    setorResponsavel: ordem.setorResponsavel,
+    execucao: ordem.responsavelExecucao,
+    abertura: ordem.responsavelAbertura,
+    local: ordem.localServico,
+    pontoReferencia: ordem.pontoReferencia,
+    descricao: ordem.descricaoServico,
+    assinaturaChefia: ordem.assinaturaChefia,
+    assinaturaRecebedor: ordem.assinaturaRecebedor,
+    assinaturaEletronica,
+  };
+
+  let bloco = conteudoOSHTML(dados);
+  if (temMateriais) {
+    bloco += `<div class="secao" style="margin-top:6px;"><h3>Materiais Utilizados</h3>
+    <table><thead><tr><th>#</th><th>Material</th><th>Quantidade</th><th>Unidade</th></tr></thead>
+    <tbody>${materiaisHTML}</tbody></table></div>`;
+  }
+
+  // Mostra as duas vias — igual ao impresso — sem script de impressão automática
+  const body = `
+<div style="background:#ccc;padding:8px 0;text-align:center;font-size:11px;font-weight:bold;color:#333;">
+  VIA 1 — SEINFRA
+</div>
+<div class="folha">
+  <div class="os-bloco">${bloco}</div>
+  <div class="linha-corte"></div>
+  <div style="background:#ccc;padding:6px 0;text-align:center;font-size:11px;font-weight:bold;color:#333;margin-top:4px;">
+    VIA 2 — SOLICITANTE
+  </div>
+  <div class="os-bloco">${bloco}</div>
+</div>`;
+
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${ordem.numero || "OS"}</title><style>${cssBase}body{background:#f4f4f4;}</style></head><body>${body}</body></html>`;
 }
 
 /* =========================
@@ -221,6 +305,7 @@ export function imprimirDetalhesOS() {
     descricao: osAtual.descricaoServico,
     assinaturaChefia: osAtual.assinaturaChefia,
     assinaturaRecebedor: osAtual.assinaturaRecebedor,
+    assinaturaEletronica: osAtual.assinaturaEletronica || null,
   };
 
   let bloco = conteudoOSHTML(dados);

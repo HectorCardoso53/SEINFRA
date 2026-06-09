@@ -442,6 +442,17 @@ export function carregarTabelaRelatorios(ordensParaExibir) {
         ? ""
         : "color:#999; font-style:italic; font-size:11px;";
 
+      const statusOS = (ordem.status || "").toLowerCase();
+      const exibirAssinatura = statusOS !== "encerrada";
+      const assinado = ordem.assinaturaEletronica && ordem.assinaturaEletronica.nome;
+      const badgeAssinatura = !exibirAssinatura ? "" : assinado
+        ? `<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;background:#e8f5e9;color:#2e7d32;display:inline-block;margin-top:3px;">
+             <i class="bi bi-pen-fill"></i> ${ordem.assinaturaEletronica.nome}
+           </span>`
+        : `<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;background:#fff8e1;color:#f57f17;display:inline-block;margin-top:3px;">
+             <i class="bi bi-clock"></i> Pend. Assinatura
+           </span>`;
+
       return `
         <tr>
           <td>
@@ -451,6 +462,7 @@ export function carregarTabelaRelatorios(ordensParaExibir) {
               background:${tipoBg}; color:${tipoColor};">
               ${tipoLabel}
             </span>
+            ${badgeAssinatura ? `<br>${badgeAssinatura}` : ""}
           </td>
           <td>${ordem.dataAbertura ? formatarData(ordem.dataAbertura) : "-"}</td>
           <td>

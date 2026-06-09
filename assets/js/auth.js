@@ -143,6 +143,8 @@ onAuthStateChanged(auth, async (user) => {
   // Dados globais
   window.userRole = role;
   window.userNome = data.nome;
+  window.userSetor = data.setor || "";
+  window.userEmail = user.email || "";
   window._userId = user.uid;
   window._userName = user.displayName || user.email || "Usuário";
 
