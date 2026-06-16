@@ -819,10 +819,38 @@
             <input type="checkbox" id="check-confirma-assinatura" checked style="display:none;">
 
             <div class="button-group" style="flex-shrink:0;">
-                <button type="button" class="btn btn-success" onclick="confirmarAssinatura()">
+                <button type="button" class="btn btn-success" onclick="abrirModalSenha()">
                     <i class="bi bi-pen"></i> Assinar Documento
                 </button>
                 <button type="button" class="btn btn-secondary" onclick="fecharModalAssinatura()">
+                    <i class="bi bi-x-circle"></i> Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Confirmar Senha para Assinatura -->
+    <div id="modal-confirmar-senha" class="modal hidden">
+        <div class="modal-box" style="max-width:380px;">
+            <h3 style="margin-bottom:10px;"><i class="bi bi-lock-fill"></i> Confirmar Identidade</h3>
+            <p style="font-size:13px;color:#555;margin-bottom:12px;">Para assinar o documento, confirme sua senha:</p>
+            <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:13px;">
+                <div><i class="bi bi-person-check" style="color:#2e7d32;"></i> <strong id="senha-confirm-nome"></strong></div>
+                <div style="color:#555;font-size:12px;margin-top:2px;" id="senha-confirm-email"></div>
+            </div>
+            <div class="form-group" style="margin-bottom:8px;">
+                <label style="font-size:13px;font-weight:600;">Senha</label>
+                <input type="password" id="input-senha-assinatura" class="form-control"
+                    placeholder="Digite sua senha" onkeydown="if(event.key==='Enter') confirmarSenhaAssinatura()">
+            </div>
+            <p id="senha-confirm-erro" style="color:#c62828;font-size:12px;display:none;margin-bottom:8px;">
+                <i class="bi bi-exclamation-circle"></i> Senha incorreta. Tente novamente.
+            </p>
+            <div class="button-group">
+                <button type="button" class="btn btn-success" onclick="confirmarSenhaAssinatura()">
+                    <i class="bi bi-check-circle"></i> Confirmar
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="fecharModalSenha()">
                     <i class="bi bi-x-circle"></i> Cancelar
                 </button>
             </div>

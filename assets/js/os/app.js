@@ -52,6 +52,9 @@ import {
   fecharModalAssinatura,
   limparCanvas,
   confirmarAssinatura,
+  abrirModalSenha,
+  fecharModalSenha,
+  confirmarSenhaAssinatura,
 } from "./ordens.js";
 
 import {
@@ -449,6 +452,9 @@ window.abrirModalAssinatura = abrirModalAssinatura;
 window.fecharModalAssinatura = fecharModalAssinatura;
 window.limparCanvas = limparCanvas;
 window.confirmarAssinatura = confirmarAssinatura;
+window.abrirModalSenha = abrirModalSenha;
+window.fecharModalSenha = fecharModalSenha;
+window.confirmarSenhaAssinatura = confirmarSenhaAssinatura;
 
 window.proximaPagina = proximaPagina;
 window.paginaAnterior = paginaAnterior;

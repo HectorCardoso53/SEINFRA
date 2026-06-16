@@ -12,6 +12,12 @@ import {
   buscarOrdemPorId,
 } from "../firestore.js";
 
+import { auth } from "../firebase.js";
+import {
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
 import {
   mostrarAlerta,
   mostrarConfirmacao,
@@ -719,7 +725,7 @@ export function abrirModalAssinatura() {
   document.getElementById("assinatura-identidade").textContent = nome;
   document.getElementById("assinatura-cargo").textContent = setor;
   document.getElementById("assinatura-timestamp").textContent = `${agora}  ·  Cód: ${codigoPreview}`;
-  document.getElementById("check-confirma-assinatura").checked = false;
+  document.getElementById("check-confirma-assinatura").checked = true;
 
   // Guarda o código para usar ao confirmar
   window._assinaturaCodigoPendente = codigoPreview;
@@ -736,13 +742,46 @@ export function fecharModalAssinatura() {
 
 export function limparCanvas() { /* não usado nesta versão */ }
 
-export async function confirmarAssinatura() {
-  if (!osAtual) return;
+export function abrirModalSenha() {
+  document.getElementById("senha-confirm-nome").textContent =
+    (window.userNome || "").toUpperCase();
+  document.getElementById("senha-confirm-email").textContent =
+    window.userEmail || "";
+  document.getElementById("input-senha-assinatura").value = "";
+  document.getElementById("senha-confirm-erro").style.display = "none";
+  document.getElementById("modal-confirmar-senha").classList.remove("hidden");
+  setTimeout(() => document.getElementById("input-senha-assinatura").focus(), 100);
+}
 
-  if (!document.getElementById("check-confirma-assinatura").checked) {
-    mostrarAlerta("Marque a caixa de confirmação para assinar.", "Atenção");
+export function fecharModalSenha() {
+  document.getElementById("modal-confirmar-senha").classList.add("hidden");
+}
+
+export async function confirmarSenhaAssinatura() {
+  const senha = document.getElementById("input-senha-assinatura").value;
+  const erro = document.getElementById("senha-confirm-erro");
+  if (!senha) {
+    erro.style.display = "block";
+    erro.textContent = "Digite sua senha para confirmar.";
     return;
   }
+  const user = auth.currentUser;
+  if (!user) return;
+  try {
+    const cred = EmailAuthProvider.credential(user.email, senha);
+    await reauthenticateWithCredential(user, cred);
+    fecharModalSenha();
+    await confirmarAssinatura();
+  } catch {
+    erro.style.display = "block";
+    erro.textContent = "Senha incorreta. Tente novamente.";
+    document.getElementById("input-senha-assinatura").value = "";
+    document.getElementById("input-senha-assinatura").focus();
+  }
+}
+
+export async function confirmarAssinatura() {
+  if (!osAtual) return;
 
   const assinatura = {
     nome: (window.userNome || "").toUpperCase(),
