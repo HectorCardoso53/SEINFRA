@@ -1,431 +1,157 @@
-import {
-  collection,
-  getDocs,
-  query,
-  orderBy,
-  limit,
-  doc,
-  where,
-  setDoc,
-  getDoc,
-  startAfter,
-  runTransaction,
-  getCountFromServer,
-  serverTimestamp,
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+// firestore.js — mantém os mesmos nomes de funções exportadas
+// substitui Firestore por chamadas REST à API SEINFRA
 
-import { auth, db } from "./firebase.js";
-import { registrar } from "./auditoria.js";
+import { api } from "./api.js";
+
+// Mapeamento: campo frontend → campo backend (onde diferem)
+function toBackend(ordem) {
+  return {
+    tipoOS:              ordem.tipoOS,
+    dataAbertura:        ordem.dataAbertura,
+    nomeSolicitante:     ordem.nomeSolicitante,
+    cpf:                 ordem.cpfSolicitante,
+    telefone:            ordem.telefoneSolicitante,
+    telefone2:           ordem.telefone2,
+    setorSolicitante:    ordem.setorSolicitante,
+    setorResponsavel:    ordem.setorResponsavel,
+    descricao:           ordem.descricaoServico,
+    local:               ordem.localServico,
+    pontoReferencia:     ordem.pontoReferencia,
+    materiais:           ordem.materiais || [],
+    responsavelExecucao: ordem.responsavelExecucao,
+    responsavelAbertura: ordem.responsavelAbertura,
+    observacaoFinal:     ordem.observacaoFinal,
+    assinaturaChefia:    ordem.assinaturaChefia,
+    assinaturaRecebedor: ordem.assinaturaRecebedor,
+    assinaturaEletronica: ordem.assinaturaEletronica,
+    status:              ordem.status,
+    dataEncerramento:    ordem.dataEncerramento,
+  };
+}
+
+function toFrontend(res) {
+  if (!res) return null;
+  return {
+    id:                   res.id,
+    numero:               res.numero,
+    numeroSequencial:     res.numeroSequencial,
+    tipoOS:               res.tipoOS,
+    status:               res.status,
+    dataAbertura:         res.dataAbertura,
+    dataEncerramento:     res.dataEncerramento,
+    nomeSolicitante:      res.nomeSolicitante,
+    cpfSolicitante:       res.cpf,
+    telefoneSolicitante:  res.telefone,
+    telefone2:            res.telefone2,
+    setorSolicitante:     res.setorSolicitante,
+    setorResponsavel:     res.setorResponsavel,
+    descricaoServico:     res.descricao,
+    localServico:         res.local,
+    pontoReferencia:      res.pontoReferencia,
+    materiais:            res.materiais || [],
+    responsavelExecucao:  res.responsavelExecucao,
+    responsavelAbertura:  res.responsavelAbertura,
+    observacaoFinal:      res.observacaoFinal,
+    assinaturaChefia:     res.assinaturaChefia,
+    assinaturaRecebedor:  res.assinaturaRecebedor,
+    assinaturaEletronica: res.assinaturaEletronica,
+    criadoEm:             res.criadoEm,
+    criadoPor:            res.criadoPor,
+  };
+}
 
 export async function buscarVisitasPorNome(nome) {
-  const nomeUpper = nome.toUpperCase();
-  const q = query(
-    collection(db, "visitas"),
-    where("name", ">=", nomeUpper),
-    where("name", "<=", nomeUpper + "\uf8ff"),
-  );
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  const res = await api.get(`/visits?search=${encodeURIComponent(nome)}&limit=20`);
+  return Array.isArray(res) ? res : (res.visitas || []);
 }
 
 export async function contarOrdensFirestore() {
-  const ref = collection(db, "ordens");
-  const snapshot = await getCountFromServer(ref);
-  return snapshot.data().count;
+  const res = await api.get("/orders?limit=1");
+  return res.total || 0;
 }
 
 export async function buscarResumoDashboard() {
-  const ref = doc(db, "estatisticas", "dashboard");
-  const snap = await getDoc(ref);
-  return snap.exists() ? snap.data() : null;
+  return api.get("/orders/stats/dashboard");
 }
 
 export async function buscarOrdensDashboard() {
-  const q = query(
-    collection(db, "ordens"),
-    orderBy("numeroSequencial", "desc"),
-    limit(20),
-  );
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  const res = await api.get("/orders?limit=20");
+  return (res.ordens || []).map(toFrontend);
 }
 
-/* =========================
-   🔑 SEM LIMITE — busca TODAS as ordens para filtros funcionarem
-========================= */
 export async function buscarTodasOrdens() {
-  const q = query(
-    collection(db, "ordens"),
-    orderBy("numeroSequencial", "desc"),
-    // ❌ limit(500) REMOVIDO — causava corte nos filtros
-  );
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  const res = await api.get("/orders?limit=9999");
+  return (res.ordens || []).map(toFrontend);
 }
 
-export async function buscarOrdensPaginadas(ultimaDoc = null, limite = 20) {
-  let q;
-  if (ultimaDoc) {
-    q = query(
-      collection(db, "ordens"),
-      orderBy("numeroSequencial", "desc"),
-      startAfter(ultimaDoc),
-      limit(limite),
-    );
-  } else {
-    q = query(
-      collection(db, "ordens"),
-      orderBy("numeroSequencial", "desc"),
-      limit(limite),
-    );
-  }
-  const snapshot = await getDocs(q);
-  const lista = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-  const ultimoDocumento = snapshot.docs[snapshot.docs.length - 1];
-  return { lista, ultimoDocumento };
+export async function buscarOrdensPaginadas(paginaOuCursor = 1, limite = 20) {
+  const pagina = typeof paginaOuCursor === "number" ? paginaOuCursor : 1;
+  const res = await api.get(`/orders?page=${pagina}&limit=${limite}`);
+  return {
+    lista:          (res.ordens || []).map(toFrontend),
+    ultimoDocumento: null,
+    total:          res.total || 0,
+    totalPages:     res.totalPages || 1,
+  };
 }
 
-/* =========================
-   UTIL
-========================= */
-function normalizarNome(nome) {
-  return nome
-    .toLowerCase()
-    .trim()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9 ]/g, "")
-    .replace(/\s+/g, "-");
-}
-
-export async function buscarOrdensComFiltro({
-  status,
-  setorResponsavel,
-  dataInicio,
-  dataFim,
-}) {
-  let constraints = [];
-  if (dataInicio) constraints.push(where("dataAbertura", ">=", dataInicio));
-  if (dataFim) constraints.push(where("dataAbertura", "<=", dataFim));
-  if (status) constraints.push(where("status", "==", status));
-  if (setorResponsavel)
-    constraints.push(where("setorResponsavel", "==", setorResponsavel));
-  constraints.push(orderBy("dataAbertura", "desc"));
-  const q = query(collection(db, "ordens"), ...constraints);
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+export async function buscarOrdensComFiltro({ status, setorResponsavel, dataInicio, dataFim } = {}) {
+  const p = new URLSearchParams({ limit: "9999" });
+  if (status)           p.set("status",    status);
+  if (setorResponsavel) p.set("diretoria", setorResponsavel);
+  if (dataInicio)       p.set("dataInicio", dataInicio);
+  if (dataFim)          p.set("dataFim",    dataFim);
+  const res = await api.get(`/orders?${p}`);
+  return (res.ordens || []).map(toFrontend);
 }
 
 export async function gerarNumeroOS() {
-  const ano = new Date().getFullYear();
-  const ref = doc(db, "contadores", "os_" + ano);
-  const numero = await runTransaction(db, async (transaction) => {
-    const snap = await transaction.get(ref);
-    let ultimo = 0;
-    if (snap.exists()) {
-      ultimo = snap.data().ultimoNumero || 0;
-      transaction.update(ref, { ultimoNumero: ultimo + 1 });
-    } else {
-      transaction.set(ref, { ultimoNumero: 1 });
-      return 1;
-    }
-    return ultimo + 1;
-  });
-  const numeroFormatado = String(numero).padStart(3, "0");
-  return `OS ${numeroFormatado}/${ano} - SEINFRA`;
-}
-
-async function descontarEstoque(materiais) {
-  const operacoes = materiais.map(async (mat) => {
-    if (!mat.quantidade) return;
-    const idMaterial = normalizarNome(mat.nome);
-    const ref = doc(db, "materiais", idMaterial);
-    await runTransaction(db, async (transaction) => {
-      const snap = await transaction.get(ref);
-      if (!snap.exists()) return;
-      const atual = snap.data().estoque || 0;
-      if (atual < mat.quantidade)
-        throw new Error(`Estoque insuficiente para ${mat.nome}`);
-      transaction.update(ref, { estoque: atual - mat.quantidade });
-    });
-  });
-  await Promise.all(operacoes);
+  const res = await api.get("/orders/next-number");
+  return res.numero;
 }
 
 export async function consultarProximoNumeroOS() {
-  const ano = new Date().getFullYear();
-  const ref = doc(db, "contadores", "os_" + ano);
-  const snap = await getDoc(ref);
-  let proximo = 1;
-  if (snap.exists()) proximo = (snap.data().ultimoNumero || 0) + 1;
-  const numeroFormatado = String(proximo).padStart(3, "0");
-  return `OS ${numeroFormatado}/${ano} - SEINFRA`;
+  const res = await api.get("/orders/next-number");
+  return res.numero;
 }
-
 
 export async function salvarOrdemFirestore(ordem) {
-  return await runTransaction(db, async (transaction) => {
-    const ano = new Date().getFullYear();
-    const contadorRef = doc(db, "contadores", "os_" + ano);
-    const statsRef = doc(db, "estatisticas", "dashboard");
-    const snap = await transaction.get(contadorRef);
-    const statsSnap = await transaction.get(statsRef);
-    let numeroFinal = 1;
-    if (snap.exists()) numeroFinal = (snap.data().ultimoNumero || 0) + 1;
-    const numeroFormatado = String(numeroFinal).padStart(3, "0");
-    const numeroOS = `OS ${numeroFormatado}/${ano} - SEINFRA`;
-    const ordemRef = doc(collection(db, "ordens"));
-    if (snap.exists()) {
-      transaction.update(contadorRef, { ultimoNumero: numeroFinal });
-    } else {
-      transaction.set(contadorRef, { ultimoNumero: 1 });
-    }
-    transaction.set(ordemRef, {
-      ...ordem,
-      materiais: Array.isArray(ordem.materiais) ? ordem.materiais : [],
-      numero: numeroOS,
-      numeroSequencial: numeroFinal,
-      criadoEm: new Date(),
-      criadoPor: auth.currentUser?.email || "sistema",
-    });
-    if (!statsSnap.exists()) {
-      const meses = new Array(12).fill(0);
-      const data = new Date(ordem.dataAbertura);
-      if (!isNaN(data)) meses[data.getMonth()] = 1;
-      transaction.set(statsRef, {
-        total: 1,
-        abertas: 1,
-        andamento: 0,
-        encerradas: 0,
-        totalMateriais: ordem.materiais?.length || 0,
-        ordensPorMes: meses,
-      });
-    } else {
-      const stats = statsSnap.data();
-      let meses = stats.ordensPorMes || new Array(12).fill(0);
-      const data = new Date(ordem.dataAbertura);
-      if (!isNaN(data)) {
-        const mesIndex = data.getMonth();
-        meses[mesIndex] = (meses[mesIndex] || 0) + 1;
-      }
-      transaction.update(statsRef, {
-        total: (stats.total || 0) + 1,
-        abertas: (stats.abertas || 0) + 1,
-        totalMateriais:
-          (stats.totalMateriais || 0) + (ordem.materiais?.length || 0),
-        ordensPorMes: meses,
-      });
-    }
-    return { id: ordemRef.id, numero: numeroOS };
-  });
-  await registrar("criar_os", "ordens", result.id, {
-    numero: result.numero,
-    tipo: ordem.tipoOS || null,
-    solicitante: ordem.nomeSolicitante || null,
-    setor: ordem.setorResponsavel || null,
-  });
-  return result;
+  const res = await api.post("/orders", toBackend(ordem));
+  return { id: res.id, numero: res.numero };
 }
 
-export async function atualizarStatusComDashboard(id, dadosAtualizacao) {
-  const ordemRef = doc(db, "ordens", id);
-  const statsRef = doc(db, "estatisticas", "dashboard");
-  let infoAudit = {};
-  await runTransaction(db, async (transaction) => {
-    const ordemSnap = await transaction.get(ordemRef);
-    const statsSnap = await transaction.get(statsRef);
-    if (!ordemSnap.exists() || !statsSnap.exists()) return;
-    const ordem = ordemSnap.data();
-    const statusAntigo = ordem.status;
-    const novoStatus = dadosAtualizacao.status;
-    infoAudit = { numero: ordem.numero, de: statusAntigo, para: novoStatus };
-    if (!novoStatus) return;
-    if (statusAntigo === novoStatus) {
-      transaction.update(ordemRef, dadosAtualizacao);
-      return;
-    }
-    const stats = statsSnap.data();
-    let novasStats = {
-      total: stats.total || 0,
-      abertas: stats.abertas || 0,
-      andamento: stats.andamento || 0,
-      encerradas: stats.encerradas || 0,
-      totalMateriais: stats.totalMateriais || 0,
-    };
-    if (statusAntigo === "Aberta")
-      novasStats.abertas = Math.max(0, novasStats.abertas - 1);
-    if (statusAntigo === "Em andamento")
-      novasStats.andamento = Math.max(0, novasStats.andamento - 1);
-    if (statusAntigo === "Encerrada")
-      novasStats.encerradas = Math.max(0, novasStats.encerradas - 1);
-    if (novoStatus === "Aberta") novasStats.abertas += 1;
-    if (novoStatus === "Em andamento") novasStats.andamento += 1;
-    if (novoStatus === "Encerrada") novasStats.encerradas += 1;
-    transaction.update(ordemRef, dadosAtualizacao);
-    transaction.update(statsRef, novasStats);
-  });
-  await registrar("alterar_status_os", "ordens", id, infoAudit);
+export async function atualizarStatusComDashboard(id, dados) {
+  await api.patch(`/orders/${id}`, toBackend(dados));
 }
 
-export async function buscarOrdensFirestore() {
-  return [];
-}
-
-export async function atualizarOrdemComDashboard(id, novosDados) {
-  const ordemRef = doc(db, "ordens", id);
-  const statsRef = doc(db, "estatisticas", "dashboard");
-  let infoAudit = {};
-  await runTransaction(db, async (transaction) => {
-    const ordemSnap = await transaction.get(ordemRef);
-    const statsSnap = await transaction.get(statsRef);
-    if (!ordemSnap.exists() || !statsSnap.exists()) return;
-    const ordemAntiga = ordemSnap.data();
-    infoAudit = {
-      numero: ordemAntiga.numero,
-      campos: Object.keys(novosDados),
-    };
-    const stats = statsSnap.data();
-    let novosStats = {
-      total: stats.total || 0,
-      abertas: stats.abertas || 0,
-      andamento: stats.andamento || 0,
-      encerradas: stats.encerradas || 0,
-      totalMateriais: stats.totalMateriais || 0,
-      ordensPorMes: stats.ordensPorMes || new Array(12).fill(0),
-    };
-    if (novosDados.status && novosDados.status !== ordemAntiga.status) {
-      if (ordemAntiga.status === "Aberta")
-        novosStats.abertas = Math.max(0, novosStats.abertas - 1);
-      if (ordemAntiga.status === "Em andamento")
-        novosStats.andamento = Math.max(0, novosStats.andamento - 1);
-      if (ordemAntiga.status === "Encerrada")
-        novosStats.encerradas = Math.max(0, novosStats.encerradas - 1);
-      if (novosDados.status === "Aberta") novosStats.abertas++;
-      if (novosDados.status === "Em andamento") novosStats.andamento++;
-      if (novosDados.status === "Encerrada") novosStats.encerradas++;
-    }
-    if (novosDados.materiais) {
-      const antigos = ordemAntiga.materiais?.length || 0;
-      const novos = novosDados.materiais?.length || 0;
-      novosStats.totalMateriais += novos - antigos;
-    }
-    if (
-      novosDados.dataAbertura &&
-      novosDados.dataAbertura !== ordemAntiga.dataAbertura
-    ) {
-      const antiga = new Date(ordemAntiga.dataAbertura);
-      const nova = new Date(novosDados.dataAbertura);
-      if (!isNaN(antiga))
-        novosStats.ordensPorMes[antiga.getMonth()] = Math.max(
-          0,
-          novosStats.ordensPorMes[antiga.getMonth()] - 1,
-        );
-      if (!isNaN(nova))
-        novosStats.ordensPorMes[nova.getMonth()] =
-          (novosStats.ordensPorMes[nova.getMonth()] || 0) + 1;
-    }
-    transaction.update(ordemRef, novosDados);
-    transaction.update(statsRef, novosStats);
-  });
-  await registrar("editar_os", "ordens", id, infoAudit);
-}
-
-// Salva aceite dos termos no Firestore
-export async function salvarAceiteTermos(userId) {
-  await setDoc(doc(db, "termosAceitos", userId), {
-    aceito: true,
-    dataAceite: serverTimestamp(),
-  });
-}
-
-// Verifica se o usuário já aceitou os termos
-export async function verificarAceiteTermos(userId) {
-  const snap = await getDoc(doc(db, "termosAceitos", userId));
-  return snap.exists() && snap.data()?.aceito === true;
+export async function atualizarOrdemComDashboard(id, dados) {
+  await api.patch(`/orders/${id}`, toBackend(dados));
 }
 
 export async function excluirOrdemFirestore(id) {
-  const ref = doc(db, "ordens", id);
-  const refStats = doc(db, "estatisticas", "dashboard");
-  let infoAudit = {};
-  await runTransaction(db, async (transaction) => {
-    const snap = await transaction.get(ref);
-    const statsSnap = await transaction.get(refStats);
-    if (!snap.exists() || !statsSnap.exists()) return;
-    const ordem = snap.data();
-    infoAudit = { numero: ordem.numero, status: ordem.status, solicitante: ordem.nomeSolicitante || null };
-    const dados = statsSnap.data();
-    transaction.delete(ref);
-    dados.total = Math.max(0, (dados.total || 0) - 1);
-    if (ordem.status === "Aberta")
-      dados.abertas = Math.max(0, (dados.abertas || 0) - 1);
-    if (ordem.status === "Em andamento")
-      dados.andamento = Math.max(0, (dados.andamento || 0) - 1);
-    if (ordem.status === "Encerrada")
-      dados.encerradas = Math.max(0, (dados.encerradas || 0) - 1);
-    if (ordem.materiais)
-      dados.totalMateriais = Math.max(
-        0,
-        (dados.totalMateriais || 0) - ordem.materiais.length,
-      );
-    if (ordem.dataAbertura) {
-      const data = new Date(ordem.dataAbertura);
-      if (!isNaN(data)) {
-        const mesIndex = data.getMonth();
-        if (!dados.ordensPorMes) dados.ordensPorMes = new Array(12).fill(0);
-        if (dados.ordensPorMes[mesIndex] > 0) dados.ordensPorMes[mesIndex] -= 1;
-      }
-    }
-    transaction.update(refStats, dados);
-  });
-  await registrar("excluir_os", "ordens", id, infoAudit);
-}
-
-export async function reconstruirDashboard() {
-  if (!window.isAdmin) {
-    console.warn("Acesso negado");
-    return;
-  }
-  const snapshot = await getDocs(collection(db, "ordens"));
-  let total = 0,
-    abertas = 0,
-    andamento = 0,
-    encerradas = 0,
-    totalMateriais = 0;
-  let ordensPorMes = new Array(12).fill(0);
-  snapshot.forEach((docSnap) => {
-    const o = docSnap.data();
-    total++;
-    if (o.status === "Aberta") abertas++;
-    if (o.status === "Em andamento") andamento++;
-    if (o.status === "Encerrada") encerradas++;
-    if (o.materiais) totalMateriais += o.materiais.length;
-    if (o.dataAbertura) {
-      const data = new Date(o.dataAbertura);
-      if (!isNaN(data)) ordensPorMes[data.getMonth()]++;
-    }
-  });
-  await setDoc(doc(db, "estatisticas", "dashboard"), {
-    total,
-    abertas,
-    andamento,
-    encerradas,
-    totalMateriais,
-    ordensPorMes,
-  });
-  console.log("✅ Dashboard reconstruído");
+  await api.delete(`/orders/${id}`);
 }
 
 export async function buscarOrdemPorId(id) {
-  const ref = doc(db, "ordens", id);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return null;
-  return { id: snap.id, ...snap.data() };
+  const res = await api.get(`/orders/${id}`);
+  return toFrontend(res);
 }
 
 export async function buscarVisitaPorId(id) {
-  const docRef = doc(db, "visitas", id);
-  const snap = await getDoc(docRef);
-  if (!snap.exists()) return null;
-  return { id: snap.id, ...snap.data() };
+  return api.get(`/visits/${id}`);
 }
+
+export async function salvarAceiteTermos() {
+  await api.post("/terms/accept", {});
+}
+
+export async function verificarAceiteTermos() {
+  const res = await api.get("/terms/check");
+  return res.aceito === true;
+}
+
+export async function reconstruirDashboard() {
+  console.log("reconstruirDashboard: gerenciado automaticamente pelo backend");
+}
+
+export async function buscarOrdensFirestore() { return []; }

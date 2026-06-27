@@ -3,3 +3,5 @@ node_modules
 dist
 build
 assets/js/firebase-config.js
+serviceAccountKey.json
+scripts/backup/

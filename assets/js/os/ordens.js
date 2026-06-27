@@ -12,11 +12,7 @@ import {
   buscarOrdemPorId,
 } from "../firestore.js";
 
-import { auth } from "../firebase.js";
-import {
-  reauthenticateWithCredential,
-  EmailAuthProvider,
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { api } from "../api.js";
 
 import {
   mostrarAlerta,
@@ -765,11 +761,8 @@ export async function confirmarSenhaAssinatura() {
     erro.textContent = "Digite sua senha para confirmar.";
     return;
   }
-  const user = auth.currentUser;
-  if (!user) return;
   try {
-    const cred = EmailAuthProvider.credential(user.email, senha);
-    await reauthenticateWithCredential(user, cred);
+    await api.post("/auth/login", { email: window.userEmail, senha });
     fecharModalSenha();
     await confirmarAssinatura();
   } catch {
