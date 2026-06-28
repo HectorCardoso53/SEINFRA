@@ -83,12 +83,16 @@ app.get("/", async (c) => {
 });
 
 app.get("/:id", async (c) => {
-  const ordem = await prisma.ordem.findUnique({
-    where: { id: c.req.param("id") },
-    include: { criador: { select: { nome: true } } },
-  });
+  const ordem = await prisma.ordem.findUnique({ where: { id: c.req.param("id") } });
   if (!ordem) return c.json({ error: "OS não encontrada" }, 404);
-  return c.json(ordem);
+
+  let criadorNome: string | null = null;
+  try {
+    const criador = await prisma.user.findUnique({ where: { id: ordem.criadoPor }, select: { nome: true } });
+    criadorNome = criador?.nome ?? null;
+  } catch { /* usuário original não encontrado (dados migrados do Firebase) */ }
+
+  return c.json({ ...ordem, criador: criadorNome ? { nome: criadorNome } : null });
 });
 
 app.post("/", zValidator("json", ordemSchema), async (c) => {
