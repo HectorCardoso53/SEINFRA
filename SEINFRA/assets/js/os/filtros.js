@@ -60,11 +60,14 @@ export async function gerarRelatorioMateriais() {
             quantidade: 0,
             numeroOS: [],
             tiposOS: [],
-            detalhesOS: [], // 👈 guarda número + data + hora
+            detalhesOS: [],
+            ultimaDataTs: 0,
           };
         }
         const qtd = Number(mat.quantidade || 0);
         materiaisSomados[chave].quantidade += qtd;
+        const ts = data.getTime();
+        if (ts > materiaisSomados[chave].ultimaDataTs) materiaisSomados[chave].ultimaDataTs = ts;
 
         const numOS = ordem.numero || ordem.id;
         const dataHora = ordem.dataAbertura
@@ -102,7 +105,7 @@ export async function gerarRelatorioMateriais() {
     }
   });
 
-  _listaMateriais = Object.values(materiaisSomados);
+  _listaMateriais = Object.values(materiaisSomados).sort((a, b) => b.ultimaDataTs - a.ultimaDataTs);
 
   // limpa filtros ao trocar mês/ano
   const filtroNome = document.getElementById("filtro-material-nome");
@@ -136,11 +139,13 @@ export function filtrarTabelaMateriais() {
     .trim();
   const tipo = document.getElementById("filtro-material-tipo")?.value || "";
 
-  const listaFiltrada = _listaMateriais.filter((m) => {
-    const matchNome = !busca || m.nome.toLowerCase().includes(busca);
-    const matchTipo = !tipo || m.tiposOS.includes(tipo);
-    return matchNome && matchTipo;
-  });
+  const listaFiltrada = _listaMateriais
+    .filter((m) => {
+      const matchNome = !busca || m.nome.toLowerCase().includes(busca);
+      const matchTipo = !tipo || m.tiposOS.includes(tipo);
+      return matchNome && matchTipo;
+    })
+    .sort((a, b) => b.ultimaDataTs - a.ultimaDataTs);
 
   const totalQtd = listaFiltrada.reduce((acc, m) => acc + m.quantidade, 0);
   const osUnicasFiltro = new Set();
