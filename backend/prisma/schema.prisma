@@ -1,0 +1,146 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  visita
+  os
+  admin
+  master
+}
+
+model User {
+  id        String   @id @default(uuid())
+  nome      String
+  email     String   @unique
+  senha     String
+  cpf       String?
+  setor     String?
+  telefone  String?
+  role      Role     @default(visita)
+  ativo     Boolean  @default(true)
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  ordens     Ordem[]
+  auditorias Auditoria[]
+  termos     TermoAceito?
+
+  @@map("users")
+}
+
+model Ordem {
+  id                  String    @id @default(uuid())
+  numero              String    @unique
+  numeroSequencial    Int       @map("numero_sequencial")
+  ano                 Int
+  tipoOS              String?   @map("tipo_os")
+  status              String    @default("Aberta")
+  dataAbertura        String    @map("data_abertura")
+  dataEncerramento    String?   @map("data_encerramento")
+  nomeSolicitante     String?   @map("nome_solicitante")
+  cpf                 String?
+  telefone            String?
+  telefone2           String?
+  setorSolicitante    String?   @map("setor_solicitante")
+  setorResponsavel    String    @map("setor_responsavel")
+  descricao           String?
+  local               String?
+  pontoReferencia     String?   @map("ponto_referencia")
+  materiais           Json      @default("[]")
+  responsavelExecucao String?   @map("responsavel_execucao")
+  responsavelAbertura String?   @map("responsavel_abertura")
+  latitude            Float?
+  longitude           Float?
+  observacaoFinal     String?   @map("observacao_final")
+  assinaturaChefia       String?   @map("assinatura_chefia")
+  assinaturaRecebedor    String?   @map("assinatura_recebedor")
+  assinaturaEletronica   Json?     @map("assinatura_eletronica")
+  criadoEm              DateTime  @default(now()) @map("criado_em")
+  criadoPor          String    @map("criado_por")
+
+  criador User @relation(fields: [criadoPor], references: [id])
+
+  @@index([numeroSequencial(sort: Desc)])
+  @@index([dataAbertura])
+  @@index([status])
+  @@index([setorResponsavel])
+  @@map("ordens")
+}
+
+model Visita {
+  id        String   @id @default(uuid())
+  name      String
+  cpf       String?
+  phone     String?
+  address   String?
+  reference String?
+  date      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([name])
+  @@index([createdAt(sort: Desc)])
+  @@map("visitas")
+}
+
+model Pessoa {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([name])
+  @@map("pessoas")
+}
+
+model Contador {
+  id           String @id
+  ultimoNumero Int    @default(0) @map("ultimo_numero")
+
+  @@map("contadores")
+}
+
+model Estatistica {
+  id             String   @id @default("dashboard")
+  total          Int      @default(0)
+  abertas        Int      @default(0)
+  andamento      Int      @default(0)
+  encerradas     Int      @default(0)
+  totalMateriais Int      @default(0) @map("total_materiais")
+  ordensPorMes   Json     @default("[0,0,0,0,0,0,0,0,0,0,0,0]") @map("ordens_por_mes")
+  atualizadoEm  DateTime @default(now()) @map("atualizado_em")
+
+  @@map("estatisticas")
+}
+
+model TermoAceito {
+  id         String   @id @default(uuid())
+  userId     String   @unique @map("user_id")
+  aceito     Boolean  @default(true)
+  dataAceite DateTime @default(now()) @map("data_aceite")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("termos_aceitos")
+}
+
+model Auditoria {
+  id        String   @id @default(uuid())
+  acao      String
+  colecao   String
+  docId     String?  @map("doc_id")
+  detalhes  Json?
+  userId    String   @map("user_id")
+  userName  String   @map("user_name")
+  userRole  String   @map("user_role")
+  timestamp DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([timestamp(sort: Desc)])
+  @@map("auditoria")
+}

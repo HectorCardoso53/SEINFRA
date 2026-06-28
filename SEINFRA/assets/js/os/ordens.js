@@ -1,0 +1,794 @@
+// ============================================================
+// ordens.js — CRUD de Ordens de Serviço, formulário e dashboard
+// ============================================================
+
+import {
+  salvarOrdemFirestore,
+  excluirOrdemFirestore,
+  consultarProximoNumeroOS,
+  buscarResumoDashboard,
+  atualizarStatusComDashboard,
+  atualizarOrdemComDashboard,
+  buscarOrdemPorId,
+} from "../firestore.js";
+
+import { api, getUser } from "../api.js";
+
+function nomeUsuario() {
+  return window.userNome || getUser()?.nome || "";
+}
+
+import {
+  mostrarAlerta,
+  mostrarConfirmacao,
+  renderizarMateriais,
+  renderizarMateriaisEncerramento,
+  atualizarHeader,
+  showPage,
+} from "./ui.js";
+import {
+  upper,
+  formatarDataCompleta,
+  agruparMateriais,
+  buildOrdem,
+  validarOrdem,
+  setoresPorDiretoria,
+  normalizarTexto,
+} from "./utils.js";
+import {
+  carregarPagina,
+  carregarTabelaRelatorios,
+  invalidarCache,
+} from "./filtros.js";
+import {
+  osAtual,
+  materiais,
+  materiaisEncerramento,
+  salvando,
+  sistemaInicializado,
+  setOsAtual,
+  setMateriais,
+  setMateriaisEncerramento,
+  setSalvando,
+  setSistemaInicializado,
+  setGraficoStatus,
+  setGraficoMes,
+  graficoStatus,
+  graficoMes,
+} from "./state.js";
+
+import { mostrarProgresso, concluirProgresso } from "./ui.js";
+import { gerarHTMLDocumentoAssinatura } from "./impressao.js";
+
+/* =========================
+   CONTROLE DO CAMPO RESPONSAVEL-ABERTURA
+========================= */
+let _valorEdicaoAtual = null;
+
+
+function ativarModoEdicao(valorDaOS) {
+  _valorEdicaoAtual = valorDaOS || "";
+  const campo = document.getElementById("responsavel-abertura");
+  if (campo) campo.value = _valorEdicaoAtual;
+}
+
+function desativarModoEdicao() {
+  _valorEdicaoAtual = null;
+  const campo = document.getElementById("responsavel-abertura");
+  if (campo) campo.value = nomeUsuario();
+}
+
+/* =========================
+   INICIALIZAÇÃO
+========================= */
+export async function inicializarSistema() {
+  if (sistemaInicializado) return;
+  setSistemaInicializado(true);
+  try {
+    setDataAtual();
+    await atualizarNumeroOS();
+    await carregarPagina(1);
+    await carregarResumoDashboard_();
+    atualizarHeader("dashboard");
+  } catch (error) {
+    console.error("Erro ao inicializar sistema:", error);
+  }
+}
+
+export async function atualizarNumeroOS() {
+  const numero = await consultarProximoNumeroOS();
+  const campo = document.getElementById("numero-os");
+  if (campo) campo.value = numero;
+}
+
+export function setDataAtual() {
+  const now = new Date();
+  const ano = now.getFullYear();
+  const mes = String(now.getMonth() + 1).padStart(2, "0");
+  const dia = String(now.getDate()).padStart(2, "0");
+  const hora = String(now.getHours()).padStart(2, "0");
+  const minuto = String(now.getMinutes()).padStart(2, "0");
+  const campo = document.getElementById("data-abertura");
+  if (campo) campo.value = `${ano}-${mes}-${dia}T${hora}:${minuto}`;
+}
+
+/* =========================
+   DASHBOARD
+========================= */
+export async function carregarResumoDashboard_() {
+  const resumo = await buscarResumoDashboard();
+  atualizarDashboardComResumo(resumo);
+}
+
+export async function atualizarDashboardComResumo(resumo) {
+  if (!resumo) return;
+  document.getElementById("total-ordens").textContent = resumo.total;
+  document.getElementById("total-abertas").textContent = resumo.abertas;
+  document.getElementById("total-andamento").textContent = resumo.andamento;
+  document.getElementById("total-encerradas").textContent = resumo.encerradas;
+  document.getElementById("total-materiais").textContent =
+    resumo.totalMateriais;
+  await atualizarGraficos(resumo);
+}
+
+export async function atualizarGraficos(resumo) {
+  if (graficoStatus) graficoStatus.destroy();
+  const novoGraficoStatus = new Chart(
+    document.getElementById("grafico-status"),
+    {
+      type: "doughnut",
+      data: {
+        labels: ["Abertas", "Em andamento", "Encerradas"],
+        datasets: [
+          {
+            data: [resumo.abertas, resumo.andamento, resumo.encerradas],
+            backgroundColor: ["#3498db", "#ff9800", "#4caf50"],
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: "bottom" } },
+      },
+    },
+  );
+  setGraficoStatus(novoGraficoStatus);
+
+  const meses = resumo.ordensPorMes || new Array(12).fill(0);
+  if (graficoMes) graficoMes.destroy();
+  const novoGraficoMes = new Chart(document.getElementById("grafico-mes"), {
+    type: "bar",
+    data: {
+      labels: [
+        "Jan",
+        "Fev",
+        "Mar",
+        "Abr",
+        "Mai",
+        "Jun",
+        "Jul",
+        "Ago",
+        "Set",
+        "Out",
+        "Nov",
+        "Dez",
+      ],
+      datasets: [{ label: "Ordens", data: meses, backgroundColor: "#3498db" }],
+    },
+    options: { responsive: true, plugins: { legend: { display: false } } },
+  });
+  setGraficoMes(novoGraficoMes);
+}
+
+/* =========================
+   FORMULÁRIO
+========================= */
+export function coletarDadosFormulario(
+  setorFinal,
+  descricao,
+  responsavelExecucao,
+) {
+  return {
+    tipoOS: document.getElementById("tipo-os")?.value,
+    dataAbertura: document.getElementById("data-abertura")?.value,
+    setorResponsavel: setorFinal,
+    nomeSolicitante: document.getElementById("nome-solicitante")?.value.trim(),
+    cpf: document.getElementById("cpf-solicitante")?.value.trim(),
+    telefone: document.getElementById("telefone-solicitante")?.value.trim(),
+    telefone2:
+      document.getElementById("telefone-solicitante2")?.value.trim() || "",
+    setorSolicitante: document.getElementById("setor-solicitante")?.value,
+    descricao,
+    local: document.getElementById("local-servico")?.value.trim(),
+    pontoReferencia: document.getElementById("ponto-referencia")?.value.trim(),
+    materiais: [...materiais],
+    responsavelExecucao,
+    responsavelAbertura: document.getElementById("responsavel-abertura")?.value,
+  };
+}
+
+export async function limparFormulario() {
+  desativarModoEdicao();
+  setOsAtual(null);
+  document.getElementById("form-os").reset();
+  setMateriais([]);
+  renderizarMateriais([]);
+  setDataAtual();
+  const numero = await consultarProximoNumeroOS();
+  document.getElementById("numero-os").value = numero;
+  document.getElementById("responsavel-abertura").value = nomeUsuario();
+  // limpa telefone2
+  const tel2 = document.getElementById("telefone-solicitante2");
+  if (tel2) tel2.value = "";
+}
+
+export function limparFormularioOS(modoEdicao = false) {
+  desativarModoEdicao();
+  if (!modoEdicao) document.getElementById("numero-os").value = "";
+  document.getElementById("data-abertura").value = "";
+  document.getElementById("tipo-os").value = "";
+  document.getElementById("setor-responsavel").value = "";
+  document.getElementById("setor-solicitante").innerHTML =
+    '<option value="">Selecione</option>';
+  document.getElementById("nome-solicitante").value = "";
+  document.getElementById("descricao-servico").value = "";
+  document.getElementById("local-servico").value = "";
+  document.getElementById("ponto-referencia").value = "";
+  document.getElementById("responsavel-execucao").value = "";
+  document.getElementById("responsavel-abertura").value = nomeUsuario();
+
+  // limpa telefone2
+  const tel2 = document.getElementById("telefone-solicitante2");
+  if (tel2) tel2.value = "";
+
+  setMateriais([]);
+  renderizarMateriais([]);
+}
+
+/* =========================
+   ADICIONAR MATERIAL
+========================= */
+export function adicionarMaterial() {
+  const nome = document.getElementById("material-nome").value.trim();
+  const quantidadeInput = document.getElementById("material-quantidade").value;
+  const unidade = document.getElementById("material-unidade").value.trim();
+  const quantidade = quantidadeInput ? parseFloat(quantidadeInput) : null;
+
+  if (!nome || !unidade) {
+    mostrarAlerta(
+      "Informe pelo menos a descrição e a unidade do material.",
+      "Atenção",
+    );
+    return;
+  }
+
+  const novosMateriais = [...materiais, { nome, quantidade, unidade }];
+  setMateriais(novosMateriais);
+  document.getElementById("material-nome").value = "";
+  document.getElementById("material-quantidade").value = "";
+  document.getElementById("material-unidade").value = "";
+  renderizarMateriais(novosMateriais);
+}
+
+export function removerMaterial(index) {
+  const novosMateriais = materiais.filter((_, i) => i !== index);
+  setMateriais(novosMateriais);
+  renderizarMateriais(novosMateriais);
+}
+
+/* =========================
+   SUBMIT DO FORMULÁRIO
+========================= */
+export async function handleFormOSSubmit(e) {
+  e.preventDefault();
+  if (salvando) return;
+  setSalvando(true);
+  mostrarProgresso();
+
+  try {
+    const descricao = document.getElementById("descricao-servico").value.trim();
+    const responsavelExecucao =
+      document.getElementById("responsavel-execucao").value.trim() || "";
+    const setorSelect = document.getElementById("setor-responsavel").value;
+    const dadosBrutos = coletarDadosFormulario(
+      setorSelect,
+      descricao,
+      responsavelExecucao,
+    );
+
+    validarOrdem(dadosBrutos);
+    const dadosOrdem = buildOrdem(dadosBrutos);
+
+    if (osAtual && osAtual.id) {
+      await atualizarStatusComDashboard(osAtual.id, dadosOrdem);
+      window.invalidarCache?.();
+      await carregarPagina(1);
+      await carregarResumoDashboard_();
+      mostrarAlerta("Ordem atualizada com sucesso!", "Sucesso");
+      limparFormularioOS();
+      setOsAtual(null);
+      showPage("relatorios");
+      return;
+    }
+
+    const resultado = await salvarOrdemFirestore(dadosOrdem);
+    window.invalidarCache?.();
+    await carregarPagina(1);
+    await carregarResumoDashboard_();
+    mostrarAlerta(`Ordem ${resultado.numero} criada com sucesso!`, "Sucesso");
+    limparFormulario();
+  } catch (error) {
+    console.error(error);
+    mostrarAlerta(error.message, "Erro");
+  } finally {
+    setSalvando(false);
+    concluirProgresso();
+  }
+}
+
+/* =========================
+   VISUALIZAR OS
+========================= */
+export async function visualizarOS(id, modoAssinar = false) {
+  let ordem = await buscarOrdemPorId(id);
+  if (!ordem) return;
+
+  setOsAtual(ordem);
+  const tipoOS = (ordem.tipoOS || "").toLowerCase();
+
+  const materiaisHTML =
+    ordem.materiais?.length > 0
+      ? ordem.materiais
+          .map(
+            (m) =>
+              `<div style="margin-bottom:6px;">• ${m.nome} - ${m.quantidade || ""} ${m.unidade}</div>`,
+          )
+          .join("")
+      : "";
+
+  const criadoEmFormatado = ordem.criadoEm
+    ? new Date(ordem.criadoEm).toLocaleString("pt-BR")
+    : "-";
+
+  const detalhesHTML = `
+<div style="display:flex; flex-direction:column; gap:14px;">
+<h3 style="border-bottom:1px solid #ddd; padding-bottom:8px;">Informações Gerais</h3>
+<div><strong>Número:</strong> ${ordem.numero}</div>
+<div><strong>Status:</strong> ${ordem.status}</div>
+<div><strong>Data de Abertura:</strong> ${formatarDataCompleta(ordem.dataAbertura)}</div>
+<div><strong>Data de Encerramento:</strong> ${ordem.dataEncerramento ? formatarDataCompleta(ordem.dataEncerramento) : "-"}</div>
+
+<h3 style="border-bottom:1px solid #ddd; padding-bottom:8px; margin-top:15px;">Solicitante</h3>
+<div><strong>Nome:</strong> ${ordem.nomeSolicitante}</div>
+<div><strong>CPF:</strong> ${ordem.cpfSolicitante || "-"}</div>
+<div><strong>Telefone 1:</strong> ${ordem.telefoneSolicitante || "-"}</div>
+${ordem.telefone2 ? `<div><strong>Telefone 2:</strong> ${ordem.telefone2}</div>` : ""}
+${tipoOS !== "externa" ? `<div><strong>Setor Solicitante:</strong> ${ordem.setorSolicitante || "-"}</div>` : ""}
+<div><strong>Setor Responsável:</strong> ${ordem.setorResponsavel}</div>
+
+<h3 style="border-bottom:1px solid #ddd; padding-bottom:8px; margin-top:15px;">Execução</h3>
+<div><strong>Responsável Execução:</strong> ${ordem.responsavelExecucao || "-"}</div>
+<div><strong>Responsável Abertura:</strong> ${ordem.responsavelAbertura || "-"}</div>
+<div><strong>Local do Serviço:</strong> ${ordem.localServico}</div>
+<div><strong>Ponto de Referência:</strong> ${ordem.pontoReferencia || "-"}</div>
+<div><strong>Local no mapa:</strong> ${ordem.latitude ? `<a href="https://www.google.com/maps?q=${ordem.latitude},${ordem.longitude}" target="_blank">Abrir no Google Maps</a>` : "Não informado"}</div>
+
+<h3 style="border-bottom:1px solid #ddd; padding-bottom:8px; margin-top:15px;">Serviço</h3>
+<div><strong>Descrição:</strong> ${ordem.descricaoServico}</div>
+
+${ordem.materiais?.length ? `<h3 style="border-bottom:1px solid #ddd; padding-bottom:8px; margin-top:15px;">Materiais Utilizados</h3><div>${materiaisHTML}</div>` : ""}
+
+<h3 style="border-bottom:1px solid #ddd; padding-bottom:8px; margin-top:15px;">Encerramento</h3>
+${ordem.observacaoFinal ? `<div><strong>Observação Final:</strong> ${ordem.observacaoFinal}</div>` : ""}
+<div><strong>Assinatura Chefia:</strong> ${ordem.assinaturaChefia || "-"}</div>
+<div><strong>Assinatura Recebedor:</strong> ${ordem.assinaturaRecebedor || "-"}</div>
+
+<h3 style="border-bottom:1px solid #ddd; padding-bottom:8px; margin-top:15px;">Controle Interno</h3>
+<div><strong>Criado por:</strong> ${ordem.criadoPor || "-"}</div>
+<div><strong>Criado em:</strong> ${criadoEmFormatado}</div>
+</div>`;
+
+  document.getElementById("detalhes-content").innerHTML = detalhesHTML;
+
+  const btnEncerrar  = document.getElementById("btn-encerrar");
+  const btnAlterar   = document.getElementById("btn-alterar-status");
+  const btnImprimir  = document.querySelector('[onclick="imprimirDetalhesOS()"]');
+  const btnPDFMat    = document.querySelector('[onclick="gerarPDFMateriais()"]');
+
+  if (modoAssinar) {
+    // Modo pendências: só Assinar e Fechar
+    if (btnEncerrar) btnEncerrar.style.display = "none";
+    if (btnAlterar)  btnAlterar.style.display  = "none";
+    if (btnImprimir) btnImprimir.style.display  = "none";
+    if (btnPDFMat)   btnPDFMat.style.display    = "none";
+  } else {
+    if (ordem.status === "Encerrada") {
+      if (btnEncerrar) btnEncerrar.style.display = "none";
+      if (btnAlterar)  btnAlterar.style.display  = "none";
+    } else {
+      if (btnEncerrar) btnEncerrar.style.display = "inline-flex";
+      if (btnAlterar)  btnAlterar.style.display  = "inline-flex";
+    }
+    if (btnImprimir) btnImprimir.style.display = "inline-flex";
+    if (btnPDFMat)   btnPDFMat.style.display   = "inline-flex";
+  }
+
+  const btnAssinar = document.getElementById("btn-assinar-os");
+  if (btnAssinar) {
+    const statusAtivo = ["aberta", "em andamento"].includes((ordem.status || "").toLowerCase());
+    btnAssinar.style.display =
+      (window.userRole === "master" || window.userRole === "admin") && statusAtivo ? "inline-flex" : "none";
+    btnAssinar.innerHTML = ordem.assinaturaEletronica
+      ? '<i class="bi bi-pen-fill"></i> Reasinar OS'
+      : '<i class="bi bi-pen"></i> Assinar OS';
+  }
+
+  const modal = document.getElementById("modal-detalhes");
+  modal.classList.remove("hidden");
+  modal.classList.add("show");
+}
+
+export function fecharModalDetalhes() {
+  document.getElementById("modal-detalhes").classList.remove("show");
+  document.getElementById("modal-detalhes").classList.add("hidden");
+  setOsAtual(null);
+}
+
+/* =========================
+   ALTERAR STATUS
+========================= */
+export async function alterarStatus() {
+  if (!osAtual) return;
+  const novoStatus = osAtual.status === "Aberta" ? "Em andamento" : "Aberta";
+  await atualizarStatusComDashboard(osAtual.id, { status: novoStatus });
+  await carregarPagina(1);
+  await carregarResumoDashboard_();
+}
+
+/* =========================
+   ENCERRAMENTO
+========================= */
+export function mostrarEncerramento() {
+  if (!osAtual) return;
+  setMateriaisEncerramento([]);
+  renderizarMateriaisEncerramento([]);
+
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  document.getElementById("data-encerramento").value =
+    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+  document.getElementById("assinatura-chefia").value = "Liliana Bentes";
+  document.getElementById("assinatura-recebedor").value = nomeUsuario();
+
+  const modal = document.getElementById("modal-encerramento");
+  modal.classList.remove("hidden");
+  modal.classList.add("show");
+}
+
+export function fecharModalEncerramento() {
+  const modal = document.getElementById("modal-encerramento");
+  modal.classList.remove("show");
+  modal.classList.add("hidden");
+  document.getElementById("form-encerramento").reset();
+}
+
+export async function handleFormEncerramentoSubmit(e) {
+  e.preventDefault();
+  if (!osAtual) return;
+  mostrarProgresso();
+
+  try {
+    const assinaturaChefia = document
+      .getElementById("assinatura-chefia")
+      .value.trim();
+    const assinaturaRecebedor = document
+      .getElementById("assinatura-recebedor")
+      .value.trim();
+    const dataEncerramento = document.getElementById("data-encerramento").value;
+
+    if (!assinaturaChefia || !assinaturaRecebedor) {
+      mostrarAlerta("Informe o responsável e o cidadão.", "Atenção");
+      return;
+    }
+
+    let ordemAtualizada = osAtual;
+    if (!ordemAtualizada || ordemAtualizada.materiais === undefined) {
+      ordemAtualizada = await buscarOrdemPorId(osAtual.id);
+    }
+
+    const materiaisExistentes = Array.isArray(ordemAtualizada?.materiais)
+      ? ordemAtualizada.materiais
+      : [];
+    const novosMateriais = Array.isArray(materiaisEncerramento)
+      ? materiaisEncerramento
+      : [];
+    const materiaisFinal = agruparMateriais([
+      ...materiaisExistentes,
+      ...novosMateriais,
+    ]);
+
+    await atualizarStatusComDashboard(osAtual.id, {
+      status: "Encerrada",
+      dataEncerramento,
+      assinaturaChefia,
+      assinaturaRecebedor,
+      observacaoFinal: null,
+      materiais: materiaisFinal,
+    });
+
+    window.invalidarCache?.();
+    await visualizarOS(osAtual.id);
+    setMateriaisEncerramento([]);
+    renderizarMateriaisEncerramento([]);
+    fecharModalEncerramento();
+    await carregarPagina(1);
+    await carregarResumoDashboard_();
+    mostrarAlerta("Ordem encerrada com sucesso!", "Sucesso");
+  } catch (error) {
+    console.error(error);
+    mostrarAlerta("Erro ao encerrar a ordem.", "Erro");
+  } finally {
+    concluirProgresso();
+  }
+}
+
+/* =========================
+   EXCLUIR OS
+========================= */
+export async function excluirOS(id) {
+  const ordem = await buscarOrdemPorId(id);
+  if (!ordem) {
+    mostrarAlerta("Ordem não encontrada.", "Erro");
+    return;
+  }
+
+  mostrarConfirmacao(
+    `Tem certeza que deseja excluir a OS ${ordem.numero}?`,
+    async function () {
+      mostrarProgresso();
+      try {
+        await excluirOrdemFirestore(id);
+        window.invalidarCache?.();
+        await carregarPagina(1);
+        await carregarResumoDashboard_();
+        mostrarAlerta("Ordem excluída com sucesso!", "Sucesso");
+      } catch (error) {
+        console.error(error);
+        mostrarAlerta("Erro ao excluir a ordem.", "Erro");
+      } finally {
+        concluirProgresso();
+      }
+    },
+  );
+}
+
+/* =========================
+   EDITAR OS
+========================= */
+export async function editarOS(id) {
+  const ordem = await buscarOrdemPorId(id);
+  if (!ordem) {
+    mostrarAlerta("Ordem não encontrada.", "Erro");
+    return;
+  }
+
+  if (ordem.status === "Encerrada") {
+    mostrarAlerta("Não é permitido editar uma OS encerrada.", "Atenção");
+    return;
+  }
+
+  ativarModoEdicao(ordem.responsavelAbertura);
+
+  setOsAtual(ordem);
+  showPage("nova-os");
+
+  const tipo = (ordem.tipoOS || "").toLowerCase();
+  document.getElementById("tipo-os").value = tipo;
+  document.getElementById("numero-os").value = ordem.numero;
+  document.getElementById("data-abertura").value = ordem.dataAbertura;
+  document.getElementById("setor-responsavel").value = ordem.setorResponsavel;
+  document.getElementById("nome-solicitante").value = ordem.nomeSolicitante;
+  document.getElementById("cpf-solicitante").value = ordem.cpfSolicitante || ""; // 👈
+  document.getElementById("telefone-solicitante").value =
+    ordem.telefoneSolicitante || ""; // 👈
+  document.getElementById("descricao-servico").value = ordem.descricaoServico;
+  document.getElementById("ponto-referencia").value =
+    ordem.pontoReferencia || "";
+  document.getElementById("local-servico").value = ordem.localServico;
+  document.getElementById("responsavel-execucao").value =
+    ordem.responsavelExecucao || "";
+
+  // preenche telefone2 se existir
+  const tel2 = document.getElementById("telefone-solicitante2");
+  if (tel2) tel2.value = ordem.telefone2 || "";
+
+  carregarSetores(ordem.setorResponsavel);
+
+  const setorLimpo = ordem.setorSolicitante
+    ?.replace(/^SETOR\s+/i, "")
+    .trim()
+    .toUpperCase();
+  setTimeout(() => {
+    document.getElementById("setor-solicitante").value = setorLimpo;
+  }, 100);
+
+  setMateriais(ordem.materiais || []);
+  renderizarMateriais(ordem.materiais || []);
+  mostrarAlerta("Modo edição ativado.", "Informação");
+}
+
+/* =========================
+   SETORES
+========================= */
+export function carregarSetores(diretoriaSelecionada) {
+  const selectSetor = document.getElementById("setor-solicitante");
+  const diretoria = normalizarTexto(diretoriaSelecionada);
+  const setores = setoresPorDiretoria[diretoria] || [];
+  selectSetor.innerHTML = '<option value="">SELECIONE O SETOR</option>';
+  setores.forEach((setor) => {
+    const option = document.createElement("option");
+    option.value = setor;
+    option.textContent = setor;
+    selectSetor.appendChild(option);
+  });
+}
+
+/* =========================
+   MATERIAIS DE ENCERRAMENTO
+========================= */
+export function adicionarMaterialEncerramento() {
+  const nomeInput = document.getElementById("enc-material-nome");
+  const unidadeInput = document.getElementById("enc-material-unidade");
+  const quantidadeInput = document.getElementById("enc-material-quantidade");
+
+  if (!nomeInput || !unidadeInput || !quantidadeInput) return;
+
+  const nome = nomeInput.value.trim();
+  const unidade = unidadeInput.value.trim();
+  const quantidade = quantidadeInput.value;
+
+  if (!nome || !unidade) {
+    mostrarAlerta("Preencha material e unidade.", "Atenção");
+    return;
+  }
+
+  const novos = [
+    ...materiaisEncerramento,
+    { nome, unidade, quantidade: quantidade ? parseFloat(quantidade) : null },
+  ];
+  setMateriaisEncerramento(novos);
+  nomeInput.value = "";
+  unidadeInput.value = "";
+  quantidadeInput.value = "";
+  renderizarMateriaisEncerramento(novos);
+}
+
+export function removerMaterialEncerramento(index) {
+  const novos = materiaisEncerramento.filter((_, i) => i !== index);
+  setMateriaisEncerramento(novos);
+  renderizarMateriaisEncerramento(novos);
+}
+
+/* =========================
+   ASSINATURA ELETRÔNICA
+========================= */
+function gerarCodigoAssinatura(osId) {
+  const str = osId + Date.now();
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  }
+  const hex = Math.abs(hash).toString(16).toUpperCase().padStart(8, "0");
+  return `${hex.slice(0,4)}-${hex.slice(4,8)}`;
+}
+
+export function abrirModalAssinatura() {
+  if (!osAtual) return;
+
+  const nome = (window.userNome || "").toUpperCase();
+  const setor = window.userSetor || "SECRETARIA";
+  const agora = new Date().toLocaleString("pt-BR");
+  const codigoPreview = gerarCodigoAssinatura(osAtual.id);
+
+  // Assinatura proposta (ainda não salva) para mostrar no preview
+  const assinaturaPreview = {
+    nome,
+    setor,
+    email: window.userEmail || "",
+    userId: window._userId || "",
+    data: new Date().toISOString(),
+    codigo: codigoPreview,
+  };
+
+  // Gera o HTML do documento real com a assinatura aplicada
+  const htmlDoc = gerarHTMLDocumentoAssinatura(osAtual, assinaturaPreview);
+
+  // Injeta no iframe
+  const iframe = document.getElementById("iframe-preview-assinatura");
+  iframe.srcdoc = htmlDoc;
+
+  // Preenche identidade
+  document.getElementById("assinatura-identidade").textContent = nome;
+  document.getElementById("assinatura-cargo").textContent = setor;
+  document.getElementById("assinatura-timestamp").textContent = `${agora}  ·  Cód: ${codigoPreview}`;
+  document.getElementById("check-confirma-assinatura").checked = true;
+
+  // Guarda o código para usar ao confirmar
+  window._assinaturaCodigoPendente = codigoPreview;
+
+  const modal = document.getElementById("modal-assinatura");
+  modal.classList.remove("hidden");
+  modal.classList.add("show");
+}
+
+export function fecharModalAssinatura() {
+  document.getElementById("modal-assinatura").classList.remove("show");
+  document.getElementById("modal-assinatura").classList.add("hidden");
+}
+
+export function limparCanvas() { /* não usado nesta versão */ }
+
+export function abrirModalSenha() {
+  document.getElementById("senha-confirm-nome").textContent =
+    (window.userNome || "").toUpperCase();
+  document.getElementById("senha-confirm-email").textContent =
+    window.userEmail || "";
+  document.getElementById("input-senha-assinatura").value = "";
+  document.getElementById("senha-confirm-erro").style.display = "none";
+  document.getElementById("modal-confirmar-senha").classList.remove("hidden");
+  setTimeout(() => document.getElementById("input-senha-assinatura").focus(), 100);
+}
+
+export function fecharModalSenha() {
+  document.getElementById("modal-confirmar-senha").classList.add("hidden");
+}
+
+export async function confirmarSenhaAssinatura() {
+  const senha = document.getElementById("input-senha-assinatura").value;
+  const erro = document.getElementById("senha-confirm-erro");
+  if (!senha) {
+    erro.style.display = "block";
+    erro.textContent = "Digite sua senha para confirmar.";
+    return;
+  }
+  try {
+    await api.post("/auth/login", { email: window.userEmail, senha });
+    fecharModalSenha();
+    await confirmarAssinatura();
+  } catch {
+    erro.style.display = "block";
+    erro.textContent = "Senha incorreta. Tente novamente.";
+    document.getElementById("input-senha-assinatura").value = "";
+    document.getElementById("input-senha-assinatura").focus();
+  }
+}
+
+export async function confirmarAssinatura() {
+  if (!osAtual) return;
+
+  const assinatura = {
+    nome: (window.userNome || "").toUpperCase(),
+    setor: window.userSetor || "SECRETARIA",
+    email: window.userEmail || "",
+    userId: window._userId || "",
+    data: new Date().toISOString(),
+    codigo: window._assinaturaCodigoPendente || gerarCodigoAssinatura(osAtual.id),
+  };
+
+  try {
+    mostrarProgresso();
+    await atualizarOrdemComDashboard(osAtual.id, { assinaturaEletronica: assinatura });
+    osAtual.assinaturaEletronica = assinatura;
+    fecharModalAssinatura();
+    const btnAssinar = document.getElementById("btn-assinar-os");
+    if (btnAssinar) btnAssinar.innerHTML = '<i class="bi bi-pen-fill"></i> Reasinar OS';
+    mostrarAlerta("Assinatura eletrônica registrada!", "Sucesso");
+  } catch (err) {
+    console.error(err);
+    mostrarAlerta("Erro ao salvar assinatura.", "Erro");
+  } finally {
+    concluirProgresso();
+  }
+}

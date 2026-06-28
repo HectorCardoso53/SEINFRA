@@ -1,0 +1,20 @@
+# Dependências
+node_modules/
+
+# Build
+backend/dist/
+
+# Variáveis de ambiente (contém senhas)
+.env
+backend/.env
+
+# Dados exportados do Firebase (volumosos, não vão pro repo)
+firebase-export/
+backup/
+
+# Relatório do BFG
+SEINFRA.bfg-report/
+
+# Sistema
+.DS_Store
+Thumbs.db

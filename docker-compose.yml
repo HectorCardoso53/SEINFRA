@@ -1,0 +1,51 @@
+version: "3.8"
+
+services:
+  seinfra-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: seinfra
+      POSTGRES_USER: seinfra
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - seinfra_data:/var/lib/postgresql/data
+    networks:
+      - seinfra-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U seinfra"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  seinfra-api:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://seinfra:${DB_PASSWORD}@seinfra-db:5432/seinfra
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 3001
+    depends_on:
+      seinfra-db:
+        condition: service_healthy
+    networks:
+      - seinfra-net
+
+  seinfra-nginx:
+    image: nginx:1.25-alpine
+    restart: unless-stopped
+    ports:
+      - "8092:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./SEINFRA:/usr/share/nginx/html:ro
+    depends_on:
+      - seinfra-api
+    networks:
+      - seinfra-net
+
+networks:
+  seinfra-net:
+
+volumes:
+  seinfra_data:

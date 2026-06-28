@@ -1,0 +1,215 @@
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: #f4f6f8;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    min-height: 100dvh;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ── HEADER ── */
+
+.header {
+    background: #2c3e50;
+    color: white;
+    padding: 30px 20px;
+    text-align: center;
+}
+
+.header-logo {
+    width: 90px;
+    height: auto;
+    margin-bottom: 10px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.header h2 {
+    margin: 0;
+    font-size: 26px;
+}
+
+.header p {
+    margin: 4px 0;
+    font-size: 14px;
+}
+
+.header span {
+    font-size: 12px;
+    opacity: .9;
+}
+
+/* ── CARDS ── */
+
+.cards {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 40px;
+    padding: 40px;
+    flex-wrap: wrap;
+    flex: 1;
+}
+
+.card {
+    width: 260px;
+    background: white;
+    border-radius: 14px;
+    padding: 35px;
+    text-align: center;
+    cursor: pointer;
+    border: 1px solid #e0e4ea;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, .08);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 14px 35px rgba(0, 0, 0, .15);
+}
+
+.card:active {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .12);
+}
+
+.icon {
+    font-size: 40px;
+    margin-bottom: 10px;
+    color: #3498db;
+}
+
+.card h3 {
+    font-size: 18px;
+    color: #2c3e50;
+    margin-bottom: 6px;
+}
+
+.card p {
+    font-size: 13px;
+    color: #7f8c8d;
+}
+
+/* ── DISABLED ── */
+
+.card.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+    cursor: not-allowed;
+    filter: grayscale(80%);
+}
+
+/* ── FOOTER ── */
+
+.footer {
+    background: #2c3e50;
+    color: white;
+    padding: 12px 20px;
+    font-size: 13px;
+}
+
+.footer-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1000px;
+    margin: auto;
+    gap: 10px;
+}
+
+/* ── TABLET ── */
+
+@media (max-width: 900px) {
+    .cards {
+        gap: 24px;
+        padding: 32px 24px;
+    }
+
+    .card {
+        width: 220px;
+        padding: 28px 20px;
+    }
+}
+
+/* ── MOBILE ── */
+
+@media (max-width: 768px) {
+    .header {
+        padding: 24px 16px;
+    }
+
+    .header-logo {
+        width: 70px;
+    }
+
+    .header h2 {
+        font-size: 22px;
+    }
+
+    .cards {
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        padding: 28px 16px;
+    }
+
+    .card {
+        width: 100%;
+        max-width: 360px;
+        padding: 28px 24px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        text-align: left;
+    }
+
+    .icon {
+        font-size: 36px;
+        margin-bottom: 0;
+        flex-shrink: 0;
+    }
+
+    .card-text {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .footer-content {
+        flex-direction: column;
+        gap: 4px;
+        text-align: center;
+        font-size: 12px;
+    }
+}
+
+/* ── MOBILE PEQUENO ── */
+
+@media (max-width: 400px) {
+    .header-logo {
+        width: 56px;
+    }
+
+    .header h2 {
+        font-size: 18px;
+    }
+
+    .card {
+        padding: 22px 18px;
+    }
+
+    .icon {
+        font-size: 30px;
+    }
+
+    .card h3 {
+        font-size: 16px;
+    }
+}

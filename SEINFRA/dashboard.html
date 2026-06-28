@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="assets/img/prefeitura.png">
+    <title>Sistema de Ordem de Serviço</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+</head>
+
+<body>
+    <div id="progressbar-global" class="hidden">
+        <div id="progress-spinner"></div>
+    </div>
+    <!-- Topbar Mobile -->
+    <div class="topbar">
+        <button class="menu-toggle" onclick="toggleMenu()">
+            <i class="bi bi-list"></i>
+        </button>
+        <span class="topbar-title">INFRASIS OS</span>
+    </div>
+
+    <div class="container">
+
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <button class="menu-toggle" onclick="toggleMenu()">
+                    <i class="bi bi-list"></i>
+                </button>
+                <a>
+                    <img src="assets/img/prefeitura.png" alt="Prefeitura" class="sidebar-logo">
+                </a>
+                <h2>INFRASIS OS</h2>
+                <p>Gestão de Ordens de Serviço</p>
+            </div>
+
+            <div class="menu-item active" onclick="showPage('dashboard', this)">
+                <svg fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                        d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                </svg>
+                <span>Dashboard</span>
+            </div>
+
+            <div class="menu-item" onclick="showPage('nova-os', this)">
+                <svg fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd"
+                        d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
+                        clip-rule="evenodd" />
+                </svg>
+                <span>Ordem</span>
+            </div>
+
+            <div class="menu-item" onclick="showPage('relatorios', this)">
+                <svg fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                    <path fill-rule="evenodd"
+                        d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z"
+                        clip-rule="evenodd" />
+                </svg>
+                <span>Relatórios</span>
+            </div>
+
+            <div class="menu-item" onclick="showPage('materiais-mes', this); gerarRelatorioMateriais();">
+                <svg fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M3 3h14v2H3zM3 7h14v2H3zM3 11h14v2H3zM3 15h14v2H3z" />
+                </svg>
+                <span>Materiais por Mês</span>
+            </div>
+
+            <!-- 🔐 ABA MASTER — visível apenas para master e admin -->
+            <div class="menu-item master-only" onclick="showPage('pendencias', this); carregarPendencias();">
+                <svg fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/>
+                </svg>
+                <span>Pendências</span>
+            </div>
+
+            <div class="menu-item master-only" onclick="showPage('usuarios', this)">
+                <svg fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 2a4 4 0 100 8 4 4 0 000-8zm-6 14a6 6 0 1112 0H4z"
+                        clip-rule="evenodd" />
+                </svg>
+                <span>Cadastro de Usuários</span>
+            </div>
+
+            <div class="menu-footer">
+                <a href="https://oriximina.1doc.com.br/b.php?pg=o/login&n=3" target="_blank" class="menu-item">
+                    <img src="assets/img/1doc.png" alt="1Doc" class="menu-icon-img">
+                    <span>Acessar 1Doc</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header Global -->
+            <div class="header header-global">
+                <div class="header-info">
+                    <h1 id="page-title">INFRASIS OS</h1>
+                    <p id="page-subtitle">Gestão de Ordens de Serviço</p>
+                </div>
+
+                <button class="btn btn-danger btn-logout" onclick="logout()">
+                    <i class="bi bi-box-arrow-right"></i> Sair
+                </button>
+            </div>
+
+            <!-- Dashboard Page -->
+            <div id="page-dashboard" class="page">
+                <!-- CARDS -->
+                <div class="cards-grid">
+
+                    <div class="card card-blue">
+                        <div class="card-header">
+                            <div class="card-title">Total de Ordens</div>
+                            <div class="card-icon">
+                                <svg fill="currentColor" viewBox="0 0 20 20" width="24" height="24">
+                                    <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                                    <path fill-rule="evenodd"
+                                        d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="card-value" id="total-ordens">0</div>
+                    </div>
+
+                    <div class="card card-blue">
+                        <div class="card-header">
+                            <div class="card-title">Abertas</div>
+                            <div class="card-icon">
+                                <svg fill="currentColor" viewBox="0 0 20 20" width="24" height="24">
+                                    <path d="M4 3h12a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1z" />
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="card-value" id="total-abertas">0</div>
+                    </div>
+
+                    <div class="card card-orange">
+                        <div class="card-header">
+                            <div class="card-title">Em Andamento</div>
+                            <div class="card-icon">
+                                <svg fill="currentColor" viewBox="0 0 20 20" width="24" height="24">
+                                    <path fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="card-value" id="total-andamento">0</div>
+                    </div>
+
+                    <div class="card card-green">
+                        <div class="card-header">
+                            <div class="card-title">Encerradas</div>
+                            <div class="card-icon">
+                                <svg fill="currentColor" viewBox="0 0 20 20" width="24" height="24">
+                                    <path fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="card-value" id="total-encerradas">0</div>
+                    </div>
+
+                    <div class="card card-purple">
+                        <div class="card-header">
+                            <div class="card-title">Materiais Usados</div>
+                            <div class="card-icon">
+                                <svg fill="currentColor" viewBox="0 0 20 20" width="24" height="24">
+                                    <path
+                                        d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3z" />
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="card-value" id="total-materiais">0</div>
+                    </div>
+
+                </div>
+
+                <!-- GRÁFICOS -->
+                <div class="charts-grid">
+                    <div class="chart-box">
+                        <h3>Status das Ordens</h3>
+                        <canvas id="grafico-status"></canvas>
+                    </div>
+                    <div class="chart-box">
+                        <h3>Ordens por Mês</h3>
+                        <canvas id="grafico-mes"></canvas>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Nova OS Page -->
+            <div id="page-nova-os" class="page hidden">
+                <form id="form-os">
+                    <div class="form-section" id="secao-solicitante">
+                        <h3>Dados da Ordem</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Tipo da Ordem</label>
+                                <select id="tipo-os" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="interna">Ordem Interna</option>
+                                    <option value="externa">Ordem Externa</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Número da OS</label>
+                                <input type="text" id="numero-os" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label>Data e Hora de Abertura</label>
+                                <input type="datetime-local" id="data-abertura" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Diretoria Responsável</label>
+                                <select id="setor-responsavel" required>
+                                    <option value="">Selecione...</option>
+                                    <option>DIRETORIA ADMINISTRATIVA</option>
+                                    <option>DIRETORIA DE INFRAESTRUTURA</option>
+                                    <option>DIRETORIA DE SANEAMENTO</option>
+                                    <option>DIRETORIA DE LIMPEZA URBANA</option>
+                                    <option>DIRETORIA DE SERVIÇO E ABASTECIMENTO DE ÁGUA</option>
+                                    <option>DIRETORIA DE TRANSPORTES PÚBLICOS COLETIVOS</option>
+                                    <option>DIRETORIA DE AEROPORTO</option>
+                                </select>
+                                <input type="text" id="novo-setor" placeholder="Digite a nova diretoria" class="hidden"
+                                    style="margin-top:8px;">
+                            </div>
+                            <div class="form-group" id="campo-setor-solicitante">
+                                <label>Setor do Solicitante</label>
+                                <select id="setor-solicitante" required>
+                                    <option value="">SELECIONE O SETOR</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>Dados do Solicitante</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Nome do Solicitante</label>
+                                <input type="text" id="nome-solicitante" required>
+                                <div id="box-sugestoes" class="sugestoes-box"></div>
+                            </div>
+                            <div class="form-group">
+                                <label>CPF</label>
+                                <input type="text" id="cpf-solicitante" placeholder="000.000.000-00" maxlength="14">
+                            </div>
+                            <div class="form-group">
+                                <label>Telefone1</label>
+                                <input type="text" id="telefone-solicitante" placeholder="(93) 99999-9999"
+                                    maxlength="15">
+                            </div>
+                            <div class="form-group">
+                                <label>Telefone2</label>
+                                <input type="text" id="telefone-solicitante2" placeholder="(93) 99999-9999"
+                                    maxlength="15">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>Serviço</h3>
+                        <div class="form-grid">
+                            <div class="form-group" style="grid-column: 1 / -1;">
+                                <label>Descrição Detalhada do Serviço</label>
+                                <textarea id="descricao-servico" required></textarea>
+                            </div>
+                            <div class="grid-duplo">
+                                <div class="form-group">
+                                    <label>Local do Serviço</label>
+                                    <input type="text" id="local-servico"
+                                        placeholder="Ex: Endereço (Travessa ou Bairro)" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Ponto de Referência</label>
+                                    <input type="text" id="ponto-referencia"
+                                        placeholder="Ex: Próximo à escola, ao lado da praça...">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>Materiais Utilizados</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Descrição de Material</label>
+                                <input type="text" id="material-nome" placeholder="Digite o material">
+                            </div>
+                            <div class="form-group">
+                                <label>Unidade</label>
+                                <input type="text" id="material-unidade" placeholder="Ex: UN, M, KG, L">
+                            </div>
+                            <div class="form-group">
+                                <label>Quantidade</label>
+                                <input type="number" id="material-quantidade" min="0" step="0.01">
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-secondary" onclick="adicionarMaterial()">
+                            <i class="bi bi-plus-circle"></i> Adicionar Material
+                        </button>
+                        <div id="lista-materiais" class="material-list hidden"></div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>Responsáveis</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Responsável pela Execução</label>
+                                <input type="text" id="responsavel-execucao">
+                            </div>
+                            <div class="form-group">
+                                <label>Responsável pela Abertura</label>
+                                <!-- 🔑 readonly REMOVIDO — necessário para o JS conseguir
+                                     preencher corretamente tanto em nova OS quanto em edição -->
+                                <input type="text" id="responsavel-abertura" placeholder="Carregando usuário...">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="button" class="btn btn-primary" onclick="previsualizarOS()">
+                            Pré-visualizar
+                        </button>
+                        <button type="submit" class="btn btn-success">
+                            Salvar Ordem
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="limparFormulario()">
+                            Cancelar
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Relatórios Page -->
+            <div id="page-relatorios" class="page hidden">
+                <div class="filter-section">
+                    <div class="filter-grid">
+                        <div class="form-group">
+                            <label>Data Inicial</label>
+                            <input type="date" id="filtro-data-inicio">
+                        </div>
+                        <div class="form-group">
+                            <label>Data Final</label>
+                            <input type="date" id="filtro-data-fim">
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo de Ordem</label>
+                            <select id="filtro-tipo-os">
+                                <option value="">Todos</option>
+                                <option value="interna">Interna</option>
+                                <option value="externa">Externa</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Nº da OS</label>
+                            <input type="text" id="filtro-numero-os" placeholder="Ex: 0042">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Status</label>
+                            <select id="filtro-status">
+                                <option value="">Todos</option>
+                                <option value="Aberta">Aberta</option>
+                                <option value="Em andamento">Em andamento</option>
+                                <option value="Encerrada">Encerrada</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Diretoria</label>
+                            <select id="filtro-diretoria">
+                                <option value="">Todas</option>
+                                <option>DIRETORIA ADMINISTRATIVA</option>
+                                <option>DIRETORIA DE INFRAESTRUTURA</option>
+                                <option>DIRETORIA DE SANEAMENTO</option>
+                                <option>DIRETORIA DE LIMPEZA URBANA</option>
+                                <option>DIRETORIA DE AEROPORTO</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Filtrar por Setor do Solicitante</label>
+                            <select id="filtro-setor-solicitante">
+                                <option value="">Todos</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Buscar por Solicitante</label>
+                            <input type="text" id="filtro-solicitante" placeholder="Digite o nome do solicitante">
+                        </div>
+                        <div class="form-group">
+                            <label>Filtrar por Serviço</label>
+                            <input type="text" id="filtro-servico" placeholder="Ex: caçamba, pintura...">
+                        </div>
+                        <div class="form-group">
+                            <button type="button" class="btn btn-secondary" onclick="limparFiltros()">
+                                <i class="bi bi-x-circle"></i> Limpar Filtros
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <div class="table-header">
+                        <h3>Ordens de Serviço</h3>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nº OS</th>
+                                <th>Data Abertura</th>
+                                <th>Status</th>
+                                <th>Solicitante</th>
+                                <th>Setor</th>
+                                <th>Descrição</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-relatorios"></tbody>
+                    </table>
+                </div>
+
+                <div class="button-group" style="margin-top: 20px;">
+                    <button type="button" class="btn btn-primary" onclick="imprimirRelatorio()">
+                        <i class="bi bi-printer"></i> Imprimir Relatório
+                    </button>
+                </div>
+
+                <div class="paginacao">
+                    <button onclick="paginaAnterior()">Anterior</button>
+                    <span id="pagina-info">Página 1</span>
+                    <button onclick="proximaPagina()">Próxima</button>
+                </div>
+            </div>
+
+
+            <!-- Materiais por Mês -->
+            <div id="page-materiais-mes" class="page hidden">
+                <div class="filter-section">
+                    <div class="filter-grid">
+                        <div class="form-group">
+                            <label>Mês</label>
+                            <select id="materiais-mes" onchange="gerarRelatorioMateriais()">
+                                <option value="0">Janeiro</option>
+                                <option value="1">Fevereiro</option>
+                                <option value="2">Março</option>
+                                <option value="3">Abril</option>
+                                <option value="4">Maio</option>
+                                <option value="5">Junho</option>
+                                <option value="6">Julho</option>
+                                <option value="7">Agosto</option>
+                                <option value="8">Setembro</option>
+                                <option value="9">Outubro</option>
+                                <option value="10">Novembro</option>
+                                <option value="11">Dezembro</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Ano</label>
+                            <select id="materiais-ano" onchange="gerarRelatorioMateriais()"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Filtrar por Material</label>
+                            <input type="text" id="filtro-material-nome" placeholder="Ex: cimento, areia..."
+                                oninput="filtrarTabelaMateriais()">
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo de OS</label>
+                            <select id="filtro-material-tipo" onchange="filtrarTabelaMateriais()">
+                                <option value="">Todos</option>
+                                <option value="interna">Interna</option>
+                                <option value="externa">Externa</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cards-grid" style="margin-bottom: 20px;">
+                    <div class="card card-blue">
+                        <div class="card-header">
+                            <div class="card-title">Tipos de Materiais</div>
+                        </div>
+                        <div class="card-value" id="total-materiais-mes">0</div>
+                    </div>
+                    <div class="card card-green">
+                        <div class="card-header">
+                            <div class="card-title">Quantidade Total Usada</div>
+                        </div>
+                        <div class="card-value" id="total-quantidade-mes">0</div>
+                    </div>
+                    <div class="card card-orange" style="--card-color:#e67e22;">
+                        <div class="card-header">
+                            <div class="card-title">OS com Materiais</div>
+                        </div>
+                        <div class="card-value" id="total-os-materiais-mes">0</div>
+                    </div>
+                    <div class="card" style="background:#f5f0ff;border-left:4px solid #8e44ad;">
+                        <div class="card-header">
+                            <div class="card-title" style="color:#8e44ad;">Material Mais Usado</div>
+                        </div>
+                        <div class="card-value" id="material-top-nome" style="font-size:14px;color:#8e44ad;word-break:break-word;">—</div>
+                        <div style="font-size:12px;color:#666;margin-top:4px;" id="material-top-qtd"></div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <div class="table-header">
+                        <h3>Materiais Utilizados</h3>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Material</th>
+                                <th>Quantidade Total</th>
+                                <th>Unidade</th>
+                                <th>Ordens de Serviço</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-materiais-mes">
+                            <tr>
+                                <td colspan="4" class="empty-state">
+                                    Selecione um mês para visualizar os materiais
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="button-group" style="margin-top: 20px;">
+                    <button class="btn btn-primary" onclick="imprimirMateriaisMes()">
+                        <i class="bi bi-printer"></i> Imprimir Relatório de Materiais
+                    </button>
+                </div>
+            </div>
+
+            <!-- Cadastro de Usuários (ADMIN) -->
+            <!-- ==================== PENDÊNCIAS ==================== -->
+            <div id="page-pendencias" class="page hidden">
+
+                <!-- Cards resumo -->
+                <div class="cards-grid" style="margin-bottom:24px;">
+                    <div class="card" style="background:#fff8e1;border-left:4px solid #f57f17;">
+                        <div class="card-header">
+                            <div class="card-title" style="color:#f57f17;">Pend. Assinatura</div>
+                            <i class="bi bi-pen" style="font-size:22px;color:#f57f17;"></i>
+                        </div>
+                        <div class="card-value" id="pend-count-assinatura" style="color:#f57f17;">-</div>
+                    </div>
+                    <div class="card" style="background:#e3f2fd;border-left:4px solid #1565c0;">
+                        <div class="card-header">
+                            <div class="card-title" style="color:#1565c0;">Abertas</div>
+                            <i class="bi bi-folder2-open" style="font-size:22px;color:#1565c0;"></i>
+                        </div>
+                        <div class="card-value" id="pend-count-abertas" style="color:#1565c0;">-</div>
+                    </div>
+                    <div class="card" style="background:#fff3e0;border-left:4px solid #e65100;">
+                        <div class="card-header">
+                            <div class="card-title" style="color:#e65100;">Em Andamento</div>
+                            <i class="bi bi-gear" style="font-size:22px;color:#e65100;"></i>
+                        </div>
+                        <div class="card-value" id="pend-count-andamento" style="color:#e65100;">-</div>
+                    </div>
+                    <div class="card" style="background:#e8f5e9;border-left:4px solid #2e7d32;">
+                        <div class="card-header">
+                            <div class="card-title" style="color:#2e7d32;">Encerradas</div>
+                            <i class="bi bi-check-circle" style="font-size:22px;color:#2e7d32;"></i>
+                        </div>
+                        <div class="card-value" id="pend-count-encerradas" style="color:#2e7d32;">-</div>
+                    </div>
+                </div>
+
+                <!-- Cabeçalho fora do card -->
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                    <h3 style="margin:0;font-size:15px;color:#333;">
+                        <i class="bi bi-pen"></i> OS Pendentes de Assinatura
+                    </h3>
+                    <div style="display:flex;gap:6px;">
+                        <button class="btn btn-danger" onclick="imprimirPendencias()" style="font-size:12px;padding:4px 10px;" title="Gerar PDF">
+                            <i class="bi bi-file-earmark-pdf"></i> PDF
+                        </button>
+                        <button class="btn btn-secondary" onclick="carregarPendencias()" style="font-size:12px;padding:4px 10px;" title="Atualizar">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                    </div>
+                </div>
+                <input id="pend-busca" type="text" placeholder="Buscar por número ou solicitante..."
+                    oninput="filtroPendencias()"
+                    style="width:100%;padding:6px 10px;border:1px solid #ccc;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:12px;">
+
+                <!-- Tabela pendentes de assinatura -->
+                <div class="table-container">
+                    <table class="tabela-os">
+                        <thead>
+                            <tr>
+                                <th>Número / Tipo</th>
+                                <th>Data</th>
+                                <th>Status</th>
+                                <th>Solicitante</th>
+                                <th>Descrição</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-pendencias">
+                            <tr><td colspan="6" style="text-align:center;color:#999;padding:20px;">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                    <div id="pend-paginacao" style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:16px;padding:10px 0;border-top:1px solid #eee;"></div>
+                </div>
+            </div>
+
+            <div id="page-usuarios" class="page hidden">
+                <form id="form-user">
+                    <div class="form-section">
+                        <h3>Dados do Usuário</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Nome do Usuário</label>
+                                <input type="text" id="user-nome" required>
+                            </div>
+                            <div class="form-group">
+                                <label>CPF</label>
+                                <input type="text" id="user-cpf" placeholder="Somente números" required>
+                            </div>
+                            <div class="form-group">
+                                <label>E-mail</label>
+                                <input type="email" id="user-email" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Setor</label>
+                                <input type="text" id="user-setor" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Telefone</label>
+                                <input type="text" id="user-telefone" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Senha Inicial</label>
+                                <input type="password" id="user-senha" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Perfil de Acesso</label>
+                                <select id="user-role">
+                                    <option value="visita">Visita</option>
+                                    <option value="os">OS</option>
+                                    <option value="admin">Administrador</option>
+                                    <option value="master">Master</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="button-group">
+                        <button type="submit" class="btn btn-success">
+                            Cadastrar Usuário
+                        </button>
+                    </div>
+                </form>
+                <div class="form-section" style="margin-top: 30px;">
+                    <h3>Usuários Cadastrados</h3>
+                    <div id="lista-usuarios"></div>
+                </div>
+            </div>
+
+
+            <!-- MODAL EDITAR USUÁRIO -->
+            <div id="modal-editar" class="modal hidden">
+                <div class="modal-content">
+                    <h3>Editar Usuário</h3>
+                    <input type="hidden" id="edit-id">
+                    <div class="form-group">
+                        <label>Nome</label>
+                        <input type="text" id="edit-nome">
+                    </div>
+                    <div class="form-group">
+                        <label>Setor</label>
+                        <input type="text" id="edit-setor">
+                    </div>
+                    <div class="form-group">
+                        <label>Telefone</label>
+                        <input type="text" id="edit-telefone">
+                    </div>
+                    <div class="form-group">
+                        <label>Perfil de Acesso</label>
+                        <select id="edit-role">
+                            <option value="visita">Visita</option>
+                            <option value="os">OS</option>
+                            <option value="admin">Administrador</option>
+                            <option value="master">Master</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Nova Senha <span style="color:#888;font-weight:normal;font-size:12px;">(deixe em branco para não alterar)</span></label>
+                        <input type="password" id="edit-senha" placeholder="Nova senha (mínimo 6 caracteres)">
+                    </div>
+                    <div class="modal-buttons">
+                        <button onclick="salvarEdicao()" class="btn btn-success">Salvar</button>
+                        <button onclick="fecharModal()" class="btn btn-danger">Cancelar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Materiais Page -->
+            <div id="page-materiais" class="page hidden">
+                <div class="header">
+                    <div class="header-info">
+                        <h1>Materiais</h1>
+                        <p>Cadastro e gerenciamento de materiais</p>
+                    </div>
+                </div>
+                <form id="form-material">
+                    <div class="form-section">
+                        <h3>Cadastrar Material</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Nome do Material</label>
+                                <input type="text" id="material-nome-cad" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Unidade</label>
+                                <select id="material-unidade-cad" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="UN">Unidade</option>
+                                    <option value="M">Metro</option>
+                                    <option value="KG">Quilograma</option>
+                                    <option value="L">Litro</option>
+                                    <option value="CX">Caixa</option>
+                                    <option value="PC">Peça</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Quantidade em Estoque</label>
+                                <input type="number" id="material-estoque-cad" min="0" step="0.01" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Descrição (opcional)</label>
+                                <input type="text" id="material-descricao-cad">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="button-group">
+                        <button type="submit" class="btn btn-success">
+                            Cadastrar Material
+                        </button>
+                    </div>
+                </form>
+                <div class="form-section" style="margin-top: 30px;">
+                    <h3>Materiais Cadastrados</h3>
+                    <div id="lista-materiais-cadastrados"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Modal Detalhes -->
+    <div id="modal-detalhes" class="modal hidden">
+        <div class="modal-content" id="area-impressao-os">
+            <div class="modal-header">
+                <h2>Detalhes da Ordem de Serviço</h2>
+            </div>
+            <div id="detalhes-content"></div>
+            <div class="button-group">
+                <button type="button" class="btn btn-primary" id="btn-alterar-status" onclick="alterarStatus()">
+                    <i class="bi bi-arrow-repeat"></i> Alterar Status
+                </button>
+                <button type="button" class="btn btn-success" id="btn-encerrar" onclick="mostrarEncerramento()">
+                    <i class="bi bi-check-circle"></i> Encerrar OS
+                </button>
+                <button type="button" class="btn btn-primary" onclick="imprimirDetalhesOS()">
+                    <i class="bi bi-printer"></i> Imprimir OS
+                </button>
+                <button type="button" class="btn btn-info" onclick="gerarPDFMateriais()">
+                    <i class="bi bi-file-earmark-pdf"></i> PDF Materiais
+                </button>
+                <button type="button" class="btn btn-warning" id="btn-assinar-os" onclick="abrirModalAssinatura()" style="display:none;">
+                    <i class="bi bi-pen"></i> Assinar OS
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="fecharModalDetalhes()">
+                    <i class="bi bi-x-circle"></i> Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Assinatura Eletrônica -->
+    <div id="modal-assinatura" class="modal hidden">
+        <div class="modal-content" style="max-width:680px;max-height:90vh;display:flex;flex-direction:column;">
+            <div class="modal-header" style="flex-shrink:0;">
+                <h2><i class="bi bi-pen"></i> Assinar Ordem de Serviço</h2>
+            </div>
+
+            <p style="font-size:12px;color:#555;margin:0 0 10px 0;flex-shrink:0;">
+                Confira abaixo como ficará o documento com a sua assinatura eletrônica.
+            </p>
+
+            <!-- Prévia real do documento (duas vias) -->
+            <div style="flex:1;overflow-y:auto;border:2px solid #333;border-radius:4px;background:#f4f4f4;margin-bottom:12px;">
+                <iframe id="iframe-preview-assinatura"
+                    style="width:100%;height:800px;border:none;display:block;"
+                    sandbox="allow-same-origin">
+                </iframe>
+            </div>
+
+            <!-- Identidade do assinante -->
+            <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:6px;padding:10px 14px;margin-bottom:12px;font-size:13px;flex-shrink:0;">
+                <span style="font-weight:600;color:#2e7d32;"><i class="bi bi-person-check"></i> Assinando como:</span>
+                <strong id="assinatura-identidade"></strong>
+                <span id="assinatura-cargo" style="color:#555;font-size:12px;margin-left:6px;"></span>
+                <span style="color:#777;font-size:11px;margin-left:6px;" id="assinatura-timestamp"></span>
+            </div>
+
+            <input type="checkbox" id="check-confirma-assinatura" checked style="display:none;">
+
+            <div class="button-group" style="flex-shrink:0;">
+                <button type="button" class="btn btn-success" onclick="abrirModalSenha()">
+                    <i class="bi bi-pen"></i> Assinar Documento
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="fecharModalAssinatura()">
+                    <i class="bi bi-x-circle"></i> Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Confirmar Senha para Assinatura -->
+    <div id="modal-confirmar-senha" class="modal hidden">
+        <div class="modal-box" style="max-width:380px;">
+            <h3 style="margin-bottom:10px;"><i class="bi bi-lock-fill"></i> Confirmar Identidade</h3>
+            <p style="font-size:13px;color:#555;margin-bottom:12px;">Para assinar o documento, confirme sua senha:</p>
+            <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:13px;">
+                <div><i class="bi bi-person-check" style="color:#2e7d32;"></i> <strong id="senha-confirm-nome"></strong></div>
+                <div style="color:#555;font-size:12px;margin-top:2px;" id="senha-confirm-email"></div>
+            </div>
+            <div class="form-group" style="margin-bottom:8px;">
+                <label style="font-size:13px;font-weight:600;">Senha</label>
+                <input type="password" id="input-senha-assinatura" class="form-control"
+                    placeholder="Digite sua senha" onkeydown="if(event.key==='Enter') confirmarSenhaAssinatura()">
+            </div>
+            <p id="senha-confirm-erro" style="color:#c62828;font-size:12px;display:none;margin-bottom:8px;">
+                <i class="bi bi-exclamation-circle"></i> Senha incorreta. Tente novamente.
+            </p>
+            <div class="button-group">
+                <button type="button" class="btn btn-success" onclick="confirmarSenhaAssinatura()">
+                    <i class="bi bi-check-circle"></i> Confirmar
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="fecharModalSenha()">
+                    <i class="bi bi-x-circle"></i> Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Encerramento -->
+    <div id="modal-encerramento" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Encerrar Ordem de Serviço</h2>
+            </div>
+            <form id="form-encerramento">
+                <div class="form-group">
+                    <label>Data e Hora de Encerramento</label>
+                    <input type="datetime-local" id="data-encerramento" required>
+                </div>
+                <div class="form-group">
+                    <label>Responsável</label>
+                    <input type="text" id="assinatura-chefia" required placeholder="Digite o nome do responsável">
+                </div>
+                <div class="form-group">
+                    <label>Nome do Cidadão</label>
+                    <input type="text" id="assinatura-recebedor" required placeholder="Digite o nome do cidadão">
+                </div>
+                <div class="form-section" style="margin-top:20px;">
+                    <h3>Materiais Utilizados (opcional)</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Material</label>
+                            <input type="text" id="enc-material-nome" placeholder="Ex: Cimento">
+                        </div>
+                        <div class="form-group">
+                            <label>Unidade</label>
+                            <input type="text" id="enc-material-unidade" placeholder="Ex: saco, metro, kg">
+                        </div>
+                        <div class="form-group">
+                            <label>Quantidade</label>
+                            <input type="number" id="enc-material-quantidade" min="0" step="0.01">
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-secondary" onclick="adicionarMaterialEncerramento()">
+                        <i class="bi bi-plus-circle"></i> Adicionar Material
+                    </button>
+                    <div id="lista-materiais-encerramento" class="material-list"></div>
+                </div>
+                <div class="button-group">
+                    <button type="submit" class="btn btn-success">Confirmar Encerramento</button>
+                    <button type="button" class="btn btn-secondary"
+                        onclick="fecharModalEncerramento()">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Alerta -->
+    <div id="modal-alerta" class="modal hidden">
+        <div class="modal-box">
+            <h3 id="modal-alerta-titulo">Aviso</h3>
+            <p id="modal-alerta-mensagem"></p>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="fecharAlerta()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Confirmação -->
+    <div id="modal-confirm" class="modal hidden">
+        <div class="modal-box">
+            <h3>Confirmação</h3>
+            <p id="modal-confirm-mensagem"></p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="fecharConfirm()">Cancelar</button>
+                <button class="btn btn-danger" id="btn-confirmar-acao">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Termos de Uso -->
+    <div id="modal-termos" class="modal hidden">
+        <div class="modal-box" style="max-width: 620px;">
+
+            <!-- Cabeçalho com logo -->
+            <div
+                style="display: flex; align-items: center; gap: 14px; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 2px solid #e0e4ea;">
+                <img src="assets/img/prefeitura.png" alt="Prefeitura de Oriximiná"
+                    style="width: 54px; height: auto; object-fit: contain;">
+                <div>
+                    <h3 style="margin: 0; color: #2c3e50; font-size: 15px;">Termos de Uso e Política de Privacidade</h3>
+                    <p style="margin: 2px 0 0; font-size: 12px; color: #7f8c8d;">Prefeitura Municipal de Oriximiná</p>
+                </div>
+            </div>
+
+            <!-- Conteúdo -->
+            <div
+                style="max-height: 380px; overflow-y: auto; font-size: 13px; line-height: 1.8; color: #444; padding-right: 8px;">
+
+                <h4 style="margin-bottom: 6px;">1. Sobre o Sistema</h4>
+                <p>Este sistema de Ordens de Serviço é de uso exclusivo da <strong>Prefeitura Municipal de
+                        Oriximiná</strong>, operado pela Secretaria Municipal de Infraestrutura – SEINFRA.</p>
+
+                <h4 style="margin: 14px 0 6px;">2. Coleta de Dados</h4>
+                <p>Os dados inseridos — como nome, CPF, telefone e setor do solicitante — são coletados exclusivamente
+                    para fins administrativos de controle e execução de serviços públicos municipais.</p>
+
+                <h4 style="margin: 14px 0 6px;">3. Armazenamento</h4>
+                <p>Os dados são armazenados em dois ambientes:</p>
+                <ul style="margin-left: 16px; margin-top: 6px;">
+                    <li><strong>Firebase (Google Cloud)</strong> — plataforma com certificação internacional de proteção
+                        de dados.</li>
+                    <li><strong>Servidores locais da Secretaria de Eficiência Governamental</strong> — sob
+                        responsabilidade da Prefeitura Municipal de Oriximiná.</li>
+                </ul>
+
+                <h4 style="margin: 14px 0 6px;">4. Uso dos Dados</h4>
+                <p>As informações não serão compartilhadas com terceiros e serão usadas somente para gestão pública
+                    municipal, em conformidade com a <strong>LGPD — Lei nº 13.709/2018</strong>.</p>
+
+                <h4 style="margin: 14px 0 6px;">5. Acesso e Responsabilidade</h4>
+                <p>O acesso é restrito a servidores autorizados. Cada usuário é responsável pelo uso de suas credenciais
+                    e pelas informações inseridas.</p>
+
+                <h4 style="margin: 14px 0 6px;">6. Contato</h4>
+                <p>Dúvidas sobre o tratamento de dados ou sobre o funcionamento do sistema devem ser encaminhadas à
+                    <strong>Secretaria de Eficiência Governamental – SEMEG</strong> através da plataforma oficial:
+                </p>
+                <a href="https://oriximina.1doc.com.br/b.php?pg=o/login&n=3" target="_blank"
+                    style="display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; color: #3498db; font-weight: 600; text-decoration: none; font-size: 13px;">
+                    <i class="bi bi-box-arrow-up-right"></i>
+                    Acessar o 1Doc — Plataforma Oficial
+                </a>
+                <p style="margin-top: 10px; font-size: 12px; color: #7f8c8d;">
+                    <i class="bi bi-info-circle"></i>
+                    Acesse com seu login institucional e abra um chamado direcionado à SEMEG.
+                </p>
+            </div>
+
+            <!-- Mensagem de já aceito — oculta por padrão -->
+            <div id="msg-termos-aceito" style="display: none; align-items: center; gap: 8px; margin-top: 16px;
+                   background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px;
+                   padding: 10px 14px; font-size: 13px; color: #2e7d32;">
+                <i class="bi bi-check-circle-fill"></i>
+                <span>Você já aceitou os Termos de Uso. Os botões estão desabilitados.</span>
+            </div>
+
+            <!-- Botões -->
+            <div style="margin-top: 16px; display: flex; justify-content: space-between; gap: 12px;">
+                <button id="btn-recusar-termos" class="btn btn-danger" onclick="recusarTermos()">
+                    <i class="bi bi-x-circle"></i> Recusar e Sair
+                </button>
+                <button id="btn-aceitar-termos" class="btn btn-primary" onclick="aceitarTermos()">
+                    <i class="bi bi-check-circle"></i> Li e Aceito os Termos
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="overlay"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script type="module" src="assets/js/os/app.js"></script>
+
+    <footer class="app-footer">
+        <span>Desenvolvido pela Secretaria de Eficiência Governamental - SEMEG</span>
+        <span>
+            <a href="#" onclick="reabrirTermos()" style="color:#3498db; text-decoration:none; font-size:12px;">
+                Termos de Uso e Privacidade
+            </a>
+            &nbsp;|&nbsp;
+            Prefeitura Municipal de Oriximiná
+        </span>
+    </footer>
+
+</body>
+
+
+</html>
