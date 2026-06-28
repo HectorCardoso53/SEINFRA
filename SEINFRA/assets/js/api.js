@@ -1,7 +1,8 @@
 // assets/js/api.js
 // Cliente HTTP centralizado — armazena JWT no localStorage e envia em toda requisição
 
-export const API_URL = window.SEINFRA_API_URL || "http://localhost:3001/api";
+const _isFile = window.location.protocol === "file:";
+export const API_URL = window.SEINFRA_API_URL || (_isFile ? "http://localhost:3001/api" : "/api");
 
 export function getToken()       { return localStorage.getItem("seinfra_token"); }
 export function setToken(t)      { localStorage.setItem("seinfra_token", t); }
